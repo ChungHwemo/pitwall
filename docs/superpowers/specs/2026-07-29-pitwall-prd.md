@@ -1,8 +1,10 @@
 # PITWALL — 조직 LLM 활동 앰비언트 디스플레이
 
-**PRD v1.1** · 2026-07-29 · 상태: 초안 (승인 대기)
+**PRD v1.2** · 2026-07-30 · 상태: 초안 (승인 대기)
 
 > **v1.1 변경 이력 — 보수적 교차검증 반영.** v1.0의 사실 주장을 원출처로 재확인한 결과 오류 4건·과장 3건·신규 리스크 1건을 수정했다. 상세는 §17.
+>
+> **v1.2 변경 이력 — 참조 프로젝트 원본 코드 확인.** `matteocelani/f1-telemetry`(`877f99c`)를 클론해 읽고 §11.1·§11.4·§17의 주장을 정정했다. 채택 기법 5건·기각 7건을 [분해 문서](../../reference/2026-07-30-f1-telemetry-teardown.md)에 분리했다.
 
 ---
 
@@ -438,11 +440,16 @@ score(car) = Σ wᵢ · signalᵢ(car)
 
 ### 11.1 기술 결정
 
-`matteocelani/f1-telemetry`가 동일 문제를 유사하게 풀었다 — **SVG + `requestAnimationFrame` 60fps 보간 + 직접 DOM 조작. WebGL·canvas 불필요.** 그리고 서버 이벤트를 **50ms 윈도우로 배칭**해 전송한다.
+`matteocelani/f1-telemetry`가 동일 문제를 유사하게 풀었다 — **SVG + `requestAnimationFrame` 60fps 보간 + 직접 DOM 조작. WebGL·canvas 불필요.** 그리고 이벤트를 **50ms 윈도우로 배칭**해 전송한다.
 
-> **참조 프로젝트의 권위를 과대평가하지 않는다. [Medium]** v1.0은 이들을 "검증된 구현체"라 불렀으나 실측 결과 `f1-telemetry` 38★, `sab-f1-ui` 24★이며 후자는 **마지막 커밋이 2022-03-29로 4년간 방치**되었다. 소규모 개인 취미 프로젝트다.
+> **v1.2 원본 코드 확인 결과 (`877f99c`, 2026-06-03). 상세는 [f1-telemetry 분해 문서](../../reference/2026-07-30-f1-telemetry-teardown.md).**
 >
-> 기술적 접근 자체는 여전히 타당하다 — F1은 차량 20대, 우리는 최대 40대(레인 상한)로 규모가 유사하고, 띄엄띄엄 오는 데이터를 보간으로 메우는 구조도 동일하다. 다만 **"이미 검증됨"이 아니라 "합리적 출발점"으로 취급하고, 자체 벤치마크를 릴리스 게이트로 둔다**(§11.2).
+> - **직접 DOM 조작은 `TrackMap`의 rAF 핫패스 한 곳뿐이다 [High].** 나머지 UI는 Next.js 16 + React 19 + zustand로 렌더한다. 프론트엔드 런타임 의존성 28개. **이 저장소는 §11.4의 "UI 프레임워크 없음" 결정을 지지하지 않는다** — 그 결정의 근거는 우리 자체 논리(200노드 직접 조작 + 의존성 0)뿐이다.
+> - **50ms 배칭은 서버 측이다 [High]** (`socket-server.ts`). 채널별 최신값으로 접고(deep merge) 직렬화 diff로 무변경 채널을 건너뛴다. v1에 서버가 없으므로 같은 배칭을 `EventSource` → 스토어 경계에 둔다.
+> - **위치 지정은 좌표 계산이 아니라 CSS `offset-path` + `offset-distance`다 [High].** rAF가 프레임마다 쓰는 것은 퍼센트 문자열 하나뿐이다. 채택 검토 대상 — 단 jsdom이 계산하지 못하므로 순수 함수 `positionAt()`은 테스트용으로 유지한다.
+> - **보간은 앵커 + 전방투영 + lerp 3단이며, 투영을 0.95에서 클램프한다 [High].** 데이터가 늦어도 차가 다음 앵커를 앞질러 가지 않는다. §15의 "데이터 없을 때 임의 이벤트 생성 금지"와 같은 규율. **그대로 채택한다.**
+>
+> **권위 재평가 [Medium].** 별 수는 실측대로 38★(최종 푸시 2026-06-03), `sab-f1-ui`는 24★·2022-03-29 방치가 맞다. 다만 `f1-telemetry`의 코드는 취미 수준 이상이다 — 핫패스 무할당, NaN 가드, "F1이 랩 카운트 증가 전에 세그먼트를 0으로 리셋한다"는 실전 결함 대응이 들어 있다. **"합리적 출발점"에서 "검증할 가치가 있는 구현 디테일 출처"로 상향한다.** 자체 벤치마크를 릴리스 게이트로 두는 것은 그대로 유지한다(§11.2).
 
 세 번째가 우리에게 특히 중요하다. **실제 위치는 띄엄띄엄 오는데 화면은 매끄러워야 한다.** F1도 마이크로섹터 앵커 사이를 보간으로 메운다. LiteLLM 로그도 호출 단위로 띄엄띄엄 온다 — 같은 구조, 같은 해법.
 
@@ -478,8 +485,8 @@ score(car) = Σ wᵢ · signalᵢ(car)
 | 레이어 | 선택 | 근거 |
 |---|---|---|
 | 빌드 | Vite + TypeScript | |
-| UI 프레임워크 | **없음** | 200노드 직접 DOM 조작에 가상 DOM은 방해. 상태는 단일 store 객체 |
-| 렌더 | SVG + `rAF` | §11.1 |
+| UI 프레임워크 | **없음** | 200노드 직접 DOM 조작에 가상 DOM은 방해. 상태는 단일 store 객체. **근거는 이 논리뿐이며 `f1-telemetry`는 근거가 아니다**(§11.1) |
+| 렌더 | SVG + `rAF`, 위치는 CSS `offset-path`/`offset-distance` | §11.1 |
 | 백엔드 | **없음 (v1)** | 시뮬레이터가 브라우저 내에서 실행. v1은 정적 페이지 하나 |
 | 데이터 경계 | `EventSource` 인터페이스 | `SimulatorSource` ↔ `WebSocketSource` 교체 |
 
@@ -666,7 +673,9 @@ TTS 무전 · 연비(결과물 평가) · OpenF1 모션 베이스 · 워크트�
 
 ### 검증했으나 변경 없음
 
-GitHub 별 수(±1 이내 일치) · `f1-telemetry`의 SVG+rAF+50ms 배칭 접근 · `sab-f1-ui`의 타이밍 보드 4모드 · OpenF1 무료 히스토리컬/유료 실시간 · Gartner 앰비언트·글랜서블 디스플레이 정의 실재 · 르망 리더 라이트 시스템(다이오드 3개 = 클래스 순위)
+GitHub 별 수(±1 이내 일치) · `sab-f1-ui`의 타이밍 보드 4모드 · OpenF1 무료 히스토리컬/유료 실시간 · Gartner 앰비언트·글랜서블 디스플레이 정의 실재 · 르망 리더 라이트 시스템(다이오드 3개 = 클래스 순위)
+
+> **v1.2 정정.** v1.1은 "`f1-telemetry`의 SVG+rAF+50ms 배칭 접근"을 이 목록(변경 없음)에 넣었으나, 원본 코드 확인 결과 **부분 오류**다. 배칭 위치(서버), 프레임워크 사용 여부(Next.js/React), 위치 지정 방식(`offset-path`)이 v1.1 서술과 다르다. §11.1과 [분해 문서](../../reference/2026-07-30-f1-telemetry-teardown.md)로 이동.
 
 ---
 
@@ -707,7 +716,7 @@ GitHub 별 수(±1 이내 일치) · `f1-telemetry`의 SVG+rAF+50ms 배칭 접�
 ## 참고 자료
 
 - [TiE23/sab-f1-ui](https://github.com/TiE23/sab-f1-ui) — 방송 그래픽 재현, 타이밍 보드 4모드
-- [matteocelani/f1-telemetry](https://github.com/matteocelani/f1-telemetry) — SVG + rAF 60fps, 50ms 배칭
+- [matteocelani/f1-telemetry](https://github.com/matteocelani/f1-telemetry) — SVG + rAF 60fps, CSS `offset-path`, 서버 측 50ms 배칭. MIT. → [원본 코드 분해 문서](../../reference/2026-07-30-f1-telemetry-teardown.md) (`877f99c`)
 - [24h Le Mans — 트랙사이드 클래스 식별](https://www.24h-lemans.com/en/news/how-can-fans-recognise-the-different-cars-in-the-24-hours-of-le-mans-from-trackside-49532) — 리더 라이트 시스템
 - [Gartner — Ambient and Glanceable Displays](https://www.gartner.com/en/information-technology/glossary/ambient-and-glanceable-displays)
 - [Why users ignore dashboards](https://www.eleken.co/blog-posts/why-users-ignore-dashboards)
