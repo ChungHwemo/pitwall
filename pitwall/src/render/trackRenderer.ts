@@ -109,6 +109,8 @@ export class TrackRenderer {
   /** 강조 없는 차량 노드 풀. 슬롯을 재사용해 노드가 누적되지 않게 한다. */
   private coldPool: ColdNode[] = [];
   private carLayer: SVGGElement;
+  private selectHandler: ((carId: string) => void) | null = null;
+  private selected: string | null = null;
 
   constructor(
     private container: SVGSVGElement,
@@ -141,6 +143,10 @@ export class TrackRenderer {
 
     const group = document.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'car');
+    group.addEventListener('click', () => {
+      const id = this.hotPool[index]?.carId;
+      if (id) this.selectHandler?.(id);
+    });
 
     const body = document.createElementNS(SVG_NS, 'path');
     const fuelRing = document.createElementNS(SVG_NS, 'circle');
@@ -171,6 +177,11 @@ export class TrackRenderer {
 
     const group = document.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'cold');
+    // 슬롯은 재사용되므로 지금 맡은 차를 그때그때 읽는다. 생성 시점 값을 가두면 안 된다.
+    group.addEventListener('click', () => {
+      const id = this.coldPool[index]?.carId;
+      if (id) this.selectHandler?.(id);
+    });
     const body = document.createElementNS(SVG_NS, 'path');
     group.appendChild(body);
     this.carLayer.appendChild(group);
@@ -180,9 +191,20 @@ export class TrackRenderer {
     return node;
   }
 
-  render(model: TrackModel, _now: number): void {
+  /** 트랙에서 차를 고르면 부른다. 카드에 그 계정의 내역을 띄우는 데 쓴다. */
+  onSelect(handler: (carId: string) => void): void {
+    this.selectHandler = handler;
+  }
+
+  render(model: TrackModel, _now: number, selected: string | null = null): void {
+    this.selected = selected;
     this.renderCold(model.cold);
     this.renderHot(model.hot);
+  }
+
+  private markSelection(group: SVGGElement, carId: string): void {
+    const flag = carId === this.selected ? 'true' : 'false';
+    if (group.getAttribute('data-selected') !== flag) group.setAttribute('data-selected', flag);
   }
 
   private renderCold(cars: RenderCar[]): void {
@@ -203,12 +225,16 @@ export class TrackRenderer {
 
       const next = this.step(car.carId, car.progress);
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
+      this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
     });
 
     for (let i = cars.length; i < this.coldPool.length; i++) {
       const node = this.coldPool[i]!;
       if (node.group.style.opacity !== '0') node.group.style.opacity = '0';
+      if (node.group.getAttribute('data-selected') === 'true') {
+        node.group.setAttribute('data-selected', 'false');
+      }
     }
   }
 
@@ -265,6 +291,7 @@ export class TrackRenderer {
       this.visual.set(car.carId, next);
 
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
+      this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
     });
 

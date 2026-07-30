@@ -61,3 +61,25 @@ svg.track { grid-area: track; width: 100%; height: 100%; }
 .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 28px; }
 .summary-key { font-size: 11px; color: #9fb3c8; letter-spacing: 0.08em; }
 .summary-value { font-size: 19px; font-weight: 700; margin-top: 3px; }
+
+/* ── 선택한 계정의 구동 내역 ────────────────────────────────────── */
+.feed { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.feed-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.feed-number { font-size: 26px; font-weight: 700; }
+.feed-class { font-size: 11px; letter-spacing: 0.12em; }
+.feed-empty { font-size: 12px; color: #9fb3c8; line-height: 1.6; }
+.feed-row {
+  display: grid; grid-template-columns: 58px 74px 1fr auto;
+  gap: 8px; font-size: 11px; color: #9fb3c8;
+  padding: 3px 0; border-bottom: 1px solid #1c222b;
+  white-space: nowrap; overflow: hidden;
+}
+.feed-time { color: #6b7c91; }
+.feed-model { color: #e6edf3; }
+.feed-who { overflow: hidden; text-overflow: ellipsis; }
+.feed-size { color: #6b7c91; }
+.feed-row[data-status="error"] .feed-who { color: #ff5c5c; }
+
+/* 선택된 차량은 트랙에서도 구분된다 */
+svg.track [data-selected="true"] path { stroke: #e6edf3; stroke-width: 2.5; paint-order: stroke; }
+svg.track g.cold, svg.track g.car { cursor: pointer; }

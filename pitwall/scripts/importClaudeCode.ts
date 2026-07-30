@@ -28,6 +28,21 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * 계정 식별자. 트랜스크립트에는 없고 설정에만 있다.
+ * uuid만 읽고 이메일은 건드리지 않는다 — 읽어서 버리는 것과 안 읽는 것은 다르다.
+ */
+function readAccount(): { accountUuid: string } | undefined {
+  try {
+    const cfg = JSON.parse(readFileSync(join(homedir(), '.claude.json'), 'utf8'));
+    const uuid = cfg?.oauthAccount?.accountUuid;
+    return typeof uuid === 'string' ? { accountUuid: uuid } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const account = readAccount();
 const root = join(homedir(), '.claude', 'projects');
 const files = walk(root)
   .map((f) => ({ f, mtime: statSync(f).mtimeMs }))
@@ -41,7 +56,9 @@ for (const file of files) {
     if (!line.trim()) continue;
     let parsed: unknown;
     try { parsed = JSON.parse(line); } catch { continue; }
-    const event = toCarEvent(parsed);
+    // 계정은 줄마다 없으므로 여기서 붙여 넣는다.
+    const event = toCarEvent(
+      typeof parsed === 'object' && parsed !== null ? { ...parsed, account } : parsed);
     if (event) events.push(event);
   }
 }
@@ -86,7 +103,7 @@ for (const e of dayEvents) {
 
 console.log(`${busiestDay} (가장 붐빈 하루) ${dayEvents.length}건 → ${out}`);
 console.log(`전체 ${events.length}건 중 ${perDay.size}일치에서 골랐다`);
-console.log(`파일 ${files.length}개 · 차량(프로젝트) ${byCar.size}대 · 토큰 ${tokens.toLocaleString('ko-KR')} · 비용 $${cost.toFixed(2)}`);
+console.log(`파일 ${files.length}개 · 차량(계정) ${byCar.size}대 · 토큰 ${tokens.toLocaleString('ko-KR')} · 비용 $${cost.toFixed(2)}`);
 console.log('모델:', [...byModel.entries()].sort((a, b) => b[1] - a[1])
   .map(([m, n]) => `${m}×${n}`).join(' '));
 const unknown = [...byModel.keys()].filter((m) => !m.startsWith('claude-'));

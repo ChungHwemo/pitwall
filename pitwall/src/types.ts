@@ -25,6 +25,12 @@ export interface CarEvent {
   model: string;
   kind: EventKind;
   session_id?: string;
+  /** 어떤 에이전트가 돌렸는가 (general-purpose 등). 도구 메타데이터이지 개인정보가 아니다 */
+  agent?: string;
+  /** 어떤 스킬을 쓰고 있었는가 */
+  skill?: string;
+  /** 서브에이전트 호출인가 */
+  sidechain?: boolean;
   tokens: {
     prompt: number;
     completion: number;

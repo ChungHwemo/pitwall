@@ -11,12 +11,16 @@ import { specOf, classOfModel, costUsd } from '../config/models';
  * 작업 경로(`cwd`), git 브랜치가 함께 들어 있다. LiteLLM의 `messages`/`response`
  * 컬럼과 같은 상황이며, 대응도 같다 — 아래 화이트리스트 밖은 읽지 않는다 (PRIV-4·PRIV-8).
  *
- * **차량 = 프로젝트.** 1인 기기라 사람으로 나눌 수 없다. 작업 디렉터리를 차량으로 삼되
- * 경로 원문은 버리고 해시만 남긴다 (PRIV-3).
+ * **차량 = 계정.** 화면이 답해야 하는 질문이 "어떤 계정이 어떤 에이전트로 무엇을 돌리는가"라서
+ * 트랙 위 한 대는 계정 하나다. 계정 uuid는 솔트 해시로만 남기고 이메일은 아예 읽지 않는다 (PRIV-3).
  */
 
 /** 이 줄에서 읽는 필드. 여기 없는 것은 존재해도 만지지 않는다. */
-const ALLOWED = ['timestamp', 'sessionId', 'cwd', 'message.model', 'message.usage'] as const;
+const ALLOWED = [
+  'timestamp', 'sessionId', 'message.model', 'message.usage',
+  'account.accountUuid', 'attributionAgent', 'attributionSkill', 'isSidechain',
+  'isApiErrorMessage', 'error', 'apiErrorStatus',
+] as const;
 export const ALLOWED_FIELDS: readonly string[] = ALLOWED;
 
 /** 배포마다 다른 값을 써야 경로 → 차량 매핑이 고정되지 않는다. */
@@ -56,11 +60,19 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
   const completion = usage.output_tokens ?? 0;
   const cacheHit = (usage.cache_read_input_tokens ?? 0) > 0;
 
-  // 경로 원문은 여기서 끝난다. 해시만 밖으로 나간다.
-  const digest = hash(`${salt}:${String(row.cwd ?? 'unknown')}`);
+  // 계정 uuid는 여기서 끝난다. 해시만 밖으로 나간다. 이메일은 읽지도 않는다.
+  const account = row.account as Record<string, unknown> | undefined;
+  const accountId = typeof account?.accountUuid === 'string' ? account.accountUuid : 'unknown';
+  const digest = hash(`${salt}:${accountId}`);
   const carId = `car-${digest.toString(16).padStart(8, '0').slice(0, 8)}`;
 
   const spec = specOf(model);
+
+  // 실제 API 에러를 그대로 옮긴다. 시뮬레이터의 확률 에러와 달리 관측된 사실이다.
+  const failed = row.isApiErrorMessage === true;
+  const errorCode = failed
+    ? (typeof row.error === 'string' ? row.error : String(row.apiErrorStatus ?? 'unknown'))
+    : undefined;
 
   return {
     ts,
@@ -69,14 +81,18 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
     // 모르는 모델은 클래스를 추측하지 않는다. 가장 흔한 주력 클래스로 둔다.
     car_class: classOfModel(model) ?? 'P',
     model,
-    kind: 'call',
+    kind: failed ? 'error' : 'call',
     session_id: typeof row.sessionId === 'string' ? row.sessionId : undefined,
+    agent: typeof row.attributionAgent === 'string' ? row.attributionAgent : undefined,
+    skill: typeof row.attributionSkill === 'string' ? row.attributionSkill : undefined,
+    sidechain: row.isSidechain === true ? true : undefined,
     tokens: { prompt, completion, cache_read: usage.cache_read_input_tokens ?? 0 },
     cache_hit: cacheHit,
     // 단가를 모르면 0이다. 지어내지 않는다.
     cost_usd: spec ? costUsd(spec, prompt, completion, cacheHit) : 0,
     latency_ms: 0,
-    status: 'ok',
+    status: failed ? 'error' : 'ok',
+    error_code: errorCode,
     fuel_pct: 100,
     // 타이어는 소스가 없다 (PRD §7.0).
   };

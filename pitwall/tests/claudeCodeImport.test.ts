@@ -75,18 +75,17 @@ describe('toCarEvent', () => {
     expect(json).not.toContain('requestId');
   });
 
-  it('car_id는 경로 원문이 아니라 해시다', () => {
+  it('car_id는 원본 식별자가 아니라 해시다', () => {
     const e = toCarEvent(line())!;
     expect(e.car_id).not.toContain('/Users/me');
     expect(e.car_id).toMatch(/^car-[0-9a-f]{8}$/);
   });
 
-  it('같은 프로젝트는 같은 차량, 다른 프로젝트는 다른 차량이다', () => {
+  it('차량은 계정으로 정해진다 — 작업 경로가 달라도 같은 차다', () => {
+    // 화면이 답할 질문이 "어떤 계정이 무엇을 돌리는가"라서 차 한 대는 계정 하나다.
     const a = toCarEvent(line())!;
-    const b = toCarEvent(line())!;
     const c = toCarEvent(line({ cwd: '/Users/me/Documents/project-b' }))!;
-    expect(a.car_id).toBe(b.car_id);
-    expect(a.car_id).not.toBe(c.car_id);
+    expect(a.car_id).toBe(c.car_id);
   });
 
   it('카넘버는 1..999이며 car_id에서 결정론적으로 나온다', () => {

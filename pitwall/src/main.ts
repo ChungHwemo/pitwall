@@ -16,12 +16,18 @@ import { RadioRenderer } from './render/radioRenderer';
 import { loadSalaryConfig, earnedSoFar, formatElapsed } from './render/hudRenderer';
 import { setText } from './render/setText';
 import { SummaryRenderer } from './render/summaryRenderer';
+import { FeedRenderer } from './render/feedRenderer';
+import type { CarEvent } from './types';
 import { SettingsPanel } from './render/settingsPanel';
 import { saveSession } from './session/sessionStore';
+import { RingBuffer } from './state/ringBuffer';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RADIO_LINES = 3;
+const FEED_ROWS = 12;
+/** 계정별로 보관하는 최근 호출 수 */
+const FEED_HISTORY = 60;
 const ROUTINE_INTERVAL_MS = 3_600_000;
 
 export interface AppOptions {
@@ -46,6 +52,14 @@ export class PitwallApp {
   private hudSalary: HTMLElement;
   private hudPhase: HTMLElement;
   private summaryRenderer: SummaryRenderer;
+  private feedRenderer: FeedRenderer;
+  /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
+  private selected: string | null = null;
+  /**
+   * 계정별 최근 호출. 카드가 "무엇이 돌고 있는지"를 보여주려면 이벤트가 필요한데
+   * 리듀서는 집계만 들고 있다. 계정마다 링버퍼 하나면 충분하다.
+   */
+  private recent = new Map<string, RingBuffer<CarEvent>>();
 
   private raceState: RaceState = emptyRaceState(0);
   /** 마지막으로 모델을 만든 cars 참조. 리듀서가 이벤트마다 새 Map을 만들므로
@@ -96,12 +110,19 @@ export class PitwallApp {
     root.appendChild(shell);
 
     this.summaryRenderer = new SummaryRenderer(shell);
+    this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
     new SettingsPanel(hud, this.settings, (next) => this.applySettings(next));
 
     this.trackRenderer = new TrackRenderer(svg, track);
     this.cameraRenderer = new CameraRenderer(cams, this.settings.cameraSlots);
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed);
+
+    // 트랙에서 차를 고르면 그 계정의 내역을 띄운다. 같은 차를 다시 누르면 해제한다.
+    this.trackRenderer.onSelect((carId) => {
+      this.selected = this.selected === carId ? null : carId;
+      this.modelCars = null;
+    });
 
     this.cameraRenderer.onPinToggle((carId) => {
       this.director.pin(carId);
@@ -121,6 +142,9 @@ export class PitwallApp {
     this.running = true;
     this.source.start((event) => {
       this.raceState = applyEvent(this.raceState, event);
+      const log = this.recent.get(event.car_id)
+        ?? this.recent.set(event.car_id, new RingBuffer<CarEvent>(FEED_HISTORY)).get(event.car_id)!;
+      log.push(event);
       const msg = eventRadio(event);
       if (msg) this.radioRenderer.push(msg);
     });
@@ -174,9 +198,17 @@ export class PitwallApp {
         pinned: this.pinned,
       });
     }
-    this.trackRenderer.render(this.trackModel, now);
+    this.trackRenderer.render(this.trackModel, now, this.selected);
+
+    // 선택이 있으면 카메라 대신 그 계정의 내역을 보여준다.
+    const picked = this.selected ? this.raceState.cars.get(this.selected) : undefined;
+    this.feedRenderer.render(
+      picked ? { carNumber: picked.car_number, carClass: picked.car_class } : null,
+      picked ? (this.recent.get(picked.car_id)?.toArray() ?? []) : []);
     this.summaryRenderer.render(this.raceState);
-    this.cameraRenderer.render(this.raceState, this.director.update(this.raceState, now));
+    // 선택 중에는 자동 선별 카드를 감춘다 — 한 화면에 둘 다 띄우면 읽을 게 두 배가 된다.
+    this.cameraRenderer.render(
+      this.raceState, this.selected ? [] : this.director.update(this.raceState, now));
     this.radioRenderer.render();
 
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).

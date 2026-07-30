@@ -405,3 +405,50 @@ describe('사건 차량 정지', () => {
     expect((svg.querySelector('g.car .alert') as SVGElement).style.opacity).toBe('0');
   });
 });
+
+describe('트랙에서 차 선택', () => {
+  it('글리프를 클릭하면 그 차량을 알린다', () => {
+    const r = new TrackRenderer(svg, track);
+    const picked: string[] = [];
+    r.onSelect((id) => picked.push(id));
+    r.render(model([car('a')]), T);
+    (svg.querySelector('g.cold') as unknown as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true }));
+    expect(picked).toEqual(['a']);
+  });
+
+  it('사건 차량도 클릭할 수 있다', () => {
+    const r = new TrackRenderer(svg, track);
+    const picked: string[] = [];
+    r.onSelect((id) => picked.push(id));
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    (svg.querySelector('g.car') as unknown as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true }));
+    expect(picked).toEqual(['boom']);
+  });
+
+  it('슬롯이 다른 차량을 맡으면 알림도 그 차량으로 바뀐다', () => {
+    const r = new TrackRenderer(svg, track);
+    const picked: string[] = [];
+    r.onSelect((id) => picked.push(id));
+    r.render(model([car('first')]), T);
+    r.render(model([car('second')]), T + 1000);
+    (svg.querySelector('g.cold') as unknown as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true }));
+    expect(picked).toEqual(['second']);
+  });
+
+  it('선택된 차량을 트랙에서 표시한다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a'), car('b')]), T, 'a');
+    const marked = [...svg.querySelectorAll('[data-selected="true"]')];
+    expect(marked.length).toBe(1);
+  });
+
+  it('선택을 풀면 표시도 사라진다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a')]), T, 'a');
+    r.render(model([car('a')]), T + 100, null);
+    expect(svg.querySelectorAll('[data-selected="true"]').length).toBe(0);
+  });
+});
