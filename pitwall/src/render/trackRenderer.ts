@@ -5,6 +5,8 @@ import type { CarClass, CarState, RaceState } from '../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const GLYPH_SIZE = 7;
+/** 한 바퀴에 해당하는 누적 토큰 */
+const LAP_TOKENS = 200_000;
 
 /** 차량 하나가 차지하는 DOM 노드는 본체 + 연료 링 = 2개로 제한한다 (PRD §11.2) */
 interface CarNode {
@@ -22,6 +24,26 @@ function glyphPath(shape: 'circle' | 'triangle' | 'square', s: number): string {
     case 'circle':
       return `M ${-s} 0 A ${s} ${s} 0 1 0 ${s} 0 A ${s} ${s} 0 1 0 ${-s} 0 Z`;
   }
+}
+
+/**
+ * car_id에서 0..1 위상을 만든다 (FNV-1a).
+ *
+ * 모든 차가 거리 0에서 출발해 비슷한 속도로 토큰을 쌓으면 진행률이 같아져
+ * 트랙 한쪽에 뭉친다 — "트랙이 붐비는가"를 곁눈질로 읽는다는 G1이 무너진다.
+ * 차량마다 고정된 시작 위상을 주면 출발선부터 필드가 흩어진다.
+ *
+ * RNG가 아니라 id 해시인 이유는 SIM-5다. 시드는 트랙 코스 생성 전용이고,
+ * 차량 배치는 이벤트 데이터(= car_id)에서만 나와야 한다. 해시라서 같은 차는
+ * 실행이 바뀌어도 같은 위상을 갖는다.
+ */
+function phaseOf(carId: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < carId.length; i++) {
+    h ^= carId.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return ((h >>> 0) % 10_000) / 10_000;
 }
 
 export class TrackRenderer {
@@ -88,11 +110,10 @@ export class TrackRenderer {
     const shown = new Set<string>();
 
     for (const [cls, cars] of visible) {
-      const total = Math.max(1, cars.length);
-      cars.forEach((car, index) => {
+      for (const car of cars) {
         const node = this.nodeFor(car);
-        // 진행률: 누적 거리를 랩 길이로 나눈 나머지. 같은 레인 안에서 겹치지 않게 분산한다.
-        const progress = ((car.distance % 200_000) / 200_000 + index / total / 8) % 1;
+        // 진행률 = 차량 고유 시작 위상 + 누적 거리를 랩 길이로 나눈 나머지.
+        const progress = (phaseOf(car.car_id) + (car.distance % LAP_TOKENS) / LAP_TOKENS) % 1;
         const pos = positionAt(this.track, progress, cls);
 
         // CSS transform만 쓴다. SVG transform *속성*은 re-layout을 유발해
@@ -102,7 +123,7 @@ export class TrackRenderer {
         node.group.style.opacity = '1';
         node.fuelRing.style.opacity = (car.fuel_pct / 100).toFixed(3);
         shown.add(car.car_id);
-      });
+      }
     }
 
     // 사라진 차량은 노드를 지우지 않고 숨긴다 — 재생성 비용과 GC 부담을 피한다.

@@ -80,6 +80,29 @@ describe('CameraRenderer', () => {
     expect(seen).toEqual([]);
   });
 
+  it('값이 그대로면 textContent를 다시 쓰지 않는다', () => {
+    // 매 프레임 같은 문자열을 다시 쓰면 레이아웃이 무효화된다.
+    // 실측에서 프레임당 layout 1회의 원인이었다 (CHECKLIST 렌더 성능).
+    const r = new CameraRenderer(host, 1);
+    const s = state([car('a')]);
+    r.render(s, ['a']);
+    const node = host.querySelector('.cam-stats') as HTMLElement;
+    let writes = 0;
+    const proto = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')!;
+    Object.defineProperty(node, 'textContent', {
+      get: proto.get, set(v) { writes++; proto.set!.call(this, v); }, configurable: true,
+    });
+    for (let i = 0; i < 50; i++) r.render(s, ['a']);
+    expect(writes).toBe(0);
+  });
+
+  it('값이 바뀌면 textContent를 쓴다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('a', { fuel_pct: 80 })]), ['a']);
+    r.render(state([car('a', { fuel_pct: 20 })]), ['a']);
+    expect(host.textContent).toContain('FUEL 20%');
+  });
+
   it('타이어 데이터가 없으면 게이지 자체를 그리지 않는다', () => {
     // PRD §7.0: 소스 부재를 0%나 NaN%로 표시하면 없는 사실을 주장하게 된다.
     const r = new CameraRenderer(host, 1);

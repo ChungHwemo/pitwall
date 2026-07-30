@@ -49,6 +49,12 @@ describe('MODEL_CATALOG', () => {
     for (const m of unverified) expect(m.priceNote).toBeTruthy();
   });
 
+  it('현재 카탈로그에 미검증 항목이 없다', () => {
+    // 자리표시자를 추가하려면 이 테스트를 의도적으로 고쳐야 한다 —
+    // 지어낸 숫자가 조용히 섞이는 경로를 막는다.
+    expect(MODEL_CATALOG.filter((m) => m.priceSource === 'unverified')).toEqual([]);
+  });
+
   it('클래스 배정이 가격 순서와 모순되지 않는다', () => {
     // H가 가장 비싸고 GT가 가장 싸다. 겹치면 클래스가 의미를 잃는다.
     const cheapest = (cls: 'H' | 'P' | 'GT') =>

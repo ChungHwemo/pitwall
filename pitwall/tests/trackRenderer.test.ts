@@ -107,6 +107,40 @@ describe('TrackRenderer', () => {
     expect(visible.length).toBe(0);
   });
 
+  it('출발선에서 차량이 트랙 전체에 흩어진다', () => {
+    // 모든 차가 0에서 출발해 비슷한 속도로 토큰을 쌓으면 진행률이 같아져
+    // 트랙 한쪽에만 뭉친다. 실측 스크린샷에서 관측된 결함 —
+    // 트랙이 붐비는지 곁눈질로 읽는다는 G1이 무너진다.
+    const r = new TrackRenderer(svg, track);
+    const cars = Array.from({ length: 24 }, (_, i) => car(`c${i}`, { distance: 0 }));
+    r.render(state(cars), T);
+
+    const xs = [...svg.querySelectorAll('g.car')]
+      .filter((n) => (n as SVGGElement).style.opacity !== '0')
+      .map((n) => {
+        const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec((n as SVGGElement).style.transform)!;
+        return { x: +m[1]!, y: +m[2]! };
+      });
+
+    // 트랙은 0..1000 공간의 폐곡선이다. 네 사분면에 모두 차가 있어야 한다.
+    const cx = 500, cy = 500;
+    const quadrants = new Set(xs.map((p) => `${p.x < cx ? 'L' : 'R'}${p.y < cy ? 'T' : 'B'}`));
+    expect(quadrants.size, `사분면 분포: ${[...quadrants]}`).toBe(4);
+  });
+
+  it('같은 차량은 같은 위치에 재현된다 — 위치가 흔들리지 않는다', () => {
+    const r1 = new TrackRenderer(svg, track);
+    r1.render(state([car('a')]), T);
+    const first = (svg.querySelector('g.car') as SVGGElement).style.transform;
+
+    document.body.innerHTML = '';
+    const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    document.body.appendChild(svg2);
+    const r2 = new TrackRenderer(svg2, track);
+    r2.render(state([car('a')]), T);
+    expect((svg2.querySelector('g.car') as SVGGElement).style.transform).toBe(first);
+  });
+
   it('빈 상태에서도 예외 없이 렌더한다', () => {
     const r = new TrackRenderer(svg, track);
     expect(() => r.render(state([]), T)).not.toThrow();

@@ -32,7 +32,9 @@ const OPENAI = 'https://platform.openai.com/docs/pricing';
 const GOOGLE = 'https://ai.google.dev/gemini-api/docs/pricing';
 const XAI = 'https://docs.x.ai/docs/models';
 const DEEPSEEK = 'https://api-docs.deepseek.com/quick_start/pricing';
-const MOONSHOT = 'https://platform.moonshot.ai/docs/pricing/chat';
+const MOONSHOT_K3 = 'https://platform.moonshot.ai/docs/pricing/chat-k3';
+const MOONSHOT_K27 = 'https://platform.moonshot.ai/docs/pricing/chat-k27-code';
+const MOONSHOT_K26 = 'https://platform.moonshot.ai/docs/pricing/chat-k26';
 
 export const MODEL_CATALOG: ModelSpec[] = [
   // ── H: 프런티어 ────────────────────────────────────────────────
@@ -48,6 +50,10 @@ export const MODEL_CATALOG: ModelSpec[] = [
   { id: 'gpt-5.6-terra', provider: 'openai', carClass: 'H',
     inputPerMtok: 2.5, cachedInputPerMtok: 0.25, outputPerMtok: 15,
     priceSource: 'verified', sourceUrl: OPENAI },
+  { id: 'kimi-k3', provider: 'moonshot', carClass: 'H',
+    inputPerMtok: 3, cachedInputPerMtok: 0.3, outputPerMtok: 15,
+    priceSource: 'verified', sourceUrl: MOONSHOT_K3,
+    priceNote: '입력은 캐시 미스 단가. 캐시 히트는 $0.30' },
   { id: 'gemini-3.1-pro-preview', provider: 'google', carClass: 'H',
     inputPerMtok: 2, cachedInputPerMtok: 0.2, outputPerMtok: 12,
     priceSource: 'verified', sourceUrl: GOOGLE,
@@ -61,10 +67,6 @@ export const MODEL_CATALOG: ModelSpec[] = [
   { id: 'gemini-3.5-flash', provider: 'google', carClass: 'P',
     inputPerMtok: 1.5, cachedInputPerMtok: 0.15, outputPerMtok: 9,
     priceSource: 'verified', sourceUrl: GOOGLE },
-  { id: 'kimi-k3', provider: 'moonshot', carClass: 'P',
-    inputPerMtok: 1.6, cachedInputPerMtok: 0.16, outputPerMtok: 8,
-    priceSource: 'unverified', sourceUrl: MOONSHOT,
-    priceNote: 'Moonshot 가격표가 클라이언트 렌더라 값을 읽지 못했다. 이 숫자는 자리표시자이며 실측으로 교체해야 한다' },
   { id: 'grok-4.5', provider: 'xai', carClass: 'P',
     inputPerMtok: 2, cachedInputPerMtok: 0.3, outputPerMtok: 6,
     priceSource: 'verified', sourceUrl: XAI,
@@ -75,6 +77,14 @@ export const MODEL_CATALOG: ModelSpec[] = [
   { id: 'claude-haiku-4-5', provider: 'anthropic', carClass: 'P',
     inputPerMtok: 1, cachedInputPerMtok: 0.1, outputPerMtok: 5,
     priceSource: 'verified', sourceUrl: ANTHROPIC },
+  { id: 'kimi-k2.7-code', provider: 'moonshot', carClass: 'P',
+    inputPerMtok: 0.95, cachedInputPerMtok: 0.19, outputPerMtok: 4,
+    priceSource: 'verified', sourceUrl: MOONSHOT_K27,
+    priceNote: '입력은 캐시 미스 단가. 캐시 히트는 $0.19' },
+  { id: 'kimi-k2.6', provider: 'moonshot', carClass: 'P',
+    inputPerMtok: 0.95, cachedInputPerMtok: 0.16, outputPerMtok: 4,
+    priceSource: 'verified', sourceUrl: MOONSHOT_K26,
+    priceNote: '입력은 캐시 미스 단가. 캐시 히트는 $0.16' },
   { id: 'gpt-5.4-mini', provider: 'openai', carClass: 'P',
     inputPerMtok: 0.75, cachedInputPerMtok: 0.075, outputPerMtok: 4.5,
     priceSource: 'verified', sourceUrl: OPENAI },
@@ -91,10 +101,6 @@ export const MODEL_CATALOG: ModelSpec[] = [
   { id: 'gpt-5.4-nano', provider: 'openai', carClass: 'GT',
     inputPerMtok: 0.2, cachedInputPerMtok: 0.02, outputPerMtok: 1.25,
     priceSource: 'verified', sourceUrl: OPENAI },
-  { id: 'kimi-k2.6', provider: 'moonshot', carClass: 'GT',
-    inputPerMtok: 0.3, cachedInputPerMtok: 0.03, outputPerMtok: 1.2,
-    priceSource: 'unverified', sourceUrl: MOONSHOT,
-    priceNote: 'Moonshot 가격표가 클라이언트 렌더라 값을 읽지 못했다. 이 숫자는 자리표시자이며 실측으로 교체해야 한다' },
   { id: 'deepseek-v4-pro', provider: 'deepseek', carClass: 'GT',
     inputPerMtok: 0.435, cachedInputPerMtok: 0.003625, outputPerMtok: 0.87,
     priceSource: 'verified', sourceUrl: DEEPSEEK,

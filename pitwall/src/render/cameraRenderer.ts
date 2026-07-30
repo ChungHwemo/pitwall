@@ -1,5 +1,6 @@
 import type { CarState, RaceState } from '../types';
 import { CLASS_STYLE } from '../config/theme';
+import { setText } from './setText';
 
 interface Card {
   root: HTMLElement;
@@ -49,9 +50,9 @@ export class CameraRenderer {
       if (!car) {
         card.carId = null;
         card.root.setAttribute('data-empty', 'true');
-        card.number.textContent = '—';
-        card.klass.textContent = '';
-        card.stats.textContent = '';
+        setText(card.number, '—');
+        setText(card.klass, '');
+        setText(card.stats, '');
         return;
       }
 
@@ -59,8 +60,8 @@ export class CameraRenderer {
       card.carId = car.car_id;
       card.root.setAttribute('data-empty', 'false');
       // 카넘버만 쓴다. car_id 원문은 절대 화면에 넣지 않는다 (PRD PRIV-1/PRIV-3).
-      card.number.textContent = `#${String(car.car_number).padStart(3, '0')}`;
-      card.klass.textContent = style.label;
+      setText(card.number, `#${String(car.car_number).padStart(3, '0')}`);
+      setText(card.klass, style.label);
       card.klass.style.color = style.color;
 
       // 타이어는 소스가 있을 때만 게이지를 그린다 (PRD §7.0).
@@ -68,7 +69,7 @@ export class CameraRenderer {
       const parts = [`FUEL ${Math.round(car.fuel_pct)}%`];
       if (car.tyre_pct !== undefined) parts.push(`TYRE ${Math.round(car.tyre_pct)}%`);
       parts.push(`${car.distance.toLocaleString('ko-KR')} tok`);
-      card.stats.textContent = parts.join(' · ');
+      setText(card.stats, parts.join(' · '));
     });
   }
 }

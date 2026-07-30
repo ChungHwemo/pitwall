@@ -4,8 +4,10 @@
 
 대시보드가 아니다. 대시보드는 응시하는 물건이고, PITWALL은 곁눈질하는 물건이다. 체류 시간이 길면 실패다 — 3초 훑고 자기 일로 돌아가되 내일도 켜져 있으면 성공이다.
 
-현재 상태: **v1 구현 완료.** 208 tests · `tsc` 0 오류 · 빌드 20 kB · 런타임 의존성 0개.
-브라우저 실측(프레임률·8시간 힙·색각 시뮬레이션)은 **미실시** — [CHECKLIST.md](pitwall/CHECKLIST.md) 참조.
+현재 상태: **v1 구현 완료 + 브라우저 실측 완료.**
+256 tests · `tsc` 0 오류 · 빌드 24 kB · 런타임 의존성 0개.
+차량 100대 × 36,000프레임에서 **layout 유발 0** — 남은 layout은 전부 텍스트 변경분이고 프레임 수가 아니라 이벤트 수에 비례한다.
+8시간 힙 구동만 남았다 — [CHECKLIST.md](pitwall/CHECKLIST.md).
 
 ```bash
 cd pitwall && npm install && npm run dev
@@ -14,7 +16,7 @@ npm run dump:events -- chaos 300     # 더미 이벤트를 JSONL로 덤프
 
 ## 더미 데이터
 
-시뮬레이터는 6개 공급자 18개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
+시뮬레이터는 6개 공급자 19개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
 
 | 공급자 | 모델 |
 |---|---|
@@ -23,7 +25,7 @@ npm run dump:events -- chaos 300     # 더미 이벤트를 JSONL로 덤프
 | Google | `gemini-3.1-pro-preview` · `gemini-3.5-flash` · `gemini-3.1-flash-lite` |
 | xAI | `grok-4.5` · `grok-4.3` |
 | DeepSeek | `deepseek-v4-pro` · `deepseek-v4-flash` |
-| Moonshot | `kimi-k3` · `kimi-k2.6` — **가격 미검증** |
+| Moonshot | `kimi-k3` · `kimi-k2.7-code` · `kimi-k2.6` |
 
 클래스는 출력 단가 밴드로 나눈다: **H** ≥ $12/Mtok, **P** $2.5–10, **GT** ≤ $1.5.
 

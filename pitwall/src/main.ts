@@ -11,6 +11,7 @@ import { TrackRenderer } from './render/trackRenderer';
 import { CameraRenderer } from './render/cameraRenderer';
 import { RadioRenderer } from './render/radioRenderer';
 import { loadSalaryConfig, earnedSoFar, formatElapsed } from './render/hudRenderer';
+import { setText } from './render/setText';
 import { saveSession } from './session/sessionStore';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 
@@ -148,13 +149,13 @@ export class PitwallApp {
 
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).
     const total = formatElapsed(raceDurationMs(this.settings.workday));
-    this.hudTime.textContent = `⏱ ${formatElapsed(this.raceState.elapsed_ms)} / ${total}`;
-    this.hudPhase.textContent = phase.toUpperCase().replace('_', ' ');
+    setText(this.hudTime, `⏱ ${formatElapsed(this.raceState.elapsed_ms)} / ${total}`);
+    setText(this.hudPhase, phase.toUpperCase().replace('_', ' '));
 
     const salary = loadSalaryConfig();
-    this.hudSalary.textContent = salary
+    setText(this.hudSalary, salary
       ? `💰 ${Math.round(earnedSoFar(salary, this.settings.workday, wall)).toLocaleString('ko-KR')}원`
-      : '💰 연봉 미설정';
+      : '💰 연봉 미설정');
   }
 
   get state(): RaceState {
