@@ -47,6 +47,9 @@ export const MODEL_CATALOG: ModelSpec[] = [
   { id: 'claude-opus-5', provider: 'anthropic', carClass: 'H',
     inputPerMtok: 5, cachedInputPerMtok: 0.5, outputPerMtok: 25,
     priceSource: 'verified', sourceUrl: ANTHROPIC },
+  { id: 'claude-opus-4-8', provider: 'anthropic', carClass: 'H',
+    inputPerMtok: 5, cachedInputPerMtok: 0.5, outputPerMtok: 25,
+    priceSource: 'verified', sourceUrl: ANTHROPIC },
   { id: 'gpt-5.6-terra', provider: 'openai', carClass: 'H',
     inputPerMtok: 2.5, cachedInputPerMtok: 0.25, outputPerMtok: 15,
     priceSource: 'verified', sourceUrl: OPENAI },
@@ -111,13 +114,23 @@ export const MODEL_CATALOG: ModelSpec[] = [
     priceNote: '입력은 캐시 미스 단가. 캐시 히트는 $0.0028' },
 ];
 
+/**
+ * 날짜가 붙은 모델 id를 카탈로그 항목으로 맞춘다 (`claude-haiku-4-5-20251001`).
+ * 실제 API 응답은 날짜 별칭을 쓰는데, 그걸 "모르는 모델"로 떨구면 비용이 0이 된다.
+ */
+export function specOf(id: string): ModelSpec | undefined {
+  const exact = MODEL_CATALOG.find((m) => m.id === id);
+  if (exact) return exact;
+  return MODEL_CATALOG.find((m) => id.startsWith(`${m.id}-`) && /-\d{8}$/.test(id));
+}
+
 export function modelsOfClass(carClass: CarClass): ModelSpec[] {
   return MODEL_CATALOG.filter((m) => m.carClass === carClass);
 }
 
 /** 카탈로그에 없는 모델은 클래스를 추측하지 않는다 — 모르면 null이다. */
 export function classOfModel(id: string): CarClass | null {
-  return MODEL_CATALOG.find((m) => m.id === id)?.carClass ?? null;
+  return specOf(id)?.carClass ?? null;
 }
 
 export function costUsd(

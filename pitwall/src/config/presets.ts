@@ -31,7 +31,7 @@ export interface SimPreset {
   tyreBurnPerCall: number;
 }
 
-export type PresetName = 'busy' | 'sparse' | 'chaos';
+export type PresetName = 'busy' | 'sparse' | 'chaos' | 'real';
 
 export const PRESETS: Record<PresetName, SimPreset> = {
   busy: {
@@ -61,6 +61,25 @@ export const PRESETS: Record<PresetName, SimPreset> = {
     fuelBurnPerCall: 0.2,
     tyreMode: 'off',
     tyreBurnPerCall: 0.3,
+  },
+  /**
+   * 실측 프리셋 — 2026-07-30, Claude Code 트랜스크립트 26,396건 / 9.3일 / 24개 프로젝트.
+   * 다른 프리셋의 [Low] 추정과 달리 이 값들은 관측치다 (PRD Q2 해소).
+   * 추정치가 실제와 얼마나 달랐는지는 CHECKLIST에 표로 남겼다.
+   */
+  real: {
+    carCount: 24,
+    activeRatio: 0.6,
+    callIntervalMedianMs: 3_100,
+    callIntervalSigma: 1.4,
+    errorRate: 0.01,
+    cacheHitRate: 0.975,
+    latencyMedianMs: 3_200,
+    latencySigma: 0.8,
+    classMix: { H: 0.42, P: 0.5, GT: 0.08 },
+    fuelBurnPerCall: 0.05,
+    tyreMode: 'off',
+    tyreBurnPerCall: 0,
   },
   chaos: {
     carCount: 200,

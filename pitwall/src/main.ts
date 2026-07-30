@@ -1,6 +1,7 @@
 import type { RaceState } from './types';
 import { PRESETS, type PresetName } from './config/presets';
 import { SimulatorSource } from './source/SimulatorSource';
+import type { EventSource } from './source/EventSource';
 import { emptyRaceState, applyEvent } from './state/reducer';
 import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs } from './state/clock';
 import { demoClock } from './state/demoClock';
@@ -29,10 +30,12 @@ export interface AppOptions {
   speed: number;
   /** 생략하면 내장 기본값. 하한은 resolveSettings가 이미 강제한 뒤 들어온다. */
   settings?: PitwallSettings;
+  /** 생략하면 시뮬레이터. 실 기록 재생은 ReplaySource를 넣는다. */
+  source?: EventSource & { setSpeed(speed: number): void };
 }
 
 export class PitwallApp {
-  private source: SimulatorSource;
+  private source: EventSource & { setSpeed(speed: number): void };
   private director: Director;
   settings: PitwallSettings;
   private routine = new RoutineRadio();
@@ -98,7 +101,7 @@ export class PitwallApp {
     this.trackRenderer = new TrackRenderer(svg, track);
     this.cameraRenderer = new CameraRenderer(cams, this.settings.cameraSlots);
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
-    this.source = new SimulatorSource(PRESETS[opts.preset], opts.speed);
+    this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed);
 
     this.cameraRenderer.onPinToggle((carId) => {
       this.director.pin(carId);

@@ -2,6 +2,14 @@ import './style.css';
 import { PitwallApp } from './main';
 import { loadOrgSettings, loadLocalSettings, resolveSettings } from './config/settings';
 import { latestSession } from './session/sessionStore';
+import { ReplaySource } from './source/ReplaySource';
+import type { CarEvent } from './types';
+
+/**
+ * 빌드 시 실 기록을 심을 자리 (`build:real`).
+ * 비어 있으면 시뮬레이터로 간다 — 기본 빌드는 그대로다.
+ */
+declare const __PITWALL_REAL_EVENTS__: CarEvent[] | undefined;
 
 // 브라우저 배선만 여기 둔다. requestAnimationFrame도 여기에만 있다 —
 // main.ts를 import 하는 것만으로 앱이 뜨면 테스트가 그 부작용에 걸린다.
@@ -22,11 +30,13 @@ if (mount) {
     const resumed = latestSession();
     const seed = resumed?.seed ?? Math.floor(Math.random() * 1_000_000);
 
+    const recorded = typeof __PITWALL_REAL_EVENTS__ === 'undefined' ? [] : __PITWALL_REAL_EVENTS__;
     const app = new PitwallApp(mount, {
       seed,
       preset: settings.preset,
       speed: settings.speed,
       settings,
+      source: recorded.length ? new ReplaySource(recorded, settings.speed) : undefined,
     });
     app.start();
 

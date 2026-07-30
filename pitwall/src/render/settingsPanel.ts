@@ -10,7 +10,7 @@ import type { HighlightType } from '../track/trackModel';
  * 안 보여주는 것보다 나쁘다 — 사용자는 자기가 바꾼 값이 먹었다고 믿게 된다 (PRD §7.0).
  * 여기 있는 항목은 전부 자유롭게 조정 가능한 것들이다.
  */
-const PRESETS: PresetName[] = ['busy', 'sparse', 'chaos'];
+const PRESETS: PresetName[] = ['busy', 'sparse', 'chaos', 'real'];
 const SPEEDS: PitwallSettings['speed'][] = [1, 60, 600];
 const HIGHLIGHTS: HighlightType[] = ['error', 'limit'];
 const HIGHLIGHT_LABEL: Record<HighlightType, string> = { error: '에러', limit: '한도' };

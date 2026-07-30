@@ -2,8 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { PRESETS } from '../src/config/presets';
 
 describe('PRESETS', () => {
-  it('세 프리셋을 모두 제공한다', () => {
-    expect(Object.keys(PRESETS).sort()).toEqual(['busy', 'chaos', 'sparse']);
+  it('네 프리셋을 모두 제공한다', () => {
+    expect(Object.keys(PRESETS).sort()).toEqual(['busy', 'chaos', 'real', 'sparse']);
+  });
+
+  it('real 프리셋만 실측이고 나머지는 추정이다', () => {
+    // real은 2026-07-30 Claude Code 트랜스크립트 26,396건에서 나온 값이다.
+    // 추정치와 뒤섞이지 않게 캐시 히트율로 구분이 가능해야 한다.
+    expect(PRESETS.real.cacheHitRate).toBeCloseTo(0.975, 3);
+    expect(PRESETS.real.callIntervalMedianMs).toBe(3_100);
+    for (const name of ['busy', 'sparse', 'chaos'] as const) {
+      expect(PRESETS[name].cacheHitRate, name).toBeLessThan(0.5);
+    }
   });
 
   it('모든 프리셋의 클래스 비율 합이 1이다', () => {
