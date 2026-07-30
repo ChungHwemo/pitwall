@@ -16,7 +16,23 @@ npm run build:single         # dist/pitwall.html — 파일 하나로 어디서�
 npm run dump:events -- chaos 300
 ```
 
-**단일 파일 빌드가 앱·위젯으로 가는 경로다.** JS·CSS를 HTML 한 장에 인라인하므로 `file://`로 열어도 돌고, 서버가 없으니 WebView에 그대로 얹힌다.
+**단일 파일 빌드가 앱으로 가는 경로다.** JS·CSS를 HTML 한 장에 인라인하므로 `file://`로 열어도 돌고, 서버가 없으니 WebView에 그대로 얹힌다.
+
+## macOS 앱
+
+```bash
+npm run build:app          # dist/PITWALL.app (136 kB) — 시뮬레이터
+npm run build:app:real     # 실 사용 기록으로
+open dist/PITWALL.app
+```
+
+`swiftc` + `WKWebView` 한 파일. Xcode 프로젝트도, Electron도, Rust도 쓰지 않는다 — 웹 빌드가 서버 없는 HTML 한 장이라 래퍼가 할 일이 그것뿐이다. 상시 노출이 사용 맥락이라 **항상 위**(⌘T)와 **전체 화면**(⌘F)을 메뉴에 둔다.
+
+ad-hoc 서명만 붙는다. 다른 기기에 배포하려면 개발자 인증서가 필요하다.
+
+### 위젯은 별개다
+
+WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷만 그리고 갱신 주기도 시스템이 정한다(분 단위). 지금 렌더 레이어를 위젯으로 옮길 수 없다. 선택지는 **SwiftUI로 다시 그리거나**(`TrackModel`은 재사용 가능, 렌더러는 폐기) **작은 상주 창으로 가거나**다. 후자면 이 앱이 그대로 간다.
 
 ## 더미 데이터
 
