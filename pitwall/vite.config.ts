@@ -14,8 +14,17 @@ const real = process.env.PITWALL_REAL === '1' && existsSync(realPath)
 
 if (real) console.log(`[pitwall] 실 기록 ${real.length}건을 번들에 심는다`);
 
+/** 벤더 한도 스냅샷. 실시간 모드에서 Claude 게이지가 비지 않게 같이 심는다. */
+const limitsPath = 'fixtures/limits.json';
+const limits = existsSync(limitsPath)
+  ? JSON.parse(readFileSync(limitsPath, 'utf8'))
+  : undefined;
+
 export default defineConfig({
-  define: { __PITWALL_REAL_EVENTS__: JSON.stringify(real) },
+  define: {
+    __PITWALL_REAL_EVENTS__: JSON.stringify(real),
+    __PITWALL_LIMITS__: JSON.stringify(limits),
+  },
   test: {
     globals: true,
     environment: 'jsdom',

@@ -119,6 +119,34 @@ export function workdayFromActivity(samples: ActivitySample[]): WorkdayConfig {
   };
 }
 /**
+ * 실시간용 창.
+ *
+ * 활동에서 뽑은 창은 어제까지의 사실이라 지금이 그 밖으로 나가면 화면이
+ * `chequered`가 되어 멈춘다 — 재생이라면 맞지만 **실시간 화면은 끝나지 않는다.**
+ * 지금이 창 끝을 넘었으면 지금까지 늘린다.
+ *
+ * 기록이 아직 없으면(아침에 켰거나 방금 켰거나) 지금 시각에서 시작한다.
+ */
+export function liveWorkday(samples: ActivitySample[], now: number): WorkdayConfig {
+  const base = samples.length === 0 ? null : workdayFromActivity(samples);
+  const clock = new Date(now);
+  const minutes = clock.getHours() * 60 + clock.getMinutes();
+
+  const raceStart = base?.raceStart ?? Math.floor(minutes / 60) * 60;
+  if (base && minutes < base.raceEnd) return base;
+
+  const raceEnd = Math.min(24 * 60, Math.max(raceStart + 60, Math.ceil((minutes + 1) / 60) * 60));
+  return {
+    formationStart: Math.max(0, raceStart - 5),
+    raceStart,
+    lunchStart: raceStart,
+    lunchEnd: raceStart,
+    finalCall: raceEnd,   // 실시간에는 "마지막 스틴트"가 없다. 끝이 정해져 있지 않다.
+    raceEnd,
+  };
+}
+
+/**
  * 벽시계 표시. 날짜가 빠지면 어느 날 기록인지 화면만 보고 알 수 없다 —
  * 감사 F7이다. 재생 중이면 재생 위치의 시각이지 지금 시각이 아니다.
  */

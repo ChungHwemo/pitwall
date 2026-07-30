@@ -41,7 +41,7 @@ PLIST
 swiftc -O -target arm64-apple-macos13 \
   -framework AppKit -framework WebKit \
   -o "$APP/Contents/MacOS/PITWALL" \
-  app/PitwallApp.swift
+  app/main.swift app/PitwallApp.swift app/LogTail.swift
 
 cp "$HTML" "$APP/Contents/Resources/pitwall.html"
 

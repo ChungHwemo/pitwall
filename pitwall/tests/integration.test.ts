@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { LiveSource } from '../src/source/LiveSource';
 import { PitwallApp } from '../src/main';
 import { resolveSettings } from '../src/config/settings';
 
@@ -134,5 +135,17 @@ describe('PitwallApp', () => {
     runFrames(app, 20);
     expect(root.querySelector('.timing-tower')).toBeNull();
     expect(root.querySelector('ol')).toBeNull();
+  });
+});
+
+describe('실시간 표시', () => {
+  it('실시간 소스로 갈아타면 화면이 LIVE라고 말한다 — 재생과 구분되어야 한다', () => {
+    const app = new PitwallApp(root, { seed: 3, preset: 'sparse', speed: 1 });
+    app.start();
+    expect(root.querySelector('.hud')!.textContent).not.toContain('LIVE');
+
+    app.useSource(new LiveSource(), { speed: 1, demoClock: false });
+    runFrames(app, 3);
+    expect(root.querySelector('.hud')!.textContent).toContain('LIVE');
   });
 });

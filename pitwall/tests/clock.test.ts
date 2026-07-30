@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { phaseAt, elapsedMs, raceDurationMs, DEFAULT_WORKDAY, workdayFromActivity, formatWallClock } from '../src/state/clock';
+import { phaseAt, elapsedMs, raceDurationMs, DEFAULT_WORKDAY, workdayFromActivity, liveWorkday, formatWallClock } from '../src/state/clock';
 
 /** 로컬 시간대 기준 그날의 시:분으로 Date를 만든다. */
 function at(hour: number, minute: number): Date {
@@ -118,5 +118,28 @@ describe('workdayFromActivity', () => {
 describe('formatWallClock', () => {
   it('날짜와 시각을 같이 쓴다 — 어느 날 몇 시인지 화면만 봐서 알아야 한다', () => {
     expect(formatWallClock(new Date(2026, 6, 30, 18, 5))).toBe('07/30 18:05');
+  });
+});
+
+describe('실시간 창', () => {
+  const at = (h: number, m = 0) => new Date(2026, 6, 30, h, m).getTime();
+
+  it('지금이 창 끝을 넘으면 창을 지금까지 늘린다 — 실시간 화면은 끝나지 않는다', () => {
+    const cfg = liveWorkday(
+      [{ ts: at(9), work: 100 }, { ts: at(10), work: 100 }], at(23, 40));
+    expect(cfg.raceStart).toBe(9 * 60);
+    expect(cfg.raceEnd).toBeGreaterThan(23 * 60 + 40);
+    expect(phaseAt(new Date(2026, 6, 30, 23, 40), cfg)).toBe('racing');
+  });
+
+  it('아직 창 안이면 활동에서 뽑은 창 그대로다', () => {
+    const samples = [{ ts: at(9), work: 100 }, { ts: at(17), work: 100 }];
+    expect(liveWorkday(samples, at(12))).toEqual(workdayFromActivity(samples));
+  });
+
+  it('기록이 아직 없으면 지금 시각 한 시간짜리 창으로 시작한다', () => {
+    const cfg = liveWorkday([], at(14, 20));
+    expect(cfg.raceStart).toBe(14 * 60);
+    expect(phaseAt(new Date(2026, 6, 30, 14, 20), cfg)).toBe('racing');
   });
 });

@@ -2,8 +2,9 @@ import type { RaceState } from './types';
 import { PRESETS, type PresetName } from './config/presets';
 import { SimulatorSource } from './source/SimulatorSource';
 import type { EventSource } from './source/EventSource';
-import { emptyRaceState, applyEvent } from './state/reducer';
-import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs, formatWallClock } from './state/clock';
+import { emptyRaceState, applyEvent, workOf } from './state/reducer';
+import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs, formatWallClock, liveWorkday } from './state/clock';
+import type { ActivitySample } from './state/clock';
 import { paceOf, formatPace } from './state/pace';
 import { demoClock } from './state/demoClock';
 import { generateTrack, validateTrack } from './track/generateTrack';
@@ -39,6 +40,8 @@ const TOWER_ROWS = 10;
 const MODEL_ROWS = 6;
 /** 속도를 재는 레이스 창. 타워 스파크라인과 같은 길이다. */
 const PACE_WINDOW_MS = 1_800_000;
+/** 실시간 창을 뽑을 때 들고 있는 표본 수. 하루치면 충분하다. */
+const LIVE_WINDOW_SAMPLES = 20_000;
 const FEED_ROWS = 12;
 /** 계정별로 보관하는 최근 호출 수 */
 /** 계정별로 들고 있는 최근 호출 수. 피드가 쓰고 스파크라인도 여기서 읽는다. */
@@ -69,6 +72,9 @@ export class PitwallApp {
   private hudPhase: HTMLElement;
   private hudPace: HTMLElement;
   private detail: HTMLElement;
+  private live = false;
+  /** 실시간 창을 다시 뽑는 재료. 이벤트가 올 때마다 늘어난다. */
+  private liveSamples: ActivitySample[] = [];
   private summaryRenderer: SummaryRenderer;
   private feedRenderer: FeedRenderer;
   /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
@@ -176,8 +182,8 @@ export class PitwallApp {
     this.opts = { ...opts, seed };
   }
 
-  start(): void {
-    this.running = true;
+  /** 소스에 콜백을 건다. `start`와 `useSource`가 같은 배선을 쓴다. */
+  private wireSource(): void {
     // 되감기면 누적을 비운다. 안 그러면 오늘 비용이 한 바퀴마다 한 벌씩 늘어난다.
     this.source.onWrap?.(() => {
       this.raceState = { ...emptyRaceState(this.raceState.now), phase: this.raceState.phase };
@@ -192,12 +198,22 @@ export class PitwallApp {
       const log = this.recent.get(event.car_id)
         ?? this.recent.set(event.car_id, new RingBuffer<CarEvent>(FEED_HISTORY)).get(event.car_id)!;
       log.push(event);
+      // 실시간에서는 창이 활동을 따라 자란다. 창 밖으로 나가면 화면이 멈춘다.
+      if (this.live) {
+        this.liveSamples.push({ ts: event.wall_ts ?? event.ts, work: workOf(event) });
+        if (this.liveSamples.length > LIVE_WINDOW_SAMPLES) this.liveSamples.shift();
+      }
       // 호출 하나로 나오는 무전과, 상태가 바뀌어야 나오는 무전은 다른 사건이다.
       // 실데이터는 전부 `call`이라 앞의 것만으로는 화면이 영원히 조용하다.
       const msg = eventRadio(event)
         ?? stateRadio(before, this.raceState.cars.get(event.car_id)!);
       if (msg) this.radioRenderer.push(msg);
     });
+  }
+
+  start(): void {
+    this.running = true;
+    this.wireSource();
     saveSession({
       id: `s-${this.opts.seed}-${this.opts.preset}`,
       seed: this.opts.seed,
@@ -205,6 +221,28 @@ export class PitwallApp {
       speed: this.opts.speed,
       startedAt: this.raceState.now,
     });
+  }
+
+  /**
+   * 소스를 갈아 끼운다.
+   *
+   * 네이티브 껍데기는 페이지가 뜬 뒤에 자기 존재를 알린다 — 그 전까지는 기록
+   * 재생이 돌고 있으므로, 실시간으로 넘어갈 때 쌓인 재생분을 비워야 한다.
+   * 안 그러면 어제 하루와 지금이 한 화면에서 합산된다.
+   */
+  useSource(source: EventSource & { setSpeed(speed: number): void },
+            over: Partial<PitwallSettings> = {}): void {
+    this.source.stop();
+    this.raceState = emptyRaceState(this.raceState.now);
+    this.recent.clear();
+    this.modelCars = null;
+    this.selected = null;
+    this.source = source;
+    this.settings = { ...this.settings, ...over };
+    // 재생인지 지금인지는 화면이 말해야 한다. DEMO 배지의 반대편이다.
+    this.live = true;
+    this.liveSamples = [];
+    if (this.running) this.wireSource();
   }
 
   stop(): void {
@@ -235,6 +273,9 @@ export class PitwallApp {
     // 기록을 재생 중이면 시계는 재생 위치다. 데모 시계는 벽시계 분을 창 안으로
     // 접기만 해서 배속을 타지 않는다 — 그대로 두면 HUD가 오후를 가리키는데
     // 화면의 비용은 아침 값이 된다. 시뮬레이터에서만 쓴다.
+    if (this.live) {
+      this.settings = { ...this.settings, workday: liveWorkday(this.liveSamples, real.getTime()) };
+    }
     const replayed = this.source?.replayClock?.();
     const wall = replayed
       ?? (this.settings.demoClock ? demoClock(real, this.settings.workday) : real);
@@ -290,7 +331,9 @@ export class PitwallApp {
     setText(this.hudPhase,
       // 기록을 재생 중이면 시계는 지어낸 값이 아니라 재생 위치다 — DEMO를 붙이면
       // 그게 거짓말이 된다.
-      `${phase.toUpperCase().replace('_', ' ')}${!replayed && this.settings.demoClock ? ' · DEMO' : ''}`);
+      `${phase.toUpperCase().replace('_', ' ')}`
+      + (this.live ? ' · LIVE' : '')
+      + (!this.live && !replayed && this.settings.demoClock ? ' · DEMO' : ''));
 
     const salary = loadSalaryConfig();
     setText(this.hudSalary, salary
