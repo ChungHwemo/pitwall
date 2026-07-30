@@ -2,3 +2,4 @@
 .codegraph
 node_modules/
 dist/
+pitwall/dist/

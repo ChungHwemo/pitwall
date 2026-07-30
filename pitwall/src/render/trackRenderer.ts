@@ -95,8 +95,9 @@ export class TrackRenderer {
         const progress = ((car.distance % 200_000) / 200_000 + index / total / 8) % 1;
         const pos = positionAt(this.track, progress, cls);
 
-        // CSS transform만 쓴다. setAttribute('transform', …)은 re-layout을 유발해
+        // CSS transform만 쓴다. SVG transform *속성*은 re-layout을 유발해
         // 측정상 2–5배 느려진다 (Global Constraints의 벤치마크 참조).
+        // 이 파일에 그 속성을 쓰는 코드를 넣지 말 것 — 검수 게이트가 grep으로 잡는다.
         node.group.style.transform = `translate(${pos.x.toFixed(2)}px, ${pos.y.toFixed(2)}px)`;
         node.group.style.opacity = '1';
         node.fuelRing.style.opacity = (car.fuel_pct / 100).toFixed(3);
