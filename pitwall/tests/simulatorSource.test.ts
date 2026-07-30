@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SimulatorSource } from '../src/source/SimulatorSource';
 import { PRESETS } from '../src/config/presets';
+import { MODEL_CATALOG, classOfModel, costUsd } from '../src/config/models';
 import type { CarEvent } from '../src/types';
 
 afterEach(() => vi.restoreAllMocks());
@@ -160,6 +161,34 @@ describe('SimulatorSource', () => {
     const slowCount = collect(slow, 10).length;
     const fastCount = collect(fast, 10).length;
     expect(fastCount).toBeGreaterThanOrEqual(slowCount);
+  });
+
+  it('모델이 카탈로그에서 나오고 클래스와 일치한다', () => {
+    stubRandom(0.0001);
+    const sim = new SimulatorSource({ ...PRESETS.busy, carCount: 30 }, 1);
+    for (const e of collect(sim, 3)) {
+      expect(classOfModel(e.model), `${e.model}이 카탈로그에 없다`).toBe(e.car_class);
+    }
+  });
+
+  it('세 공급자 이상이 실제로 등장한다 — 한 벤더로 쏠리지 않는다', () => {
+    stubRandom(0.0001);
+    const sim = new SimulatorSource({ ...PRESETS.busy, carCount: 60 }, 1);
+    const models = new Set(collect(sim, 3).map((e) => e.model));
+    const providers = new Set(
+      [...models].map((id) => MODEL_CATALOG.find((m) => m.id === id)!.provider),
+    );
+    expect(providers.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('비용이 그 모델의 실제 단가로 계산된다', () => {
+    stubRandom(0.0001);
+    const sim = new SimulatorSource({ ...PRESETS.busy, carCount: 5 }, 1);
+    for (const e of collect(sim, 2)) {
+      const spec = MODEL_CATALOG.find((m) => m.id === e.model)!;
+      const expected = costUsd(spec, e.tokens.prompt, e.tokens.completion, e.cache_hit);
+      expect(e.cost_usd).toBeCloseTo(expected, 12);
+    }
   });
 
   it('setSpeed가 배속을 바꾼다', () => {

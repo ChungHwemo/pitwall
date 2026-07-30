@@ -1,22 +1,18 @@
 import type { CarClass, CarEvent } from '../types';
 import { CAR_CLASSES } from '../types';
 import type { SimPreset } from '../config/presets';
+import type { ModelSpec } from '../config/models';
+import { modelsOfClass, costUsd } from '../config/models';
 import type { EventSource } from './EventSource';
 
 interface CarProfile {
   car_id: string;
   car_number: number;
   car_class: CarClass;
-  model: string;
+  model: ModelSpec;
   fuel_pct: number;
   tyre_pct?: number;   // tyreMode가 off면 undefined로 둔다
 }
-
-const MODELS: Record<CarClass, string> = {
-  H: 'claude-opus-5',
-  P: 'claude-sonnet-5',
-  GT: 'claude-haiku-4-5-20251001',
-};
 
 /** 로그정규 표본. median과 sigma로 파라미터화한다. */
 function logNormal(medianMs: number, sigma: number): number {
@@ -58,11 +54,15 @@ export class SimulatorSource implements EventSource {
       const r = (i + 0.5) / carCount; // 클래스 배분은 결정론적으로 — 비율을 정확히 맞춘다
       const cls = cumulative.find(([, upper]) => r <= upper)?.[0] ?? 'P';
       const car_id = `car-${String(i).padStart(3, '0')}`;
+      // 모델은 클래스 안에서 순환 배정한다 — 한 벤더로 쏠리면 더미 데이터가
+      // 실제 조직(여러 공급자를 섞어 쓰는)과 다른 분포를 갖게 된다.
+      const fleet = modelsOfClass(cls);
+      const model = fleet[i % fleet.length]!;
       this.profiles.set(car_id, {
         car_id,
         car_number: pool[i]!,
         car_class: cls,
-        model: MODELS[cls],
+        model,
         fuel_pct: 100,
         // 소스가 없으면 필드를 만들지 않는다. 100으로 시작해 0으로 떨어뜨리면
         // "소진됨"이라는 없는 사실을 화면이 주장하게 된다 (PRD §7.0).
@@ -135,11 +135,11 @@ export class SimulatorSource implements EventSource {
       car_id: profile.car_id,
       car_number: profile.car_number,
       car_class: profile.car_class,
-      model: profile.model,
+      model: profile.model.id,
       kind: isError ? 'error' : profile.fuel_pct <= 0 ? 'retire' : 'call',
       tokens: { prompt, completion },
       cache_hit: cacheHit,
-      cost_usd: (prompt * 3 + completion * 15) / 1_000_000,
+      cost_usd: costUsd(profile.model, prompt, completion, cacheHit),
       latency_ms: latency,
       ttft_ms: Math.max(1, Math.round(latency * 0.3)),
       status: isError ? 'error' : 'ok',

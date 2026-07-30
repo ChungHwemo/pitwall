@@ -9,7 +9,25 @@
 
 ```bash
 cd pitwall && npm install && npm run dev
+npm run dump:events -- chaos 300     # 더미 이벤트를 JSONL로 덤프
 ```
+
+## 더미 데이터
+
+시뮬레이터는 6개 공급자 18개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
+
+| 공급자 | 모델 |
+|---|---|
+| Anthropic | `claude-fable-5` · `claude-opus-5` · `claude-sonnet-5` · `claude-haiku-4-5` |
+| OpenAI | `gpt-5.6-sol` · `gpt-5.6-terra` · `gpt-5.6-luna` · `gpt-5.4-mini` · `gpt-5.4-nano` |
+| Google | `gemini-3.1-pro-preview` · `gemini-3.5-flash` · `gemini-3.1-flash-lite` |
+| xAI | `grok-4.5` · `grok-4.3` |
+| DeepSeek | `deepseek-v4-pro` · `deepseek-v4-flash` |
+| Moonshot | `kimi-k3` · `kimi-k2.6` — **가격 미검증** |
+
+클래스는 출력 단가 밴드로 나눈다: **H** ≥ $12/Mtok, **P** $2.5–10, **GT** ≤ $1.5.
+
+샘플 출력은 [`pitwall/fixtures/`](pitwall/fixtures/)에 커밋되어 있으며, v1.5 어댑터가 맞춰야 할 데이터 계약의 실물이다.
 
 ---
 
