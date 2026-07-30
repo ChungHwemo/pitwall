@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { eventRadio, phaseRadio } from '../src/radio/eventRadio';
+import { stateRadio } from '../src/radio/eventRadio';
 import { RoutineRadio, ROUTINE_COOLDOWN_MS } from '../src/radio/routineRadio';
 import type { CarEvent, CarState } from '../src/types';
 
@@ -141,5 +142,37 @@ describe('RoutineRadio', () => {
   it('쿨다운은 30분이다 — 그 아래로 내려가지 않는다', () => {
     // PRD §10.3 하드 제약. 이 상수를 낮추면 라디오가 스팸이 된다.
     expect(ROUTINE_COOLDOWN_MS).toBeGreaterThanOrEqual(1_800_000);
+  });
+});
+
+describe('stateRadio', () => {
+  const carAt = (over: Partial<CarState>): CarState => ({
+    car_id: 'car-a', car_number: 883, model: 'gpt-5.5', car_class: 'H',
+    activity: 'running', distance: 0, cached: 0, fuel_pct: 100, cost_usd: 0,
+    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, ...over,
+  });
+
+  it('계정이 모델을 갈아타면 알린다 — 실데이터에서 실제로 일어나는 사건이다', () => {
+    const msg = stateRadio(carAt({}), carAt({ model: 'gpt-5.6-luna' }));
+    expect(msg?.text).toBe('모델 교체 — gpt-5.5 → gpt-5.6-luna');
+    expect(msg?.carNumber).toBe(883);
+  });
+
+  it('한도에 걸려 피트로 들어가면 알린다', () => {
+    const msg = stateRadio(carAt({ tyre_pct: 40 }), carAt({ tyre_pct: 2 }));
+    expect(msg).toMatchObject({ severity: 'warn', text: 'BOX BOX — 한도 2% 남음' });
+  });
+
+  it('한도가 풀려 복귀하면 알린다', () => {
+    const msg = stateRadio(carAt({ tyre_pct: 2 }), carAt({ tyre_pct: 80 }));
+    expect(msg?.text).toBe('한도 회복 — 코스 복귀');
+  });
+
+  it('아무것도 안 바뀌면 침묵한다 — 같은 줄을 반복하지 않는다', () => {
+    expect(stateRadio(carAt({}), carAt({ call_count: 2 }))).toBeNull();
+  });
+
+  it('처음 등장한 차는 사건이 아니다', () => {
+    expect(stateRadio(undefined, carAt({}))).toBeNull();
   });
 });

@@ -6,6 +6,29 @@ import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * 이보다 많으면 트랙 라벨을 끈다.
+ *
+ * 클릭해야 아는 화면은 앰비언트가 아니다 — 계정이 두어 대뿐인 실제 상황에서
+ * 트랙은 90%가 비어 있고, 어느 점이 누구인지 알려면 눌러야 했다. 반대로
+ * 붐빌 때 라벨을 켜면 글자가 겹쳐 글리프까지 못 읽는다. 밀도로 정한다.
+ */
+const LABEL_MAX_CARS = 8;
+
+function makeLabel(): SVGTextElement {
+  const t = document.createElementNS(SVG_NS, 'text');
+  t.setAttribute('class', 'car-label');
+  // 글리프 아래에 둔다. 위에는 정지 표식이 뜨므로 겹친다.
+  t.setAttribute('y', '24');
+  return t;
+}
+
+/** 라벨은 노드에 남겨두고 켜고 끈다 — 매 프레임 만들고 지우면 노드가 요동친다. */
+function setLabel(node: { label: SVGTextElement }, text: string, on: boolean): void {
+  const want = on ? text : '';
+  if (node.label.textContent !== want) node.label.textContent = want;
+}
 const GLYPH_SIZE = 7;
 /**
  * 트랙 폭. 레인 3개 + 각 레인의 추월 여유가 이 안에 들어가야 한다.
@@ -54,6 +77,7 @@ interface HotNode {
   fuelRing: SVGCircleElement;
   /** 경고 표시. 글자가 아니라 도형이다 (§6.3: 트랙 위 텍스트 금지) */
   alert: SVGPathElement;
+  label: SVGTextElement;
   /** 이 슬롯이 현재 맡은 차량. 바뀌면 모양·색을 다시 칠한다. */
   carId: string;
   carClass: CarClass | null;
@@ -64,6 +88,7 @@ interface HotNode {
 interface ColdNode {
   group: SVGGElement;
   body: SVGPathElement;
+  label: SVGTextElement;
   /** 이 슬롯이 현재 맡은 차량. 바뀌면 모양·색을 다시 칠한다. */
   carId: string;
   carClass: CarClass | null;
@@ -192,10 +217,11 @@ export class TrackRenderer {
     alert.setAttribute('stroke-linecap', 'round');
     alert.style.opacity = '0';
 
-    group.append(fuelRing, body, alert);
+    const label = makeLabel();
+    group.append(fuelRing, body, alert, label);
     this.carLayer.appendChild(group);
 
-    const node: HotNode = { group, body, fuelRing, alert, carId: '', carClass: null, reason: '' };
+    const node: HotNode = { group, body, fuelRing, alert, label, carId: '', carClass: null, reason: '' };
     this.hotPool[index] = node;
     return node;
   }
@@ -213,10 +239,11 @@ export class TrackRenderer {
       if (id) this.selectHandler?.(id);
     });
     const body = document.createElementNS(SVG_NS, 'path');
-    group.appendChild(body);
+    const label = makeLabel();
+    group.append(body, label);
     this.carLayer.appendChild(group);
 
-    const node: ColdNode = { group, body, carId: '', carClass: null };
+    const node: ColdNode = { group, body, label, carId: '', carClass: null };
     this.coldPool[index] = node;
     return node;
   }
@@ -228,8 +255,10 @@ export class TrackRenderer {
 
   render(model: TrackModel, _now: number, selected: string | null = null): void {
     this.selected = selected;
-    this.renderCold(model.cold);
-    this.renderHot(model.hot);
+    // 밀도가 라벨을 정한다. 몇 대 없으면 이름을 붙이고, 붐비면 글리프만 남긴다.
+    const labelled = model.cold.length + model.hot.length <= LABEL_MAX_CARS;
+    this.renderCold(model.cold, labelled);
+    this.renderHot(model.hot, labelled);
   }
 
   private markSelection(group: SVGGElement, carId: string): void {
@@ -237,7 +266,7 @@ export class TrackRenderer {
     if (group.getAttribute('data-selected') !== flag) group.setAttribute('data-selected', flag);
   }
 
-  private renderCold(cars: RenderCar[]): void {
+  private renderCold(cars: RenderCar[], labelled: boolean): void {
     cars.forEach((car, i) => {
       const node = this.coldSlot(i);
 
@@ -253,6 +282,7 @@ export class TrackRenderer {
         this.visual.set(car.carId, car.progress);
       }
 
+      setLabel(node, String(car.carNumber), labelled);
       const next = this.step(car.carId, car.progress);
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
@@ -285,7 +315,7 @@ export class TrackRenderer {
     return next;
   }
 
-  private renderHot(hot: HotCar[]): void {
+  private renderHot(hot: HotCar[], labelled: boolean): void {
     // 피트 박스 번호. 멈춘 차만 센다.
     let pitSlot = 0;
 
@@ -319,6 +349,7 @@ export class TrackRenderer {
       // 주행선 위에 세우면 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인
       // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
+      setLabel(node, String(car.carNumber), labelled);
       if (STOPPED.has(car.reason)) {
         translate(node.group, pitBoxAt(this.track, pitSlot, hot.length));
         pitSlot += 1;

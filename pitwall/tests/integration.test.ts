@@ -93,12 +93,16 @@ describe('PitwallApp', () => {
     expect(root.querySelector('.hud')!.textContent).toContain('/ 08:00:00');
   });
 
-  it('차량 글리프에 텍스트 라벨이 없다', () => {
+  // 의도 축소: busy 프리셋은 붐비는 쪽이라 라벨이 꺼져야 맞다. 몇 대뿐일 때
+  // 라벨을 켜는 것은 별도 규칙이며 trackRenderer 테스트가 지킨다.
+  it('붐비는 화면에서는 차량 글리프에 텍스트 라벨이 없다', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.0001);
     const app = new PitwallApp(root, { seed: 2, preset: 'busy', speed: 600 });
     app.start();
     runFrames(app, 20);
-    expect(root.querySelectorAll('svg.track g.car text').length).toBe(0);
+    const shown = [...root.querySelectorAll('svg.track g.car text')]
+      .filter((n) => n.textContent !== '');
+    expect(shown).toEqual([]);
   });
 
   it('설정으로 카메라 슬롯 수를 바꾼다', () => {

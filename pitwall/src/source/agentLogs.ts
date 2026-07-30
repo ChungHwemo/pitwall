@@ -14,9 +14,12 @@ import { specOf, classOfModel, costUsd } from '../config/models';
  */
 
 export interface LimitReading {
+  /** 이 값을 읽은 시각. 로그에서 주운 값은 마지막 실행 시점의 값이다 */
   ts: number;
   tyre_pct: number;
   limit_window_minutes: number;
+  /** 창이 풀리는 시각. 잔여 %만으로는 기다릴지 갈아탈지 못 정한다 */
+  resetsAt?: number;
 }
 
 export interface CarIdentity {
@@ -109,6 +112,8 @@ export function codexRateLimit(raw: unknown): LimitReading | null {
     ts,
     tyre_pct: Math.max(0, 100 - primary.used_percent),
     limit_window_minutes: primary.window_minutes ?? 0,
+    // Codex는 epoch 초로 준다.
+    resetsAt: typeof primary.resets_at === 'number' ? primary.resets_at * 1000 : undefined,
   };
 }
 
@@ -192,6 +197,8 @@ export function grokCredits(raw: unknown): LimitReading | null {
     ts,
     tyre_pct: Math.max(0, 100 - used),
     limit_window_minutes: Math.round((end - start) / 60_000),
+    // 청구 기간이 끝날 때 크레딧이 돌아온다.
+    resetsAt: end,
   };
 }
 

@@ -166,6 +166,7 @@ describe('grokCredits', () => {
       ts: Date.parse('2026-07-24T08:03:43.432Z'),
       tyre_pct: 48,
       limit_window_minutes: 10080,
+      resetsAt: Date.parse('2026-07-24T14:13:14.612417+00:00'),
     });
   });
 
@@ -200,10 +201,34 @@ describe('codexRateLimit', () => {
       ts: Date.parse('2026-07-30T09:22:46.109Z'),
       tyre_pct: 3,
       limit_window_minutes: 10080,
+      resetsAt: 1785913052 * 1000,
     });
   });
 
   it('한도가 없는 줄은 무시한다', () => {
     expect(codexRateLimit({ timestamp: line.timestamp, payload: { type: 'token_count' } })).toBeNull();
+  });
+});
+
+describe('한도 판독의 리셋 시각', () => {
+  it('Codex는 epoch 초로 리셋을 준다', () => {
+    const r = codexRateLimit({
+      timestamp: '2026-07-30T09:22:46.109Z',
+      payload: { type: 'token_count', rate_limits: {
+        primary: { used_percent: 97, window_minutes: 10080, resets_at: 1785913052 } } },
+    });
+    expect(r?.resetsAt).toBe(1785913052 * 1000);
+  });
+
+  it('Grok은 청구 기간 끝이 리셋이다', () => {
+    const r = grokCredits({
+      ts: '2026-07-24T08:03:43.432Z',
+      msg: 'billing: fetched credits config',
+      ctx: { config: { creditUsagePercent: 52, currentPeriod: {
+        type: 'USAGE_PERIOD_TYPE_WEEKLY',
+        start: '2026-07-17T14:13:14.612417+00:00',
+        end: '2026-07-24T14:13:14.612417+00:00' } } },
+    });
+    expect(r?.resetsAt).toBe(Date.parse('2026-07-24T14:13:14.612417+00:00'));
   });
 });

@@ -15,7 +15,7 @@ import { generateTrack, validateTrack } from './track/generateTrack';
 const TRACK_ASPECT = 1.5;
 import { buildTrackModel, type TrackModel } from './track/trackModel';
 import { Director } from './director/director';
-import { eventRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
+import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
 import { RoutineRadio } from './radio/routineRadio';
 import { TrackRenderer } from './render/trackRenderer';
 import { CameraRenderer } from './render/cameraRenderer';
@@ -153,11 +153,15 @@ export class PitwallApp {
   start(): void {
     this.running = true;
     this.source.start((event) => {
+      const before = this.raceState.cars.get(event.car_id);
       this.raceState = applyEvent(this.raceState, event);
       const log = this.recent.get(event.car_id)
         ?? this.recent.set(event.car_id, new RingBuffer<CarEvent>(FEED_HISTORY)).get(event.car_id)!;
       log.push(event);
-      const msg = eventRadio(event);
+      // 호출 하나로 나오는 무전과, 상태가 바뀌어야 나오는 무전은 다른 사건이다.
+      // 실데이터는 전부 `call`이라 앞의 것만으로는 화면이 영원히 조용하다.
+      const msg = eventRadio(event)
+        ?? stateRadio(before, this.raceState.cars.get(event.car_id)!);
       if (msg) this.radioRenderer.push(msg);
     });
     saveSession({
@@ -226,7 +230,10 @@ export class PitwallApp {
     this.summaryRenderer.render(this.raceState);
     // 선택 중에는 자동 선별 카드를 감춘다 — 한 화면에 둘 다 띄우면 읽을 게 두 배가 된다.
     this.cameraRenderer.render(
-      this.raceState, this.selected ? [] : this.director.update(this.raceState, now));
+      this.raceState, this.selected ? [] : this.director.update(this.raceState, now),
+      // 한도 리셋과 판독 나이는 **실제 지금** 기준이다. 재생 위치로 재면
+      // 오늘 새벽 1시에 풀리는 창이 과거 시점에서는 15시간 뒤로 보인다.
+      real.getTime());
     this.radioRenderer.render();
 
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).

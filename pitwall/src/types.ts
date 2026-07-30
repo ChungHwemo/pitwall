@@ -52,6 +52,10 @@ export interface CarEvent {
   tyre_pct?: number;
   /** 그 한도가 어떤 창인지 (5시간 = 300, 주간 = 10080). 창을 모르면 잔여도 못 읽는다 */
   limit_window_minutes?: number;
+  /** 창이 풀리는 시각 */
+  limit_resets_at?: number;
+  /** 그 한도를 읽은 시각 */
+  limit_observed_at?: number;
 }
 
 export type CarActivity = 'running' | 'pit' | 'retired';
@@ -73,6 +77,10 @@ export interface CarState {
   tyre_pct?: number;
   /** 그 한도의 창 길이 (분). 5시간인지 주간인지 모르면 잔여를 읽을 수 없다 */
   limit_window_minutes?: number;
+  /** 창이 풀리는 시각. 10분 뒤면 기다리고 4시간 뒤면 모델을 바꾼다 */
+  limit_resets_at?: number;
+  /** 그 한도를 읽은 시각. 로그에서 주운 값은 마지막 실행 때 값이다 */
+  limit_observed_at?: number;
   cost_usd: number;
   last_event_ts: number;
   error_count: number;

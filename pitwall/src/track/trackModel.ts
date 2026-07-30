@@ -36,6 +36,8 @@ export type HighlightType = 'error' | 'limit';
 
 export interface RenderCar {
   carId: string;
+  /** 트랙 라벨용. 계정 식별자가 아니라 해시에서 나온 번호다 (PRIV-3) */
+  carNumber: number;
   carClass: CarClass;
   /** 겹침을 밀어낸 뒤의 진행률 */
   progress: number;
@@ -45,6 +47,7 @@ export interface RenderCar {
 
 export interface HotCar {
   carId: string;
+  carNumber: number;
   carClass: CarClass;
   progress: number;
   laneLine: number;
@@ -133,6 +136,7 @@ export function buildTrackModel(
     if (reason === null) continue;
     candidates.push({
       carId: car.car_id,
+      carNumber: car.car_number,
       carClass: car.car_class,
       progress: progressOf(car),
       laneLine: laneLineOf(car.car_id),
@@ -174,6 +178,7 @@ export function buildTrackModel(
     lane.forEach((car, i) => {
       cold.push({
         carId: car.car_id,
+        carNumber: car.car_number,
         carClass: cls,
         progress: spread[i]!,
         laneLine: laneLineOf(car.car_id),

@@ -115,7 +115,7 @@ function fromLog(vendor: string, dir: string, parse: (row: unknown) => LimitRead
     fetchedAt: reading.ts,
     windows: [{
       utilization: 100 - reading.tyre_pct,
-      resets_at: null,
+      resets_at: reading.resetsAt === undefined ? null : new Date(reading.resetsAt).toISOString(),
       window_minutes: reading.limit_window_minutes,
     }],
   };

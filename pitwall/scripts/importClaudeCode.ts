@@ -137,14 +137,21 @@ function readAccount(): { accountUuid: string } | undefined {
  * 벤더에서 가져온 실제 한도. `npm run fetch:limits`가 만든다.
  * 없으면 한도 게이지를 그리지 않는다 — 없는 값을 0이나 100으로 두지 않는다.
  */
-function readLimits(vendor: string): { utilization: number; window_minutes: number } | null {
+interface VendorWindow {
+  utilization: number;
+  window_minutes: number;
+  resets_at: string | null;
+  fetchedAt: number;
+}
+
+function readLimits(vendor: string): VendorWindow | null {
   try {
     const all = JSON.parse(readFileSync(resolve(import.meta.dirname, '../fixtures/limits.json'), 'utf8'));
     const found = all.find((v: { vendor: string }) => v.vendor === vendor);
     // 여러 창이 오면 짧은 쪽(=먼저 걸리는 쪽)을 쓴다. 5시간이 7일보다 먼저 막는다.
     const windows = (found?.windows ?? []).slice().sort(
       (a: { window_minutes: number }, b: { window_minutes: number }) => a.window_minutes - b.window_minutes);
-    return windows[0] ?? null;
+    return windows[0] ? { ...windows[0], fetchedAt: found.fetchedAt } : null;
   } catch {
     return null;
   }
@@ -172,6 +179,9 @@ for (const file of files) {
       if (claudeLimit) {
         event.tyre_pct = Math.max(0, 100 - claudeLimit.utilization);
         event.limit_window_minutes = claudeLimit.window_minutes;
+        const resets = claudeLimit.resets_at ? Date.parse(claudeLimit.resets_at) : NaN;
+        event.limit_resets_at = Number.isFinite(resets) ? resets : undefined;
+        event.limit_observed_at = claudeLimit.fetchedAt;
       }
       events.push(event);
     }
@@ -187,9 +197,12 @@ for (const file of files) {
 function applyLimit(vendor: string, list: CarEvent[]): void {
   const limit = readLimits(vendor);
   if (!limit) return;
+  const resets = limit.resets_at ? Date.parse(limit.resets_at) : undefined;
   for (const e of list) {
     e.tyre_pct = Math.max(0, 100 - limit.utilization);
     e.limit_window_minutes = limit.window_minutes;
+    e.limit_resets_at = Number.isFinite(resets) ? resets : undefined;
+    e.limit_observed_at = limit.fetchedAt;
   }
 }
 

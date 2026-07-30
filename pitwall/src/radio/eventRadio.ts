@@ -1,4 +1,4 @@
-import type { CarEvent, RacePhase } from '../types';
+import type { CarEvent, CarState, RacePhase } from '../types';
 
 export interface RadioMessage {
   id: string;
@@ -35,6 +35,45 @@ export function eventRadio(event: CarEvent): RadioMessage | null {
       return null;
   }
 }
+
+/**
+ * 상태 변화로 만드는 무전.
+ *
+ * `eventRadio`는 호출 하나만 보므로 실데이터에서는 영원히 침묵한다 —
+ * 실측 오늘치 2,039건이 전부 `call`이고 에러는 0건이었다. 사람이 알고 싶은
+ * 사건은 호출 하나가 아니라 **상태가 바뀌는 순간**이다.
+ *
+ * 처음 등장한 차는 사건이 아니다. 아무것도 안 바뀌면 침묵한다 — 같은 줄을
+ * 반복하는 무전은 읽히지 않는다.
+ */
+export function stateRadio(prev: CarState | undefined, next: CarState): RadioMessage | null {
+  if (!prev) return null;
+  const base = { id: nextId(), carNumber: next.car_number, ts: next.last_event_ts };
+
+  if (prev.model !== next.model) {
+    return { ...base, severity: 'info', text: `모델 교체 — ${prev.model} → ${next.model}` };
+  }
+
+  const was = prev.tyre_pct;
+  const now = next.tyre_pct;
+  if (was !== undefined && now !== undefined) {
+    if (was >= LIMIT_BOX_PCT && now < LIMIT_BOX_PCT) {
+      return { ...base, severity: 'warn', text: `BOX BOX — 한도 ${Math.round(now)}% 남음` };
+    }
+    if (was < LIMIT_BOX_PCT && now >= LIMIT_BOX_PCT) {
+      return { ...base, severity: 'info', text: '한도 회복 — 코스 복귀' };
+    }
+  }
+
+  if (next.error_count > prev.error_count) {
+    return { ...base, severity: 'warn', text: `문제 발생 — 누적 ${next.error_count}건` };
+  }
+
+  return null;
+}
+
+/** 이 아래로 내려가면 피트행이다. 트랙 모델의 `limitWarnPct`와 같은 선. */
+const LIMIT_BOX_PCT = 15;
 
 const PHASE_TEXT: Partial<Record<RacePhase, { text: string; severity: RadioMessage['severity'] }>> = {
   formation: { text: '포메이션 랩 — 그리드 정렬', severity: 'info' },

@@ -189,3 +189,39 @@ describe('카드 첫 줄', () => {
     expect(text).not.toContain('FUEL');
   });
 });
+
+describe('한도 판독의 맥락', () => {
+  const NOW = Date.parse('2026-07-30T21:00:00+09:00');
+
+  it('언제 풀리는지 같이 쓴다 — 잔여 %만으로는 기다릴지 갈아탈지 못 정한다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('car-a', {
+      tyre_pct: 3, limit_window_minutes: 300,
+      limit_resets_at: NOW + 2 * 3_600_000 + 14 * 60_000,
+    })]), ['car-a'], NOW);
+    expect(host.textContent).toContain('리셋 2시간 14분');
+  });
+
+  it('오래된 판독은 나이를 밝힌다 — 6일 전 값을 지금이라고 하면 거짓말이다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('car-a', {
+      tyre_pct: 48, limit_window_minutes: 10080,
+      limit_observed_at: NOW - 6 * 86_400_000,
+    })]), ['car-a'], NOW);
+    expect(host.textContent).toContain('판독 6일 전');
+  });
+
+  it('방금 읽은 값에는 나이를 붙이지 않는다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('car-a', {
+      tyre_pct: 48, limit_window_minutes: 300, limit_observed_at: NOW - 60_000,
+    })]), ['car-a'], NOW);
+    expect(host.textContent).not.toContain('판독');
+  });
+
+  it('에러가 있으면 몇 건인지 쓴다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('car-a', { error_count: 3 })]), ['car-a'], NOW);
+    expect(host.textContent).toContain('ERR 3');
+  });
+});

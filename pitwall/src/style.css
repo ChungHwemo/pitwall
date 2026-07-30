@@ -93,3 +93,9 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
   fill: #55636f; font-size: 30px; letter-spacing: 0.22em;
   font-family: ui-monospace, SFMono-Regular, monospace; text-anchor: middle;
 }
+
+/* 차량 라벨 — 몇 대 없을 때만 켠다. 붐비면 렌더러가 비운다. */
+.car-label {
+  fill: #9fb3c8; font-size: 17px; text-anchor: middle;
+  font-family: ui-monospace, SFMono-Regular, monospace; pointer-events: none;
+}
