@@ -6,6 +6,12 @@ import { emptyRaceState, applyEvent } from './state/reducer';
 import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs } from './state/clock';
 import { demoClock } from './state/demoClock';
 import { generateTrack, validateTrack } from './track/generateTrack';
+
+/**
+ * 트랙 영역의 가로:세로. 두 번째 모니터는 가로로 길고, 정사각 코스를 그리면
+ * 오른쪽이 통째로 빈다 — 실측 1600×1000 화면에서 약 400px이 죽었다.
+ */
+const TRACK_ASPECT = 1.5;
 import { buildTrackModel, type TrackModel } from './track/trackModel';
 import { Director } from './director/director';
 import { eventRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
@@ -78,10 +84,11 @@ export class PitwallApp {
 
     // 트랙은 유효성 검사를 통과할 때까지 시드를 밀어가며 재생성한다 (PRD §15).
     let seed = opts.seed;
-    let track = generateTrack(seed);
+    const shape = { resolution: 240, lobes: 3, aspect: TRACK_ASPECT };
+    let track = generateTrack(seed, shape);
     for (let attempts = 0; validateTrack(track).length > 0 && attempts < 50; attempts++) {
       seed += 1;
-      track = generateTrack(seed);
+      track = generateTrack(seed, shape);
     }
 
     const shell = document.createElement('div');

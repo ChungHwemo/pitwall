@@ -28,7 +28,11 @@ svg.track { grid-area: track; width: 100%; height: 100%; }
   flex: 1; border: 1px solid #2a323d; border-radius: 6px;
   padding: 10px; cursor: pointer; transition: border-color 120ms;
 }
-.cam-card[data-empty="true"] { opacity: 0.35; cursor: default; }
+/*
+ * 빈 카드는 자리를 차지하지 않는다. 노드는 남겨 두고(재사용 풀) 레이아웃에서만
+ * 뺀다 — 차를 하나 고르면 나머지 카드가 빈 상자 세 개로 남아 화면 절반을 먹었다.
+ */
+.cam-card[data-empty="true"] { display: none; }
 .cam-card:hover[data-empty="false"] { border-color: #4dc3ff; }
 .cam-number { font-size: 26px; font-weight: 700; }
 .cam-class { font-size: 11px; letter-spacing: 0.12em; }

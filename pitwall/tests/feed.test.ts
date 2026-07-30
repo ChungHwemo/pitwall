@@ -69,7 +69,8 @@ describe('FeedRenderer', () => {
   it('행 수 상한을 넘지 않는다', () => {
     const r = new FeedRenderer(host, 3);
     r.render({ carNumber: 1, carClass: 'P' },
-      Array.from({ length: 20 }, (_, i) => event({ ts: T + i })));
+      // 초를 벌린다 — 같은 초에 몰리면 한 줄로 접혀서 상한이 아니라 접힘을 재게 된다.
+      Array.from({ length: 20 }, (_, i) => event({ ts: T + i * 1_000 })));
     const rows = [...host.querySelectorAll('.feed-row')].filter((n) => (n as HTMLElement).style.display !== 'none');
     expect(rows.length).toBe(3);
   });
@@ -94,5 +95,30 @@ describe('FeedRenderer', () => {
     r.render({ carNumber: 5, carClass: 'GT' }, []);
     expect(host.textContent).toContain('005');
     expect(() => r.render({ carNumber: 5, carClass: 'GT' }, [])).not.toThrow();
+  });
+});
+
+describe('같은 순간에 몰린 호출', () => {
+  it('구분이 안 되는 연속 호출은 한 줄로 접고 횟수를 붙인다', () => {
+    const same = (i: number): CarEvent => ({
+      ...event(), ts: 1_000, model: 'claude-fable-5', agent: 'superpowers',
+      tokens: { prompt: 5_000, completion: 100, cache_read: 4_000 }, session_id: `s${i}`,
+    });
+    const r = new FeedRenderer(host, 8);
+    r.render({ carNumber: 7, carClass: 'H' }, [same(0), same(1), same(2)]);
+
+    const rows = [...host.querySelectorAll('.feed-row')].filter((e) => (e as HTMLElement).style.display !== 'none');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.textContent).toContain('×3');
+  });
+
+  it('내용이 다르면 접지 않는다', () => {
+    const r = new FeedRenderer(host, 8);
+    r.render({ carNumber: 7, carClass: 'H' }, [
+      event({ ts: 1_000, model: 'claude-fable-5' }),
+      event({ ts: 1_000, model: 'gpt-5.6-sol' }),
+    ]);
+    const rows = [...host.querySelectorAll('.feed-row')].filter((e) => (e as HTMLElement).style.display !== 'none');
+    expect(rows).toHaveLength(2);
   });
 });

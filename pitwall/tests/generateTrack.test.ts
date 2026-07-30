@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateTrack, validateTrack } from '../src/track/generateTrack';
+import { generateTrack, validateTrack, trackWidth } from '../src/track/generateTrack';
 
 describe('generateTrack', () => {
   it('같은 시드는 같은 트랙을 만든다', () => {
@@ -74,5 +74,26 @@ describe('validateTrack', () => {
     const t = generateTrack(1);
     const bad = { ...t, pitEntry: 10, pitExit: 10 };
     expect(validateTrack(bad)).toContain('pit entry equals exit');
+  });
+});
+
+describe('가로 비율', () => {
+  it('넓은 화면에서는 가로로 늘어나 빈 공간을 남기지 않는다', () => {
+    const wide = generateTrack(7, { resolution: 240, lobes: 3, aspect: 1.6 });
+    const xs = wide.points.map((p) => p.x);
+    const ys = wide.points.map((p) => p.y);
+    const w = Math.max(...xs) - Math.min(...xs);
+    const h = Math.max(...ys) - Math.min(...ys);
+    // 코스는 폭을 다 쓴다 — 정사각 안에 갇힌 원이 아니다.
+    expect(w / h).toBeGreaterThan(1.4);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(trackWidth(1.6));
+  });
+
+  it('비율을 안 주면 예전과 같은 정사각 코스다', () => {
+    expect(generateTrack(7)).toEqual(generateTrack(7, { resolution: 240, lobes: 3, aspect: 1 }));
+  });
+
+  it('늘어난 코스도 검사를 통과한다', () => {
+    expect(validateTrack(generateTrack(7, { resolution: 240, lobes: 3, aspect: 1.6 }))).toEqual([]);
   });
 });

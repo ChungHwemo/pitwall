@@ -1,3 +1,4 @@
+import { trackWidth } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
 import { positionAt } from '../track/layout';
 import { CLASS_STYLE } from '../config/theme';
@@ -116,7 +117,9 @@ export class TrackRenderer {
     private container: SVGSVGElement,
     private track: Track,
   ) {
-    this.container.setAttribute('viewBox', '0 0 1000 1000');
+    // 좌표계는 코스가 정한다. 코스가 옆으로 퍼지면 viewBox도 같이 퍼진다 —
+    // 안 그러면 늘린 코스가 잘리거나 다시 여백이 생긴다.
+    this.container.setAttribute('viewBox', `0 0 ${trackWidth(track.aspect)} 1000`);
     this.drawCenterline();
     this.carLayer = document.createElementNS(SVG_NS, 'g');
     this.carLayer.setAttribute('class', 'cars');

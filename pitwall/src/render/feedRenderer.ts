@@ -40,6 +40,38 @@ function clockOf(ts: number): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 }
 
+interface Entry {
+  event: CarEvent;
+  count: number;
+}
+
+/**
+ * 한 화면에서 똑같이 보이는 연속 호출을 한 줄로 접는다.
+ *
+ * 실데이터의 호출 간격 중앙값은 3초라 초 단위 시계로는 같은 시각에 여러 건이
+ * 찍힌다. 시각·모델·주체·크기가 모두 같으면 세 줄을 보여줘도 정보가 늘지 않고
+ * 피드만 가려진다 — 대신 몇 번인지 센다.
+ */
+function collapse(sorted: CarEvent[]): Entry[] {
+  const out: Entry[] = [];
+  for (const event of sorted) {
+    const last = out[out.length - 1];
+    if (last && rowKey(last.event) === rowKey(event)) {
+      last.count += 1;
+      continue;
+    }
+    out.push({ event, count: 1 });
+  }
+  return out;
+}
+
+function rowKey(e: CarEvent): string {
+  return [
+    clockOf(e.ts), e.model, e.status, e.error_code ?? '',
+    e.agent ?? '', e.skill ?? '', workOf(e), cachedOf(e),
+  ].join('|');
+}
+
 export class FeedRenderer {
   private root: HTMLElement;
   private title: HTMLElement;
@@ -102,17 +134,18 @@ export class FeedRenderer {
     this.klass.style.color = style.color;
     setText(this.empty, events.length === 0 ? '아직 기록된 호출이 없습니다' : '');
 
-    // 새것부터.
-    const recent = [...events].sort((a, b) => b.ts - a.ts).slice(0, this.rows.length);
+    // 새것부터. 초 단위로 몰린 호출은 화면에서 구분이 안 되므로 접는다.
+    const recent = collapse([...events].sort((a, b) => b.ts - a.ts)).slice(0, this.rows.length);
 
     this.rows.forEach((row, i) => {
-      const e = recent[i];
-      if (!e) {
+      const entry = recent[i];
+      if (!entry) {
         if (row.root.style.display !== 'none') row.root.style.display = 'none';
         return;
       }
       if (row.root.style.display !== '') row.root.style.display = '';
 
+      const e = entry.event;
       const status = e.status === 'error' ? 'error' : 'ok';
       if (row.root.getAttribute('data-status') !== status) row.root.setAttribute('data-status', status);
 
@@ -122,7 +155,8 @@ export class FeedRenderer {
       setText(row.who, e.status === 'error'
         ? (e.error_code ?? 'error')
         : [e.agent, e.skill].filter(Boolean).join(' · ') || '—');
-      setText(row.size, `${compact(workOf(e))} · ${compact(cachedOf(e))}`);
+      const size = `${compact(workOf(e))} · ${compact(cachedOf(e))}`;
+      setText(row.size, entry.count > 1 ? `${size} ×${entry.count}` : size);
     });
   }
 }
