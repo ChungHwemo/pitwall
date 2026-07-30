@@ -3,6 +3,7 @@ import { PRESETS, type PresetName } from './config/presets';
 import { SimulatorSource } from './source/SimulatorSource';
 import { emptyRaceState, applyEvent } from './state/reducer';
 import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs } from './state/clock';
+import { demoClock } from './state/demoClock';
 import { generateTrack, validateTrack } from './track/generateTrack';
 import { buildTrackModel, type TrackModel } from './track/trackModel';
 import { Director } from './director/director';
@@ -152,7 +153,9 @@ export class PitwallApp {
   }
 
   private render(now: number): void {
-    const wall = new Date();
+    // 데모 모드면 벽시계를 근무 창 안으로 접는다. 시각을 지어내므로 HUD에 표시한다.
+    const real = new Date();
+    const wall = this.settings.demoClock ? demoClock(real, this.settings.workday) : real;
     const phase = phaseAt(wall, this.settings.workday);
     const transition: RadioMessage | null = phaseRadio(phase, this.lastPhase, now);
     if (transition) this.radioRenderer.push(transition);
@@ -176,7 +179,8 @@ export class PitwallApp {
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).
     const total = formatElapsed(raceDurationMs(this.settings.workday));
     setText(this.hudTime, `⏱ ${formatElapsed(this.raceState.elapsed_ms)} / ${total}`);
-    setText(this.hudPhase, phase.toUpperCase().replace('_', ' '));
+    setText(this.hudPhase,
+      `${phase.toUpperCase().replace('_', ' ')}${this.settings.demoClock ? ' · DEMO' : ''}`);
 
     const salary = loadSalaryConfig();
     setText(this.hudSalary, salary

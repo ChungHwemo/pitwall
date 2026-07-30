@@ -29,3 +29,18 @@ if (html.includes('/assets/')) throw new Error('인라인되지 않은 자산 �
 const out = resolve(dist, 'pitwall.html');
 writeFileSync(out, html);
 console.log(`${out}  ${(html.length / 1024).toFixed(1)} kB`);
+
+/**
+ * 아티팩트용 변형 — `<!doctype>`/`<html>`/`<head>`/`<body>` 없이 본문만.
+ * 호스팅 쪽이 스켈레톤을 씌우므로, 전체 문서를 올리면 이중으로 감싸인다.
+ */
+const body = [
+  `<title>PITWALL</title>`,
+  `<style>\n${readFileSync(resolve(dist, 'assets', css), 'utf8')}\n</style>`,
+  `<div id="app"></div>`,
+  `<script type="module">\n${readFileSync(resolve(dist, 'assets', js), 'utf8')}\n</script>`,
+].join('\n');
+
+const artifact = resolve(dist, 'pitwall.artifact.html');
+writeFileSync(artifact, body);
+console.log(`${artifact}  ${(body.length / 1024).toFixed(1)} kB`);

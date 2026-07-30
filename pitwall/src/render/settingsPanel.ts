@@ -65,6 +65,21 @@ export class SettingsPanel {
     }
     root.appendChild(group);
 
+    const demo = document.createElement('label');
+    demo.className = 'settings-check';
+    const demoBox = document.createElement('input');
+    demoBox.type = 'checkbox';
+    demoBox.setAttribute('data-setting', 'demoClock');
+    demoBox.checked = initial.demoClock;
+    demoBox.addEventListener('change', () => {
+      this.settings = { ...this.settings, demoClock: demoBox.checked };
+      this.commit();
+    });
+    const demoText = document.createElement('span');
+    demoText.textContent = 'DEMO 시계';
+    demo.append(demoBox, demoText);
+    root.appendChild(demo);
+
     container.appendChild(root);
   }
 

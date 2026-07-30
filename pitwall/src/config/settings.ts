@@ -10,6 +10,11 @@ export interface PitwallSettings {
   tyreMode: 'off' | 'rolling_budget' | 'proxy_budget';
   /** 개별 추적할 이벤트 유형. 비워도 클러스터·밀도는 그대로 보인다. */
   highlightTypes: HighlightType[];
+  /**
+   * 벽시계를 근무 창 안으로 접어 항상 레이스가 돌게 한다.
+   * v1은 데이터가 시뮬레이터라 기본 켜둔다. 실데이터를 붙이면 꺼야 한다.
+   */
+  demoClock: boolean;
   fuelWarnLeadMinutes: number;
   fuelWarnThresholdPct: number;
   minTeamSizeForIndividual: number;
@@ -30,6 +35,7 @@ export const DEFAULT_SETTINGS: PitwallSettings = {
   speed: 1,
   tyreMode: 'off',
   highlightTypes: ['error', 'limit'],
+  demoClock: true,
   fuelWarnLeadMinutes: 60,
   fuelWarnThresholdPct: 20,
   minTeamSizeForIndividual: 10,

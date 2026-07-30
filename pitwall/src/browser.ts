@@ -8,7 +8,14 @@ import { latestSession } from './session/sessionStore';
 const mount = document.getElementById('app');
 if (mount) {
   void (async () => {
-    const settings = resolveSettings(await loadOrgSettings(), loadLocalSettings(), {});
+    const local = loadLocalSettings();
+    const settings = resolveSettings(await loadOrgSettings(), local, {});
+
+    // 첫 실행이고 데모 시계면 배속을 올려 띄운다. 실제 조직 속도(1×)로 열면
+    // 처음 1분간 트랙이 비어 보여서 고장난 것처럼 읽힌다.
+    // 사용자가 설정을 한 번이라도 건드리면 그 값이 이긴다.
+    const firstRun = Object.keys(local).length === 0;
+    if (firstRun && settings.demoClock) settings.speed = 60;
 
     // 이어하기: 직전 세션의 시드를 복원하면 같은 코스가 다시 깔린다.
     // 이벤트는 복원되지 않는다 — 시드는 트랙 전용이다 (PRD SIM-5).
