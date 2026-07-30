@@ -13,6 +13,7 @@ const track = generateTrack(2026);
 const OPTS: TrackModelOptions = {
   highlightTypes: ['error', 'limit'] as HighlightType[],
   fuelWarnPct: 20,
+  limitWarnPct: 15,
   pinned: new Set<string>(),
 };
 
@@ -317,7 +318,7 @@ describe('모션', () => {
 
   it('사유가 바뀌면 표시도 바뀐다', () => {
     const r = new TrackRenderer(svg, track);
-    r.render(model([car('a', { fuel_pct: 5 })]), T);
+    r.render(model([car('a', { tyre_pct: 5 })]), T);
     expect((svg.querySelector('g.car') as SVGGElement).getAttribute('data-reason')).toBe('limit');
   });
 
@@ -345,12 +346,13 @@ describe('사건 차량 정지', () => {
   });
 
   it('한도에 걸린 차량도 멈춘다', () => {
-    // 연료가 없으면 더 갈 수 없다. 굴러가면 화면이 거짓말한다.
+    // 한도에 막히면 호출이 안 나간다. 굴러가면 화면이 거짓말한다.
+    // (의도 변경: 판정 근거를 fuel_pct에서 tyre_pct로 옮겼다 — 연료는 돈, 한도는 벽.)
     const r = new TrackRenderer(svg, track);
-    r.render(model([car('low', { fuel_pct: 5, distance: 0 })]), T);
+    r.render(model([car('low', { tyre_pct: 5, distance: 0 })]), T);
     const at0 = (svg.querySelector('g.car') as SVGGElement).style.transform;
 
-    const moved = car('low', { fuel_pct: 5, distance: 80_000 });
+    const moved = car('low', { tyre_pct: 5, distance: 80_000 });
     for (let f = 1; f < 200; f++) r.render(model([moved]), T + f * 16);
     expect((svg.querySelector('g.car') as SVGGElement).style.transform).toBe(at0);
   });
@@ -376,7 +378,7 @@ describe('사건 차량 정지', () => {
     const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     document.body.appendChild(svg2);
     const r2 = new TrackRenderer(svg2, track);
-    r2.render(model([car('low', { fuel_pct: 5 })]), T);
+    r2.render(model([car('low', { tyre_pct: 5 })]), T);
     const limMark = (svg2.querySelector('g.car .alert') as SVGElement).getAttribute('d');
     const limColor = (svg2.querySelector('g.car .alert') as SVGElement).getAttribute('stroke');
 

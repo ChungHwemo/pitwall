@@ -65,7 +65,10 @@ export interface TrackModel {
 
 export interface TrackModelOptions {
   highlightTypes: HighlightType[];
+  /** 연료(비용 예산) 경고선. 강조 사유가 아니라 점수에만 쓴다. */
   fuelWarnPct: number;
+  /** 한도 창 잔여 경고선 (%). 여기 아래로 내려간 차가 `limit`이다. */
+  limitWarnPct: number;
   pinned: Set<string>;
 }
 
@@ -87,19 +90,29 @@ export function progressOf(car: CarState): number {
   return (phase + (car.distance % LAP_TOKENS) / LAP_TOKENS) % 1;
 }
 
-/** hot 사유. 해당 없으면 null이며, 그런 차는 클러스터로 간다. */
+/**
+ * hot 사유. 해당 없으면 null이며, 그런 차는 클러스터로 간다.
+ *
+ * **한도는 연료가 아니다.** 연료는 돈(비용 예산)이고 한도는 벤더가 거는 벽이다.
+ * 돈이 남아도 한도에 막히고, 돈이 없어도 호출은 계속 나간다 — 둘을 한 축으로
+ * 접으면 화면이 "왜 멈췄는지"를 말해주지 못한다.
+ *
+ * 한도 소스가 없는 차는 한도로 부르지 않는다. 없는 게이지로 임계 도달을
+ * 주장하지 않는다 (PRD §9.1).
+ */
 function highlightOf(car: CarState, opts: TrackModelOptions): HotCar['reason'] | null {
   // 핀은 사용자가 직접 고른 차다. 필터보다 우선한다.
   if (opts.pinned.has(car.car_id)) return 'pinned';
   if (opts.highlightTypes.includes('error') && car.error_count > 0) return 'error';
-  if (opts.highlightTypes.includes('limit') && car.fuel_pct < opts.fuelWarnPct) return 'limit';
+  if (opts.highlightTypes.includes('limit')
+    && car.tyre_pct !== undefined && car.tyre_pct < opts.limitWarnPct) return 'limit';
   return null;
 }
 
 function scoreOf(car: CarState, reason: HotCar['reason']): number {
   if (reason === 'pinned') return Number.POSITIVE_INFINITY;
-  // 연료가 적을수록 급하다. 에러는 기본 가중치를 준다.
-  return (reason === 'error' ? 100 : 0) + (100 - car.fuel_pct);
+  // 한도가 적을수록 급하다. 에러는 기본 가중치를 준다.
+  return (reason === 'error' ? 100 : 0) + (100 - (car.tyre_pct ?? 100));
 }
 
 export function buildTrackModel(

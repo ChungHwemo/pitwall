@@ -1,16 +1,38 @@
 [
   {
     "vendor": "claude",
-    "fetchedAt": 1785408662656,
+    "fetchedAt": 1785410009382,
     "windows": [
       {
-        "utilization": 81,
-        "resets_at": "2026-07-30T14:19:59.591190+00:00",
+        "utilization": 97,
+        "resets_at": "2026-07-30T14:20:00.317484+00:00",
         "window_minutes": 300
       },
       {
-        "utilization": 64,
-        "resets_at": "2026-08-03T16:59:59.591210+00:00",
+        "utilization": 65,
+        "resets_at": "2026-08-03T16:59:59.317504+00:00",
+        "window_minutes": 10080
+      }
+    ]
+  },
+  {
+    "vendor": "codex",
+    "fetchedAt": 1785403366109,
+    "windows": [
+      {
+        "utilization": 97,
+        "resets_at": null,
+        "window_minutes": 10080
+      }
+    ]
+  },
+  {
+    "vendor": "grok",
+    "fetchedAt": 1784880223432,
+    "windows": [
+      {
+        "utilization": 52,
+        "resets_at": null,
         "window_minutes": 10080
       }
     ]

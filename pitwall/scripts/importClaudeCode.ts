@@ -54,14 +54,21 @@ function codexAccount(): string {
 function collectCodex(limit: number): CarEvent[] {
   const car = accountCar('codex', codexAccount());
   const out: CarEvent[] = [];
+  const modelOf = (row: unknown): string | undefined => {
+    const p = (row as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+    const m = (p?.ctx as Record<string, unknown> | undefined)?.model ?? p?.model;
+    return typeof m === 'string' && m.startsWith('gpt-') ? m : undefined;
+  };
+
   for (const file of newestFiles(join(homedir(), '.codex'), limit)) {
-    let model: string | undefined;
-    for (const row of readJsonl(file)) {
-      const p = (row as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
-      // 모델은 상태다 — 바뀐 시점 이벤트로 추적한다.
-      const ctxModel = (p?.ctx as Record<string, unknown> | undefined)?.model
-        ?? (p as Record<string, unknown> | undefined)?.model;
-      if (typeof ctxModel === 'string' && ctxModel.startsWith('gpt-')) model = ctxModel;
+    const rows = readJsonl(file);
+    // 모델은 상태다. 파일이 `token_count`부터 시작하면 그 앞의 `turn_context`는
+    // 다른 파일에 있다 — 파일 안에서 처음 보이는 모델로 시작한다. 그러지 않으면
+    // 그 파일 전체가 unknown이 되고, 계정 하나가 클래스가 흔들려 두 레인에 걸친다.
+    let model = rows.map(modelOf).find(Boolean);
+    for (const row of rows) {
+      const ctxModel = modelOf(row);
+      if (ctxModel) model = ctxModel;
       const e = codexEvent(row, { car, model });
       if (e) out.push(e);
     }
@@ -69,7 +76,7 @@ function collectCodex(limit: number): CarEvent[] {
   return out;
 }
 
-/** Grok. 모델은 `model changed` 이벤트로 추적한다. */
+/** Grok. 모델은 `model changed` 이벤트로 추적한다. 한도는 `applyLimit`이 붙인다. */
 function collectGrok(limit: number): CarEvent[] {
   const car = accountCar('grok', 'grok');
   const out: CarEvent[] = [];
@@ -170,9 +177,25 @@ for (const file of files) {
 }
 
 // 다른 벤더 계정들을 같은 트랙에 올린다.
+/**
+ * 한도는 **지금** 축이다. 이벤트마다 로그에 박힌 과거 수치를 쓰면 재생 중인 하루의
+ * 한도가 화면에 뜨는데, 사람이 보고 싶은 것은 "지금 이 계정이 막혔는가"다.
+ * `npm run fetch:limits`가 벤더별 최신 판독을 모아 두었으니 그것으로 덮는다.
+ */
+function applyLimit(vendor: string, list: CarEvent[]): void {
+  const limit = readLimits(vendor);
+  if (!limit) return;
+  for (const e of list) {
+    e.tyre_pct = Math.max(0, 100 - limit.utilization);
+    e.limit_window_minutes = limit.window_minutes;
+  }
+}
+
 const codex = collectCodex(maxFiles);
 const grok = collectGrok(maxFiles);
 const copilot = collectCopilot(60);
+applyLimit('codex', codex);
+applyLimit('grok', grok);
 events.push(...codex, ...grok, ...copilot);
 console.log(`벤더별: claude ${events.length - codex.length - grok.length - copilot.length} · codex ${codex.length} · grok ${grok.length} · copilot ${copilot.length}`);
 

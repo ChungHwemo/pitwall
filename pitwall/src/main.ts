@@ -195,6 +195,7 @@ export class PitwallApp {
       this.trackModel = buildTrackModel(this.raceState, now, {
         highlightTypes: this.settings.highlightTypes,
         fuelWarnPct: this.settings.fuelWarnThresholdPct,
+        limitWarnPct: this.settings.limitWarnThresholdPct,
         pinned: this.pinned,
       });
     }

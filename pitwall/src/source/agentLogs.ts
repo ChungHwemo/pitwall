@@ -13,6 +13,12 @@ import { specOf, classOfModel, costUsd } from '../config/models';
  * 원본 계정 식별자와 토큰은 여기서 끝난다. 밖으로 나가는 것은 해시뿐이다 (PRIV-3).
  */
 
+export interface LimitReading {
+  ts: number;
+  tyre_pct: number;
+  limit_window_minutes: number;
+}
+
 export interface CarIdentity {
   car_id: string;
   car_number: number;
@@ -88,6 +94,24 @@ function build(
  * 두 축을 섞으면 어느 쪽이 바닥났는지 화면이 말해주지 못한다.
  * 관측된 창은 10,080분(주간)이다. 5시간 창은 이 로그에 없다.
  */
+export function codexRateLimit(raw: unknown): LimitReading | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const row = raw as Record<string, unknown>;
+  const payload = row.payload as Record<string, unknown> | undefined;
+  const primary = (payload?.rate_limits as Record<string, unknown> | undefined)?.primary as
+    Record<string, number> | undefined;
+  if (typeof primary?.used_percent !== 'number') return null;
+
+  const ts = Date.parse(String(row.timestamp ?? ''));
+  if (!Number.isFinite(ts)) return null;
+
+  return {
+    ts,
+    tyre_pct: Math.max(0, 100 - primary.used_percent),
+    limit_window_minutes: primary.window_minutes ?? 0,
+  };
+}
+
 export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const row = raw as Record<string, unknown>;
@@ -101,18 +125,16 @@ export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
   const ts = Date.parse(String(row.timestamp ?? ''));
   if (!Number.isFinite(ts)) return null;
 
-  const limits = payload.rate_limits as Record<string, unknown> | undefined;
-  const primary = limits?.primary as Record<string, number> | undefined;
-  const used = typeof primary?.used_percent === 'number' ? primary.used_percent : null;
+  const limit = codexRateLimit(raw);
 
   return build(ctx, ts, {
     prompt: u.input_tokens ?? 0,
     // 추론 토큰도 출력으로 과금된다.
     completion: (u.output_tokens ?? 0) + (u.reasoning_output_tokens ?? 0),
     cacheRead: u.cached_input_tokens ?? 0,
-  }, used === null ? {} : {
-    tyre_pct: Math.max(0, 100 - used),
-    limit_window_minutes: typeof primary?.window_minutes === 'number' ? primary.window_minutes : undefined,
+  }, limit === null ? {} : {
+    tyre_pct: limit.tyre_pct,
+    limit_window_minutes: limit.limit_window_minutes || undefined,
   });
 }
 
@@ -138,6 +160,39 @@ export function grokEvent(raw: unknown, ctx: LogContext): CarEvent | null {
     },
     { latency_ms: c.model_elapsed_ms ?? 0, ttft_ms: c.ttft_ms },
   );
+}
+
+/**
+ * Grok — `billing: fetched credits config`.
+ *
+ * 호출 로그가 아니라 별도의 청구 조회 줄이다. Codex처럼 호출마다 딸려오지 않아
+ * 가끔 한 번씩만 찍힌다 — 그래서 이벤트가 아니라 **시각이 붙은 판독값**을 돌려주고,
+ * 호출에 붙이는 일은 호출자가 한다.
+ *
+ * 창 길이는 `type` 문자열이 아니라 기간 자체에서 잰다. 레이블은 바뀔 수 있지만
+ * start→end는 실제 값이다.
+ */
+export function grokCredits(raw: unknown): LimitReading | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const row = raw as Record<string, unknown>;
+  if (row.msg !== 'billing: fetched credits config') return null;
+
+  const config = (row.ctx as Record<string, unknown> | undefined)?.config as
+    Record<string, unknown> | undefined;
+  const used = config?.creditUsagePercent;
+  const period = config?.currentPeriod as Record<string, string> | undefined;
+  if (typeof used !== 'number' || !period) return null;
+
+  const ts = Date.parse(String(row.ts ?? ''));
+  const start = Date.parse(period.start ?? '');
+  const end = Date.parse(period.end ?? '');
+  if (!Number.isFinite(ts) || !Number.isFinite(start) || !Number.isFinite(end)) return null;
+
+  return {
+    ts,
+    tyre_pct: Math.max(0, 100 - used),
+    limit_window_minutes: Math.round((end - start) / 60_000),
+  };
 }
 
 /**

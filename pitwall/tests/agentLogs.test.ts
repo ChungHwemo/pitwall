@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { codexEvent, grokEvent, copilotEvents, accountCar } from '../src/source/agentLogs';
+import { codexEvent, codexRateLimit, grokEvent, grokCredits, copilotEvents, accountCar } from '../src/source/agentLogs';
 import { workOf, cachedOf } from '../src/state/reducer';
 
 describe('accountCar', () => {
@@ -142,5 +142,68 @@ describe('copilotEvents', () => {
 
   it('다른 이벤트는 빈 배열이다', () => {
     expect(copilotEvents({ type: 'session.start' }, { car: CAR })).toEqual([]);
+  });
+});
+
+describe('grokCredits', () => {
+  const line = {
+    ts: '2026-07-24T08:03:43.432Z',
+    msg: 'billing: fetched credits config',
+    ctx: {
+      config: {
+        creditUsagePercent: 52,
+        currentPeriod: {
+          type: 'USAGE_PERIOD_TYPE_WEEKLY',
+          start: '2026-07-17T14:13:14.612417+00:00',
+          end: '2026-07-24T14:13:14.612417+00:00',
+        },
+      },
+    },
+  };
+
+  it('reads the remaining share of the credit window', () => {
+    expect(grokCredits(line)).toEqual({
+      ts: Date.parse('2026-07-24T08:03:43.432Z'),
+      tyre_pct: 48,
+      limit_window_minutes: 10080,
+    });
+  });
+
+  it('derives the window from the period, not from its label', () => {
+    const monthly = {
+      ...line,
+      ctx: { config: { ...line.ctx.config, currentPeriod: {
+        type: 'USAGE_PERIOD_TYPE_MONTHLY',
+        start: '2026-07-01T00:00:00+00:00',
+        end: '2026-07-31T00:00:00+00:00',
+      } } },
+    };
+    expect(grokCredits(monthly)?.limit_window_minutes).toBe(30 * 24 * 60);
+  });
+
+  it('ignores every other log line', () => {
+    expect(grokCredits({ msg: 'shell.turn.inference_done', ctx: {} })).toBeNull();
+  });
+});
+
+describe('codexRateLimit', () => {
+  const line = {
+    timestamp: '2026-07-30T09:22:46.109Z',
+    payload: {
+      type: 'token_count',
+      rate_limits: { primary: { used_percent: 97, window_minutes: 10080, resets_at: 1785913052 } },
+    },
+  };
+
+  it('가장 최근 판독을 시각과 함께 돌려준다', () => {
+    expect(codexRateLimit(line)).toEqual({
+      ts: Date.parse('2026-07-30T09:22:46.109Z'),
+      tyre_pct: 3,
+      limit_window_minutes: 10080,
+    });
+  });
+
+  it('한도가 없는 줄은 무시한다', () => {
+    expect(codexRateLimit({ timestamp: line.timestamp, payload: { type: 'token_count' } })).toBeNull();
   });
 });

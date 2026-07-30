@@ -12,8 +12,12 @@
  * 출력·파일 어디에도 남기지 않는다. 저장하는 것은 사용률과 리셋 시각뿐이다.
  */
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import type { Dirent } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { codexRateLimit, grokCredits } from '../src/source/agentLogs';
+import type { LimitReading } from '../src/source/agentLogs';
 
 interface Window {
   utilization: number;
@@ -74,14 +78,68 @@ async function claudeLimits(): Promise<VendorLimits | null> {
   return windows.length ? { vendor: 'claude', fetchedAt: Date.now(), windows } : null;
 }
 
-const limits = await claudeLimits();
-if (limits) {
+/**
+ * Codex·Grok은 조회 API를 열어두지 않았지만 **자기 로그에 한도를 적어 둔다.**
+ * 마지막으로 그 에이전트를 돌린 순간의 값이므로, 그 시각을 함께 남긴다 —
+ * 6일 전 판독을 "지금"이라고 화면에 띄우면 그건 거짓말이다.
+ */
+function newestReading(dir: string, parse: (row: unknown) => LimitReading | null): LimitReading | null {
+  let best: LimitReading | null = null;
+  const walk = (d: string): void => {
+    let entries: Dirent[];
+    try { entries = readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const path = join(d, entry.name);
+      if (entry.isDirectory()) { walk(path); continue; }
+      if (!entry.name.endsWith('.jsonl')) continue;
+      let text: string;
+      try { text = readFileSync(path, 'utf8'); } catch { continue; }
+      for (const line of text.split('\n')) {
+        if (!line.trim()) continue;
+        let row: unknown;
+        try { row = JSON.parse(line); } catch { continue; }
+        const reading = parse(row);
+        if (reading && (best === null || reading.ts > best.ts)) best = reading;
+      }
+    }
+  };
+  walk(dir);
+  return best;
+}
+
+function fromLog(vendor: string, dir: string, parse: (row: unknown) => LimitReading | null): VendorLimits | null {
+  const reading = newestReading(join(homedir(), dir), parse);
+  if (!reading) return null;
+  return {
+    vendor,
+    fetchedAt: reading.ts,
+    windows: [{
+      utilization: 100 - reading.tyre_pct,
+      resets_at: null,
+      window_minutes: reading.limit_window_minutes,
+    }],
+  };
+}
+
+const all = [
+  await claudeLimits(),
+  fromLog('codex', '.codex', codexRateLimit),
+  fromLog('grok', '.grok', grokCredits),
+].filter((v): v is VendorLimits => v !== null);
+
+if (all.length) {
   const out = resolve(import.meta.dirname, '../fixtures/limits.json');
   mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, JSON.stringify([limits], null, 2) + '\n');
-  for (const w of limits.windows) {
-    const label = w.window_minutes % 1440 === 0 ? `${w.window_minutes / 1440}일` : `${w.window_minutes / 60}시간`;
-    console.log(`${label} 한도: ${w.utilization}% 사용 · ${(100 - w.utilization).toFixed(0)}% 남음 · 리셋 ${w.resets_at ?? '미상'}`);
+  writeFileSync(out, JSON.stringify(all, null, 2) + '\n');
+  const now = Date.now();
+  for (const v of all) {
+    const ageHours = (now - v.fetchedAt) / 3_600_000;
+    // 로그에서 주운 값은 마지막 실행 시점의 값이다. 오래됐으면 오래됐다고 말한다.
+    const age = ageHours < 1 ? '방금' : ageHours < 48 ? `${ageHours.toFixed(0)}시간 전` : `${(ageHours / 24).toFixed(0)}일 전`;
+    for (const w of v.windows) {
+      const label = w.window_minutes % 1440 === 0 ? `${w.window_minutes / 1440}일` : `${w.window_minutes / 60}시간`;
+      console.log(`${v.vendor.padEnd(7)} ${label.padEnd(5)} 한도: ${w.utilization.toFixed(0)}% 사용 · ${(100 - w.utilization).toFixed(0)}% 남음 · 판독 ${age}`);
+    }
   }
   console.log(`→ ${out}`);
 }

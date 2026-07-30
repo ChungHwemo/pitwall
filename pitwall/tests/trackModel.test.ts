@@ -24,6 +24,7 @@ import type { HighlightType, TrackModelOptions } from '../src/track/trackModel';
 const OPTS: TrackModelOptions = {
   highlightTypes: ['error', 'limit'] as HighlightType[],
   fuelWarnPct: 20,
+  limitWarnPct: 15,
   pinned: new Set<string>(),
 };
 const opts = (over: Partial<TrackModelOptions> = {}): TrackModelOptions => ({ ...OPTS, ...over });
@@ -108,8 +109,10 @@ describe('hot 분류', () => {
     expect(m.hot.map((h) => h.carId)).toEqual(['boom']);
   });
 
-  it('연료가 임계 아래면 hot이다', () => {
-    const m = buildTrackModel(state([car('low', { fuel_pct: 5 })]), T, opts());
+  // 의도 변경: 연료(비용 예산)는 hot 사유가 아니다. 한도는 벤더가 거는 벽이고
+  // 연료는 돈이라 서로 다른 축이다 — 연료로 한도를 판정하던 옛 동작을 버렸다.
+  it('한도 잔여가 임계 아래면 hot이다', () => {
+    const m = buildTrackModel(state([car('low', { tyre_pct: 5 })]), T, opts());
     expect(m.hot.map((h) => h.carId)).toEqual(['low']);
   });
 
@@ -138,10 +141,10 @@ describe('hot 분류', () => {
     expect(m.cold.length).toBe(5);
   });
 
-  it('강등은 점수 낮은 쪽부터다 — 연료가 더 급한 차가 남는다', () => {
+  it('강등은 점수 낮은 쪽부터다 — 한도가 더 급한 차가 남는다', () => {
     const cars = [
       ...Array.from({ length: HOT_CAP }, (_, i) => car(`e${i}`, { error_count: 1 })),
-      car('critical', { fuel_pct: 1, error_count: 1 }),
+      car('critical', { tyre_pct: 1, error_count: 1 }),
     ];
     const m = buildTrackModel(state(cars), T, opts());
     expect(m.hot.map((h) => h.carId)).toContain('critical');
@@ -183,5 +186,26 @@ describe('레인 상한', () => {
       car(`c${i}`, { car_class: 'GT' as CarClass, distance: i * 4_000 }));
     const m = buildTrackModel(state(cars), T, opts());
     expect(m.laneOverflow.GT).toBe(5);
+  });
+});
+
+describe('한도 하이라이트는 한도 축에서만 나온다', () => {
+
+  it('한도 잔여가 임계 아래면 limit으로 잡는다', () => {
+    const race = state([car('car-limit', { tyre_pct: 4, fuel_pct: 100 })]);
+    const model = buildTrackModel(race, T, { ...OPTS, limitWarnPct: 15 });
+    expect(model.hot.map((h) => [h.carId, h.reason])).toEqual([['car-limit', 'limit']]);
+  });
+
+  it('연료가 바닥나도 한도로 부르지 않는다 — 돈과 한도는 다른 축이다', () => {
+    const race = state([car('car-broke', { fuel_pct: 0, tyre_pct: 90 })]);
+    const model = buildTrackModel(race, T, { ...OPTS, limitWarnPct: 15 });
+    expect(model.hot).toEqual([]);
+  });
+
+  it('한도 소스가 없는 차는 한도에 걸렸다고 주장하지 않는다', () => {
+    const race = state([car('car-blind', { tyre_pct: undefined, fuel_pct: 0 })]);
+    const model = buildTrackModel(race, T, { ...OPTS, limitWarnPct: 15 });
+    expect(model.hot).toEqual([]);
   });
 });

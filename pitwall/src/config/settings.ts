@@ -17,6 +17,8 @@ export interface PitwallSettings {
   demoClock: boolean;
   fuelWarnLeadMinutes: number;
   fuelWarnThresholdPct: number;
+  /** 한도 창 잔여가 이 아래면 강조한다. 연료와 다른 축이다. */
+  limitWarnThresholdPct: number;
   minTeamSizeForIndividual: number;
   cameraSlots: number;
   cameraMinExposureMs: number;
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: PitwallSettings = {
   demoClock: true,
   fuelWarnLeadMinutes: 60,
   fuelWarnThresholdPct: 20,
+  limitWarnThresholdPct: 15,
   minTeamSizeForIndividual: 10,
   cameraSlots: 3,
   cameraMinExposureMs: 8_000,
