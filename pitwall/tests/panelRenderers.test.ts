@@ -96,11 +96,12 @@ describe('CameraRenderer', () => {
     expect(writes).toBe(0);
   });
 
+  // 의도 변경: 첫 칸이 연료 %에서 실제 비용으로 바뀌었다 (감사 F2).
   it('값이 바뀌면 textContent를 쓴다', () => {
     const r = new CameraRenderer(host, 1);
-    r.render(state([car('a', { fuel_pct: 80 })]), ['a']);
-    r.render(state([car('a', { fuel_pct: 20 })]), ['a']);
-    expect(host.textContent).toContain('FUEL 20%');
+    r.render(state([car('a', { cost_usd: 1 })]), ['a']);
+    r.render(state([car('a', { cost_usd: 12.5 })]), ['a']);
+    expect(host.textContent).toContain('$12.50');
   });
 
   it('타이어 데이터가 없으면 게이지 자체를 그리지 않는다', () => {
@@ -109,7 +110,7 @@ describe('CameraRenderer', () => {
     r.render(state([car('a', { tyre_pct: undefined })]), ['a']);
     expect(host.textContent).not.toContain('LIMIT');
     expect(host.textContent).not.toContain('NaN');
-    expect(host.textContent).toContain('FUEL');
+    expect(host.textContent).toContain('$');
   });
 
   it('한도 데이터가 있으면 창 길이와 함께 그린다', () => {
@@ -176,5 +177,15 @@ describe('모델명 표기', () => {
     const text = host.textContent ?? '';
     expect(text).toContain('gpt-5.6-sol');
     expect(text).not.toContain('HYPERCAR');
+  });
+});
+
+describe('카드 첫 줄', () => {
+  it('꾸며낸 연료 %가 아니라 실제로 쓴 돈을 먼저 쓴다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('car-a', { cost_usd: 377.04, fuel_pct: 0 })]), ['car-a']);
+    const text = host.textContent ?? '';
+    expect(text).toContain('$377.04');
+    expect(text).not.toContain('FUEL');
   });
 });

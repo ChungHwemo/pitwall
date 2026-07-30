@@ -1,6 +1,6 @@
 import { trackWidth } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
-import { positionAt } from '../track/layout';
+import { positionAt, pitBoxAt, pitLanePoints } from '../track/layout';
 import { CLASS_STYLE } from '../config/theme';
 import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
@@ -138,6 +138,33 @@ export class TrackRenderer {
     path.setAttribute('stroke-width', String(TRACK_WIDTH));
     path.setAttribute('stroke-linejoin', 'round');
     this.container.appendChild(path);
+    this.drawPitLane();
+  }
+
+  /**
+   * 피트 레인. 멈춘 차만 인필드에 떠 있으면 "트랙을 벗어났다"로 읽힌다 —
+   * 설 자리가 그려져 있어야 정지가 사고가 아니라 피트인으로 보인다.
+   */
+  private drawPitLane(): void {
+    const pts = pitLanePoints(this.track);
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('class', 'pit-lane');
+    path.setAttribute('d', pts
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' '));
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#1c222b');
+    path.setAttribute('stroke-width', '26');
+    path.setAttribute('stroke-linecap', 'round');
+    this.container.appendChild(path);
+
+    // 표지는 레인 끝에 둔다. 입구에 두면 첫 박스에 선 차가 그대로 덮는다.
+    const tail = pts[pts.length - 1]!;
+    const label = document.createElementNS(SVG_NS, 'text');
+    label.setAttribute('class', 'pit-label');
+    label.setAttribute('x', tail.x.toFixed(2));
+    label.setAttribute('y', (tail.y + 34).toFixed(2));
+    label.textContent = 'PIT';
+    this.container.appendChild(label);
   }
 
   private hotSlot(index: number): HotNode {
@@ -259,6 +286,9 @@ export class TrackRenderer {
   }
 
   private renderHot(hot: HotCar[]): void {
+    // 피트 박스 번호. 멈춘 차만 센다.
+    let pitSlot = 0;
+
     hot.forEach((car, i) => {
       const node = this.hotSlot(i);
 
@@ -285,15 +315,18 @@ export class TrackRenderer {
         node.carId = car.carId;
       }
 
-      // 에러(호출 실패)와 한도(예산 소진)는 둘 다 더 갈 수 없는 상태다.
-      // 계속 굴러가면 화면이 "일이 되고 있다"고 거짓말한다.
+      // 에러(호출 실패)와 한도(벤더가 건 벽)는 둘 다 더 갈 수 없는 상태다.
+      // 주행선 위에 세우면 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인
+      // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
-      const next = STOPPED.has(car.reason)
-        ? (this.visual.get(car.carId) ?? car.progress)
-        : this.step(car.carId, car.progress);
-      this.visual.set(car.carId, next);
-
-      translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
+      if (STOPPED.has(car.reason)) {
+        translate(node.group, pitBoxAt(this.track, pitSlot, hot.length));
+        pitSlot += 1;
+      } else {
+        const next = this.step(car.carId, car.progress);
+        this.visual.set(car.carId, next);
+        translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
+      }
       this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
     });

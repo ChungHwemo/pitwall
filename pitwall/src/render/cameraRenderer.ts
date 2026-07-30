@@ -82,9 +82,12 @@ export class CameraRenderer {
       setText(card.klass, car.model);
       card.klass.style.color = style.color;
 
+      // 돈이 먼저다. 예전 첫 칸은 `FUEL %`였는데, 그 분모는 아무도 설정한 적 없는
+      // 기본 일일 예산이었고 실측에서 10:01에 0%가 되어 하루의 73%를 "연료 없음"으로
+      // 표시했다. 실제로 쓴 액수는 그런 가정 없이 참이다 (감사 F2).
+      const parts = [`$${car.cost_usd.toFixed(2)}`];
       // 타이어는 소스가 있을 때만 게이지를 그린다 (PRD §7.0).
       // 없는 값을 0%로 표시하면 화면이 "소진됨"이라는 없는 사실을 주장한다.
-      const parts = [`FUEL ${Math.round(car.fuel_pct)}%`];
       // 한도는 창 길이를 함께 쓴다. "72% 남음"만으로는 5시간인지 일주일인지 모른다.
       if (car.tyre_pct !== undefined) {
         parts.push(`LIMIT ${Math.round(car.tyre_pct)}%${windowLabel(car.limit_window_minutes)}`);

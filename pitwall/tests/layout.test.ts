@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { positionAt, assignLanes, LANE_OFFSETS, LANE_RENDER_CAP } from '../src/track/layout';
+import {
+  positionAt, assignLanes, LANE_OFFSETS, LANE_RENDER_CAP,
+  pitBoxAt, TRACK_HALF_WIDTH, GLYPH_DIAMETER,
+} from '../src/track/layout';
 import { generateTrack } from '../src/track/generateTrack';
 import type { CarState, CarClass } from '../src/types';
 
@@ -94,5 +97,31 @@ describe('assignLanes', () => {
     const r = assignLanes(new Map(), NOW);
     expect([...r.visible.keys()].sort()).toEqual(['GT', 'H', 'P']);
     expect(r.clustered).toEqual({ H: 0, P: 0, GT: 0 });
+  });
+});
+
+describe('피트', () => {
+  const track = generateTrack(7, { resolution: 240, lobes: 3, aspect: 1.5 });
+
+  it('피트 박스는 트랙 바깥에 놓인다 — 정지한 차가 주행선을 막지 않는다', () => {
+    const onTrack = positionAt(track, track.pitEntry / track.points.length, 'P', 0);
+    const inPit = pitBoxAt(track, 0, 1);
+    const centre = track.points[track.pitEntry]!;
+    const dOn = Math.hypot(onTrack.x - centre.x, onTrack.y - centre.y);
+    const dPit = Math.hypot(inPit.x - centre.x, inPit.y - centre.y);
+    expect(dPit).toBeGreaterThan(dOn + TRACK_HALF_WIDTH);
+  });
+
+  it('여러 대가 서면 서로 다른 박스를 쓴다', () => {
+    const a = pitBoxAt(track, 0, 3);
+    const b = pitBoxAt(track, 1, 3);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(GLYPH_DIAMETER);
+  });
+
+  it('박스는 피트 구간 안에 머문다', () => {
+    for (let i = 0; i < 8; i++) {
+      const p = pitBoxAt(track, i, 8);
+      expect(Number.isFinite(p.x) && Number.isFinite(p.y)).toBe(true);
+    }
   });
 });

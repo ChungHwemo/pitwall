@@ -15,6 +15,8 @@ import { resolve, join, dirname } from 'node:path';
 import { toCarEvent } from '../src/source/claudeCodeImport';
 import { accountCar, codexEvent, grokEvent, copilotEvents } from '../src/source/agentLogs';
 import { specOf } from '../src/config/models';
+import { workdayFromActivity } from '../src/state/clock';
+import { workOf } from '../src/state/reducer';
 import type { CarEvent } from '../src/types';
 
 /** 로그를 남기는 에이전트를 전부 훑는다. 벤더 하나당 계정 하나 = 차량 한 대. */
@@ -246,6 +248,27 @@ if (requestedDay && !perDay.has(requestedDay)) {
   console.log(`${requestedDay}에는 기록이 없다. 대신 ${chosen[0]}을 쓴다.`);
 }
 const [busiestDay, dayEvents] = chosen;
+
+/**
+ * 레이스 창을 실제 활동에서 뽑고, 그 밖으로 삐져나간 기록은 잘라낸다.
+ *
+ * 창은 재생 원점이기도 하다. 창 앞에 기록이 남아 있으면 재생이 PRE GRID에서
+ * 시작해 한참을 빈 화면으로 돈다. 버린 양은 반드시 찍는다 — 조용히 줄이지 않는다.
+ */
+const window_ = workdayFromActivity(dayEvents.map((e) => ({ ts: e.ts, work: workOf(e) })));
+const inWindow = dayEvents.filter((e) => {
+  const d = new Date(e.ts);
+  const m = d.getHours() * 60 + d.getMinutes();
+  return m >= window_.raceStart && m < window_.raceEnd;
+});
+if (inWindow.length < dayEvents.length) {
+  const cut = dayEvents.length - inWindow.length;
+  const cutWork = dayEvents.reduce((a, e) => a + workOf(e), 0) - inWindow.reduce((a, e) => a + workOf(e), 0);
+  const total = dayEvents.reduce((a, e) => a + workOf(e), 0);
+  console.log(`창(${window_.raceStart / 60}시~${window_.raceEnd / 60}시) 밖 ${cut}건 제외 · 작업 ${(cutWork / total * 100).toFixed(1)}%`);
+}
+dayEvents.length = 0;
+dayEvents.push(...inWindow);
 
 // 연료는 그날의 차량별 누적 비용을 일간 예산으로 나눈 잔여다.
 const spent = new Map<string, number>();

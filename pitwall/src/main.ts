@@ -3,7 +3,8 @@ import { PRESETS, type PresetName } from './config/presets';
 import { SimulatorSource } from './source/SimulatorSource';
 import type { EventSource } from './source/EventSource';
 import { emptyRaceState, applyEvent } from './state/reducer';
-import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs } from './state/clock';
+import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs, formatWallClock } from './state/clock';
+import { paceOf, formatPace } from './state/pace';
 import { demoClock } from './state/demoClock';
 import { generateTrack, validateTrack } from './track/generateTrack';
 
@@ -57,6 +58,7 @@ export class PitwallApp {
   private hudTime: HTMLElement;
   private hudSalary: HTMLElement;
   private hudPhase: HTMLElement;
+  private hudPace: HTMLElement;
   private summaryRenderer: SummaryRenderer;
   private feedRenderer: FeedRenderer;
   /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
@@ -102,7 +104,10 @@ export class PitwallApp {
     this.hudPhase.className = 'hud-item';
     this.hudSalary = document.createElement('div');
     this.hudSalary.className = 'hud-item';
-    hud.append(this.hudTime, this.hudPhase, this.hudSalary);
+    // 돈과 속도가 첫 줄이다 — 감사 F2·F3. 비교 대상들이 전부 여기서 시작한다.
+    this.hudPace = document.createElement('div');
+    this.hudPace.className = 'hud-item hud-pace';
+    hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary);
 
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'track');
@@ -189,7 +194,12 @@ export class PitwallApp {
   private render(now: number): void {
     // 데모 모드면 벽시계를 근무 창 안으로 접는다. 시각을 지어내므로 HUD에 표시한다.
     const real = new Date();
-    const wall = this.settings.demoClock ? demoClock(real, this.settings.workday) : real;
+    // 기록을 재생 중이면 시계는 재생 위치다. 데모 시계는 벽시계 분을 창 안으로
+    // 접기만 해서 배속을 타지 않는다 — 그대로 두면 HUD가 오후를 가리키는데
+    // 화면의 비용은 아침 값이 된다. 시뮬레이터에서만 쓴다.
+    const replayed = this.source?.replayClock?.();
+    const wall = replayed
+      ?? (this.settings.demoClock ? demoClock(real, this.settings.workday) : real);
     const phase = phaseAt(wall, this.settings.workday);
     const transition: RadioMessage | null = phaseRadio(phase, this.lastPhase, now);
     if (transition) this.radioRenderer.push(transition);
@@ -221,9 +231,14 @@ export class PitwallApp {
 
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).
     const total = formatElapsed(raceDurationMs(this.settings.workday));
-    setText(this.hudTime, `⏱ ${formatElapsed(this.raceState.elapsed_ms)} / ${total}`);
+    // 경과만으로는 어느 날 몇 시인지 알 수 없다. 벽시계를 같이 쓴다.
+    setText(this.hudTime,
+      `${formatWallClock(wall)}  ⏱ ${formatElapsed(this.raceState.elapsed_ms)} / ${total}`);
+    setText(this.hudPace, formatPace(paceOf(this.raceState)));
     setText(this.hudPhase,
-      `${phase.toUpperCase().replace('_', ' ')}${this.settings.demoClock ? ' · DEMO' : ''}`);
+      // 기록을 재생 중이면 시계는 지어낸 값이 아니라 재생 위치다 — DEMO를 붙이면
+      // 그게 거짓말이 된다.
+      `${phase.toUpperCase().replace('_', ' ')}${!replayed && this.settings.demoClock ? ' · DEMO' : ''}`);
 
     const salary = loadSalaryConfig();
     setText(this.hudSalary, salary

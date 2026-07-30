@@ -87,3 +87,9 @@ svg.track { grid-area: track; width: 100%; height: 100%; }
 /* 선택된 차량은 트랙에서도 구분된다 */
 svg.track [data-selected="true"] path { stroke: #e6edf3; stroke-width: 2.5; paint-order: stroke; }
 svg.track g.cold, svg.track g.car { cursor: pointer; }
+
+/* 피트 — 멈춘 차가 서는 자리. 주행선보다 어둡게 두어 트랙과 구분한다. */
+.pit-label {
+  fill: #55636f; font-size: 30px; letter-spacing: 0.22em;
+  font-family: ui-monospace, SFMono-Regular, monospace; text-anchor: middle;
+}

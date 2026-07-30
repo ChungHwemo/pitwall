@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
+import { pitBoxAt } from '../src/track/layout';
 import { generateTrack } from '../src/track/generateTrack';
 import { buildTrackModel, HOT_CAP } from '../src/track/trackModel';
 import type { HighlightType, TrackModelOptions } from '../src/track/trackModel';
@@ -118,11 +119,14 @@ describe('TrackRenderer', () => {
     expect(svg.querySelectorAll('*').length).toBeLessThanOrEqual(800);
   });
 
-  it('트랙 위에 텍스트를 쓰지 않는다', () => {
+  // 의도 축소: 금지 대상은 **차량에 붙는 글자**다. 차 옆에 이름표가 붙으면
+  // 곁눈질 판독이 무너지고 식별자가 화면에 올라온다. 고정 안내판(피트 표지)은
+  // 차량 수와 무관하게 하나뿐이고 매 프레임 다시 쓰이지도 않는다.
+  it('차량에는 글자를 붙이지 않는다', () => {
     const r = new TrackRenderer(svg, track);
     const cars = Array.from({ length: 30 }, (_, i) => car(`car-${i}`));
     r.render(model(cars), T);
-    expect(svg.querySelectorAll('text').length).toBe(0);
+    expect(svg.querySelectorAll('g.cars text').length).toBe(0);
   });
 
   it('노드를 재사용한다 — 반복 렌더에도 노드 수가 늘지 않는다', () => {
@@ -395,10 +399,10 @@ describe('사건 차량 정지', () => {
   });
 
   it('경고 표시는 텍스트가 아니라 도형이다', () => {
-    // 트랙 위 텍스트 금지 (PRD §6.3). 느낌표도 글자로 그리지 않는다.
+    // 차량 위 텍스트 금지 (PRD §6.3). 느낌표도 글자로 그리지 않는다.
     const r = new TrackRenderer(svg, track);
     r.render(model([car('boom', { error_count: 1 })]), T);
-    expect(svg.querySelectorAll('text').length).toBe(0);
+    expect(svg.querySelectorAll('g.cars text').length).toBe(0);
   });
 
   it('핀 고정에는 경고 표시를 띄우지 않는다', () => {
@@ -452,5 +456,27 @@ describe('트랙에서 차 선택', () => {
     r.render(model([car('a')]), T, 'a');
     r.render(model([car('a')]), T + 100, null);
     expect(svg.querySelectorAll('[data-selected="true"]').length).toBe(0);
+  });
+});
+
+describe('피트', () => {
+  it('멈춘 차는 주행선이 아니라 피트에 선다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('stopped', { tyre_pct: 2, distance: 0 })]), T);
+    const g = svg.querySelector('g.car') as SVGGElement;
+    const at = g.style.transform;
+
+    const box = pitBoxAt(track, 0, 1);
+    expect(at).toBe(`translate(${box.x.toFixed(2)}px, ${box.y.toFixed(2)}px)`);
+  });
+
+  it('여러 대가 멈추면 각자 다른 박스에 선다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([
+      car('a', { tyre_pct: 2 }),
+      car('b', { error_count: 1 }),
+    ]), T);
+    const spots = [...svg.querySelectorAll('g.car')].map((g) => (g as SVGGElement).style.transform);
+    expect(new Set(spots).size).toBe(2);
   });
 });

@@ -21,6 +21,48 @@ export const LANE_OFFSETS: Record<CarClass, number> = {
  */
 export const LANE_JITTER = 11;
 
+/** 트랙 스트로크 폭의 절반. 피트가 주행선 밖에 있는지 판정하는 기준이다. */
+export const TRACK_HALF_WIDTH = 51;
+
+/** 글리프 지름. 피트 박스 간격의 하한이다. */
+export const GLYPH_DIAMETER = 14;
+
+/**
+ * 피트 레인은 주행선을 벗어난 자리다. 실제 서킷처럼 **안쪽**으로 뺀다 —
+ * 바깥으로 빼면 좌표계를 벗어나 화면 밖에 서는 코너가 생긴다. 인필드는 비어 있다.
+ */
+export const PIT_LANE_OFFSET = -(TRACK_HALF_WIDTH + 44);
+
+/** 피트 박스 사이 간격 (진행률). 글리프가 겹치지 않을 만큼. */
+const PIT_BOX_GAP = 0.011;
+
+/**
+ * 정지한 차가 서는 자리.
+ *
+ * 에러든 한도든 더 갈 수 없는 차를 주행선 위에 세워두면 두 가지가 동시에
+ * 거짓이 된다 — 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인 것처럼 보인다.
+ * 실제 경기와 같이 피트로 들여보낸다.
+ *
+ * 박스는 피트 진입점부터 순서대로 늘어선다. 자리 번호는 호출자가 정한다.
+ */
+export function pitBoxAt(track: Track, slot: number, _slots: number): Point {
+  return positionAt(track, pitProgressAt(track, slot), 'P', 0, PIT_LANE_OFFSET);
+}
+
+/** 피트 레인이 차지하는 진행률 구간. 레인을 그릴 때와 세울 때가 같은 식을 쓴다. */
+export function pitProgressAt(track: Track, slot: number): number {
+  return track.pitEntry / track.points.length + slot * PIT_BOX_GAP;
+}
+
+/** 피트 레인 폴리라인. 차만 안쪽에 떠 있으면 트랙을 벗어난 것으로 읽힌다. */
+export function pitLanePoints(track: Track, boxes = 8): Point[] {
+  const out: Point[] = [];
+  for (let i = -1; i <= boxes; i++) {
+    out.push(positionAt(track, pitProgressAt(track, i), 'P', 0, PIT_LANE_OFFSET));
+  }
+  return out;
+}
+
 /** 한 레인에 그릴 수 있는 최대 차량 수 (PRD §6.4) */
 export const LANE_RENDER_CAP = 40;
 
@@ -47,6 +89,7 @@ export function laneLineOf(carId: string): number {
 
 export function positionAt(
   track: Track, progress: number, carClass: CarClass, laneLine = 0,
+  lateral?: number,
 ): Point {
   const n = track.points.length;
   const t = normalize(progress) * n;
@@ -63,7 +106,8 @@ export function positionAt(
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
-  const offset = LANE_OFFSETS[carClass] + laneLine * LANE_JITTER;
+  // 피트처럼 레인 밖에 세울 때는 오프셋을 직접 준다.
+  const offset = lateral ?? (LANE_OFFSETS[carClass] + laneLine * LANE_JITTER);
 
   return { x: x + (-dy / len) * offset, y: y + (dx / len) * offset };
 }

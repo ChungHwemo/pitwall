@@ -2,6 +2,8 @@ import './style.css';
 import { PitwallApp } from './main';
 import { loadOrgSettings, loadLocalSettings, resolveSettings } from './config/settings';
 import { latestSession } from './session/sessionStore';
+import { workdayFromActivity } from './state/clock';
+import { workOf } from './state/reducer';
 import { ReplaySource } from './source/ReplaySource';
 import type { CarEvent } from './types';
 
@@ -31,11 +33,18 @@ if (mount) {
     const seed = resumed?.seed ?? Math.floor(Math.random() * 1_000_000);
 
     const recorded = typeof __PITWALL_REAL_EVENTS__ === 'undefined' ? [] : __PITWALL_REAL_EVENTS__;
+
+    // 근무창은 기록이 정한다. 09:00-18:00을 고집하면 실측 기준 하루 작업의
+    // 61.4%가 창 밖으로 밀려나 화면에 아예 오지 않는다.
+    const observed = recorded.length
+      ? { ...settings, workday: workdayFromActivity(recorded.map((e) => ({ ts: e.ts, work: workOf(e) }))) }
+      : settings;
+
     const app = new PitwallApp(mount, {
       seed,
-      preset: settings.preset,
-      speed: settings.speed,
-      settings,
+      preset: observed.preset,
+      speed: observed.speed,
+      settings: observed,
       source: recorded.length ? new ReplaySource(recorded, settings.speed) : undefined,
     });
     app.start();

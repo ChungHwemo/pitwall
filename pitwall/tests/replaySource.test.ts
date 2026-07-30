@@ -86,3 +86,24 @@ describe('ReplaySource', () => {
     expect(src.speed).toBe(600);
   });
 });
+
+describe('재생 시계', () => {
+  it('재생 위치의 원본 시각을 알려준다 — 화면 시계와 이벤트가 같은 타임라인이어야 한다', () => {
+    const origin = Date.parse('2026-07-30T07:00:00.000Z');
+    const src = new ReplaySource([
+      event({ ts: origin }),
+      event({ ts: origin + 3_600_000 }),
+    ], 60);
+    src.start(() => {});
+
+    src.tick(1_000);
+    src.tick(1_000 + 600);          // 실시간 0.6초 × 60배 = 36초
+    expect(src.replayClock().getTime()).toBe(origin + 36_000);
+  });
+
+  it('아직 안 돌았으면 첫 기록의 시각이다', () => {
+    const origin = Date.parse('2026-07-30T07:00:00.000Z');
+    const src = new ReplaySource([event({ ts: origin })], 1);
+    expect(src.replayClock().getTime()).toBe(origin);
+  });
+});

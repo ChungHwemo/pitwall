@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { phaseAt, elapsedMs, raceDurationMs, DEFAULT_WORKDAY } from '../src/state/clock';
+import { phaseAt, elapsedMs, raceDurationMs, DEFAULT_WORKDAY, workdayFromActivity, formatWallClock } from '../src/state/clock';
 
 /** 로컬 시간대 기준 그날의 시:분으로 Date를 만든다. */
 function at(hour: number, minute: number): Date {
@@ -71,5 +71,52 @@ describe('elapsedMs', () => {
 
   it('체커기 이후에는 레이스 길이에서 멈춘다 — 8시간', () => {
     expect(elapsedMs(at(23, 0), DEFAULT_WORKDAY)).toBe(8 * 3_600_000);
+  });
+});
+
+describe('workdayFromActivity', () => {
+  const at = (h: number, m = 0) => new Date(2026, 6, 30, h, m).getTime();
+
+  it('실제 첫 호출과 마지막 호출로 창을 잡는다', () => {
+    const cfg = workdayFromActivity([at(7, 12), at(13, 5), at(20, 55)].map((ts) => ({ ts, work: 1 })));
+    expect(cfg.raceStart).toBe(7 * 60);
+    expect(cfg.raceEnd).toBe(21 * 60);
+  });
+
+  it('일이 거의 없던 가장자리 시간대는 창에서 뺀다', () => {
+    // 자정에 22건(하루 작업의 0.5%)이 찍혔다고 창을 7시간 늘리면
+    // 나머지 99.5%가 눈금 한 칸으로 눌린다.
+    const cfg = workdayFromActivity([
+      { ts: at(0, 16), work: 5_000 },
+      { ts: at(9), work: 500_000 },
+      { ts: at(18), work: 500_000 },
+    ]);
+    expect(cfg.raceStart).toBe(9 * 60);
+    expect(cfg.raceEnd).toBe(19 * 60);
+  });
+
+  it('가정한 점심으로 시계를 멈추지 않는다 — 실제 공백은 데이터에 이미 있다', () => {
+    const cfg = workdayFromActivity([at(9), at(18)].map((ts) => ({ ts, work: 1 })));
+    expect(cfg.lunchEnd - cfg.lunchStart).toBe(0);
+    // 창은 시간대 단위다. 18:00에 호출이 있으면 18시가 통째로 창 안에 있어야
+    // 그 호출이 체커기에 잘리지 않는다 — 09시부터 19시까지 10시간.
+    expect(raceDurationMs(cfg)).toBe(10 * 60 * 60_000);
+  });
+
+  it('활동이 없으면 기본 근무일로 물러난다', () => {
+    expect(workdayFromActivity([])).toEqual(DEFAULT_WORKDAY);
+  });
+
+  it('포메이션과 파이널콜은 창 안쪽에 붙인다', () => {
+    const cfg = workdayFromActivity([at(10), at(16)].map((ts) => ({ ts, work: 1 })));
+    expect(cfg.formationStart).toBeLessThan(cfg.raceStart);
+    expect(cfg.finalCall).toBeLessThan(cfg.raceEnd);
+    expect(phaseAt(new Date(2026, 6, 30, 12), cfg)).toBe('racing');
+  });
+});
+
+describe('formatWallClock', () => {
+  it('날짜와 시각을 같이 쓴다 — 어느 날 몇 시인지 화면만 봐서 알아야 한다', () => {
+    expect(formatWallClock(new Date(2026, 6, 30, 18, 5))).toBe('07/30 18:05');
   });
 });

@@ -22,6 +22,17 @@ export class ReplaySource implements EventSource {
     public speed: number,
   ) {}
 
+  /**
+   * 재생 위치의 **원본 시각**.
+   *
+   * 화면 시계와 이벤트가 다른 타임라인 위에 있으면 HUD가 14:18을 가리키는데
+   * 재생된 비용은 아침 값인 사태가 난다(실제로 났다). 시계는 재생 위치를 따른다.
+   */
+  replayClock(): Date {
+    const origin = this.events[0]?.ts ?? 0;
+    return new Date(origin + this.elapsed);
+  }
+
   setSpeed(speed: number): void {
     this.speed = speed;
   }

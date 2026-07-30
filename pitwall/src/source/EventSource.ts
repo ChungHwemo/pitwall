@@ -9,4 +9,9 @@ export interface EventSource {
   stop(): void;
   /** 시각은 항상 주입받는다. 소스는 Date.now()를 부르지 않는다. */
   tick(nowMs: number): void;
+  /**
+   * 기록 재생 소스면 재생 위치의 원본 시각. 시뮬레이터에는 없다.
+   * 있으면 화면 시계가 이걸 따른다 — 시계와 이벤트가 갈라지면 안 된다.
+   */
+  replayClock?(): Date;
 }
