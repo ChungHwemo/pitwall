@@ -61,6 +61,7 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 | [구현 계획 v1](docs/superpowers/plans/2026-07-29-pitwall-v1.md) | 18개 태스크 TDD 실행 계획 |
 | [f1-telemetry 분해](docs/reference/2026-07-30-f1-telemetry-teardown.md) | 참조 구현 원본 코드 분석. 채택 기법 5건 / 기각 7건 |
 | [출시 검수](pitwall/CHECKLIST.md) | 측정한 것과 **측정하지 않은 것**을 분리해 기록 |
+| **[MVP 결정 사항](docs/superpowers/specs/2026-07-30-mvp-decisions.md)** | 실제로 띄워 보고 나온 가독성 문제 + 지금 정해야 할 10건 (D1–D10) |
 
 ---
 
