@@ -1,6 +1,6 @@
 import type { CarEvent, CarState, RaceState } from '../types';
 import { CLASS_STYLE } from '../config/theme';
-import { activityOf } from '../state/reducer';
+import { IDLE_THRESHOLD_MS } from '../state/reducer';
 import { setText } from './setText';
 import { sparkline } from './spark';
 
@@ -67,10 +67,12 @@ type RowState = 'error' | 'limit' | 'idle' | 'run';
  * 멈춘 게 아니라 그냥 안 쓰고 있는 것이고, 둘을 같은 배지로 쓰면 화면이
  * 문제 없는 계정을 문제로 만든다.
  */
-function stateOf(car: CarState, now: number): RowState {
+function stateOf(car: CarState, now: number, speed: number): RowState {
   if (car.error_count > 0) return 'error';
   if (car.tyre_pct !== undefined && car.tyre_pct < LIMIT_BOX_PCT) return 'limit';
-  if (activityOf(car, now) !== 'running') return 'idle';
+  // 유휴 기준도 레이스 시간이다. 실시간 90초로 재면 600배속에서는 레이스로
+  // 15시간을 쉰 계정도 "방금까지 돌던 중"으로 보인다.
+  if (now - car.last_event_ts > IDLE_THRESHOLD_MS / Math.max(1, speed)) return 'idle';
   return 'run';
 }
 
@@ -238,7 +240,7 @@ export class TowerRenderer {
       setText(row.spark,
         sparkline(historyOf(car.car_id), now, SPARK_WINDOW_MS / Math.max(1, speed), SPARK_BUCKETS));
 
-      const what = stateOf(car, now);
+      const what = stateOf(car, now, speed);
       if (row.root.getAttribute('data-state') !== what) row.root.setAttribute('data-state', what);
       setText(row.state, STATE_LABEL[what]);
 

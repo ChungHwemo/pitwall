@@ -19,6 +19,7 @@ import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/e
 import { RoutineRadio } from './radio/routineRadio';
 import { TrackRenderer } from './render/trackRenderer';
 import { TowerRenderer } from './render/towerRenderer';
+import { ModelPanel } from './render/modelPanel';
 import { RadioRenderer } from './render/radioRenderer';
 import { loadSalaryConfig, earnedSoFar, formatElapsed } from './render/hudRenderer';
 import { setText } from './render/setText';
@@ -33,7 +34,9 @@ import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RADIO_LINES = 3;
 /** 타워 줄 수. 계정이 더 많으면 남는 줄은 접힌 것으로 표시해야 한다 (미구현). */
-const TOWER_ROWS = 14;
+const TOWER_ROWS = 10;
+/** 모델 판 줄 수. 넘치면 "그 외 N종"으로 접는다. */
+const MODEL_ROWS = 6;
 const FEED_ROWS = 12;
 /** 계정별로 보관하는 최근 호출 수 */
 /** 계정별로 들고 있는 최근 호출 수. 피드가 쓰고 스파크라인도 여기서 읽는다. */
@@ -57,6 +60,7 @@ export class PitwallApp {
   private routine = new RoutineRadio();
   private trackRenderer: TrackRenderer;
   private towerRenderer: TowerRenderer;
+  private modelPanel: ModelPanel;
   private radioRenderer: RadioRenderer;
   private hudTime: HTMLElement;
   private hudSalary: HTMLElement;
@@ -119,6 +123,8 @@ export class PitwallApp {
     // 타워가 먼저다. 트랙은 "어디쯤"을 말하고 타워가 "무엇이 일어나는가"를 말한다.
     const tower = document.createElement('div');
     tower.className = 'tower-slot';
+    const models = document.createElement('div');
+    models.className = 'models-slot';
 
     const cams = document.createElement('div');
     cams.className = 'cams';
@@ -132,7 +138,7 @@ export class PitwallApp {
     const radio = document.createElement('div');
     radio.className = 'radio';
 
-    shell.append(hud, tower, detail, radio);
+    shell.append(hud, tower, models, detail, radio);
     root.appendChild(shell);
 
     this.summaryRenderer = new SummaryRenderer(shell);
@@ -140,6 +146,7 @@ export class PitwallApp {
     new SettingsPanel(hud, this.settings, (next) => this.applySettings(next));
 
     this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
+    this.modelPanel = new ModelPanel(models, MODEL_ROWS);
     this.trackRenderer = new TrackRenderer(svg, track);
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed);
@@ -244,6 +251,7 @@ export class PitwallApp {
       // 줄이 모자랄 때 누구를 남길지는 디렉터가 고른다 — 에러·한도가 급한 쪽.
       this.director.update(this.raceState, now),
       this.settings.speed);
+    this.modelPanel.render(this.raceState);
 
     // 선택이 있으면 카메라 대신 그 계정의 내역을 보여준다.
     const picked = this.selected ? this.raceState.cars.get(this.selected) : undefined;

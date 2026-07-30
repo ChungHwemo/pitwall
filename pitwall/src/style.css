@@ -17,8 +17,8 @@ body {
 .pitwall {
   display: grid;
   grid-template-columns: minmax(420px, 1fr) 1.05fr;
-  grid-template-rows: 48px 1fr 88px;
-  grid-template-areas: "hud hud" "tower detail" "radio radio";
+  grid-template-rows: 48px auto 1fr 88px;
+  grid-template-areas: "hud hud" "tower detail" "models detail" "radio radio";
   height: 100vh;
   gap: 8px;
   padding: 8px;
@@ -27,11 +27,11 @@ body {
 
 .tower-slot { grid-area: tower; overflow: hidden; }
 /* 줄이 세로를 나눠 갖는다. 계정 두 대에 작은 줄 두 개와 거대한 공백은 낭비다. */
-.tower { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+.tower { display: flex; flex-direction: column; overflow: hidden; }
 
 .tower-row {
-  flex: 1 1 0;
-  max-height: 150px;
+  flex: 0 0 auto;
+  min-height: 104px;
   display: grid;
   grid-template-columns: 6px 58px 1fr 150px 104px;
   grid-template-areas:
@@ -177,10 +177,29 @@ svg.track { grid-area: auto; width: 100%; height: 100%; min-height: 0; }
 .cams { grid-area: auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
 .tower-total {
-  flex: 0 0 auto; margin-top: auto; padding: 10px 10px 2px;
+  flex: 0 0 auto; padding: 10px 10px 2px;
   border-top: 1px solid #1c222b; font-size: 12px; color: #9fb3c8;
   letter-spacing: 0.03em;
 }
 
 /* 고른 계정이 없으면 내역 칸을 접고 트랙에 자리를 준다. */
 .detail[data-selected="false"] { grid-template-rows: 34px 1fr; }
+
+/* 모델별 오늘 — 타워가 계정을 말하고 여기가 모델을 말한다. */
+.models-slot { grid-area: models; overflow: hidden; }
+.models-slot { display: flex; }
+.models { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; flex: 1; }
+.models-head {
+  font-size: 10px; letter-spacing: 0.18em; color: #6b7c91; padding: 0 0 6px;
+}
+/* 모델 판이 타워 아래 남은 세로를 채운다. 빈칸보다 사실이 낫다. */
+.model-row {
+  flex: 0 1 auto; min-height: 26px; max-height: 46px;
+  display: grid; grid-template-columns: 148px 1fr 190px;
+  align-items: center; column-gap: 12px; font-size: 13px;
+}
+.model-name { color: #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-track { height: 6px; background: #1c222b; border-radius: 3px; overflow: hidden; }
+.model-fill { height: 100%; background: #3d6d8c; border-radius: 3px; }
+.model-stat { text-align: right; color: #9fb3c8; white-space: nowrap; }
+.model-rest { font-size: 11px; color: #6b7c91; padding-top: 4px; margin-top: auto; }

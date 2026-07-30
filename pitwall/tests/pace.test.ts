@@ -14,7 +14,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
 }
 
 function state(cars: CarState[], elapsed: number): RaceState {
-  return { cars: new Map(cars.map((c) => [c.car_id, c])), phase: 'racing', elapsed_ms: elapsed, now: T };
+  return { cars: new Map(cars.map((c) => [c.car_id, c])), byModel: new Map(), phase: 'racing', elapsed_ms: elapsed, now: T };
 }
 
 describe('paceOf', () => {

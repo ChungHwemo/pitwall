@@ -143,3 +143,26 @@ describe('현재 모델', () => {
     expect([car.model, car.car_class]).toEqual(['claude-haiku-4-5', 'GT']);
   });
 });
+
+describe('모델별 집계', () => {
+  it('모델마다 호출·작업·캐시·비용을 쌓는다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({
+      model: 'claude-opus-5', cost_usd: 2,
+      tokens: { prompt: 1_000, completion: 100, cache_read: 800 },
+    }));
+    s = applyEvent(s, makeEvent({
+      model: 'claude-opus-5', ts: T0 + 1_000, cost_usd: 3,
+      tokens: { prompt: 500, completion: 50, cache_read: 400 },
+    }));
+    s = applyEvent(s, makeEvent({ model: 'gpt-5.5', ts: T0 + 2_000, cost_usd: 1 }));
+
+    const opus = s.byModel.get('claude-opus-5')!;
+    expect(opus).toEqual({ calls: 2, work: 450, cached: 1_200, cost: 5 });
+    expect(s.byModel.get('gpt-5.5')!.calls).toBe(1);
+  });
+
+  it('빈 상태에는 모델이 없다', () => {
+    expect(emptyRaceState(T0).byModel.size).toBe(0);
+  });
+});

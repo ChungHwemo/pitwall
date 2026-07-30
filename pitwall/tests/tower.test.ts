@@ -12,7 +12,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
   };
 }
 const state = (cars: CarState[]): RaceState =>
-  ({ cars: new Map(cars.map((c) => [c.car_id, c])), phase: 'racing', elapsed_ms: 3_600_000, now: T });
+  ({ cars: new Map(cars.map((c) => [c.car_id, c])), byModel: new Map(), phase: 'racing', elapsed_ms: 3_600_000, now: T });
 
 let host: HTMLElement;
 beforeEach(() => {

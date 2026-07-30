@@ -15,7 +15,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
 }
 
 function state(cars: CarState[]): RaceState {
-  return { cars: new Map(cars.map((c) => [c.car_id, c])), phase: 'racing', elapsed_ms: 0, now: T };
+  return { cars: new Map(cars.map((c) => [c.car_id, c])), byModel: new Map(), phase: 'racing', elapsed_ms: 0, now: T };
 }
 
 function msg(id: string, over: Partial<RadioMessage> = {}): RadioMessage {

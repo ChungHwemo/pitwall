@@ -104,8 +104,24 @@ export type RacePhase =
   | 'final_call'    // 근무 종료 5분 전 ~ 종료
   | 'chequered';    // 근무 종료 이후
 
+/** 모델 하나가 오늘 무엇을 했는가. 차량이 아니라 모델 기준 집계다. */
+export interface ModelTally {
+  calls: number;
+  work: number;
+  cached: number;
+  cost: number;
+}
+
 export interface RaceState {
   cars: Map<string, CarState>;
+  /**
+   * 모델별 누적.
+   *
+   * 이 화면의 원래 질문이 "어떤 모델을 어떤 에이전트가 어떻게 돌리는가"였는데
+   * 상태에는 계정별 합계밖에 없었다. 계정 하나가 하루에 모델을 세 번 갈아타면
+   * 그 사실이 어디에도 안 남는다.
+   */
+  byModel: Map<string, ModelTally>;
   phase: RacePhase;
   elapsed_ms: number;
   now: number;

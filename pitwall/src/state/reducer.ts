@@ -24,7 +24,7 @@ export function cachedOf(event: CarEvent): number {
 }
 
 export function emptyRaceState(now: number): RaceState {
-  return { cars: new Map(), phase: 'pre_grid', elapsed_ms: 0, now };
+  return { cars: new Map(), byModel: new Map(), phase: 'pre_grid', elapsed_ms: 0, now };
 }
 
 function initialCar(event: CarEvent): CarState {
@@ -78,7 +78,18 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
 
   const cars = new Map(state.cars);
   cars.set(event.car_id, next);
-  return { ...state, cars, now: Math.max(state.now, event.ts) };
+
+  // 모델별 누적. 계정이 모델을 갈아타도 그 모델이 한 일은 남는다.
+  const byModel = new Map(state.byModel);
+  const prevTally = byModel.get(event.model);
+  byModel.set(event.model, {
+    calls: (prevTally?.calls ?? 0) + 1,
+    work: (prevTally?.work ?? 0) + workOf(event),
+    cached: (prevTally?.cached ?? 0) + cachedOf(event),
+    cost: (prevTally?.cost ?? 0) + event.cost_usd,
+  });
+
+  return { ...state, cars, byModel, now: Math.max(state.now, event.ts) };
 }
 
 export function activityOf(car: CarState, now: number): CarActivity {
