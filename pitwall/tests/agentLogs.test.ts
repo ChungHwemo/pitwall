@@ -61,14 +61,20 @@ describe('codexEvent', () => {
     expect(cachedOf(e)).toBe(6912);
   });
 
-  it('실제 한도 소진율을 연료로 쓴다 — 하드코딩 예산이 아니다', () => {
+  it('실제 한도 소진율은 타이어다 — 연료(비용 예산)와 다른 축이다', () => {
+    // 연료 = 돈, 타이어 = 한도 윈도우. 둘을 섞으면 어느 쪽이 바닥났는지 못 읽는다.
     const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
-    expect(e.fuel_pct).toBe(28);
+    expect(e.tyre_pct).toBe(28);
+    expect(e.fuel_pct).toBe(100);
   });
 
-  it('한도 정보가 없으면 연료를 100으로 두고 지어내지 않는다', () => {
+  it('한도 정보가 없으면 타이어를 그리지 않는다 — 0으로 두지 않는다', () => {
     const noLimit = { ...row, payload: { ...row.payload, rate_limits: undefined } };
-    expect(codexEvent(noLimit, { car: CAR, model: 'gpt-5.6-luna' })!.fuel_pct).toBe(100);
+    expect(codexEvent(noLimit, { car: CAR, model: 'gpt-5.6-luna' })!.tyre_pct).toBeUndefined();
+  });
+
+  it('한도 윈도우 길이를 함께 담는다 — 5시간인지 일주일인지 구분해야 한다', () => {
+    expect(codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!.limit_window_minutes).toBe(10080);
   });
 
   it('token_count가 아닌 줄은 건너뛴다', () => {

@@ -48,7 +48,10 @@ export interface CarEvent {
   status: 'ok' | 'error';
   error_code?: string;
   fuel_pct: number;        // 0–100
-  tyre_pct?: number;       // 0–100. 타이어 모드가 off면 부재 (PRD §7.0)
+  /** 0–100. 한도 윈도우 잔여. 소스가 없으면 부재 — 0으로 두지 않는다 (PRD §7.0) */
+  tyre_pct?: number;
+  /** 그 한도가 어떤 창인지 (5시간 = 300, 주간 = 10080). 창을 모르면 잔여도 못 읽는다 */
+  limit_window_minutes?: number;
 }
 
 export type CarActivity = 'running' | 'pit' | 'retired';
@@ -62,8 +65,12 @@ export interface CarState {
   distance: number;
   /** 캐시에서 다시 읽힌 토큰 누적. 거리와 섞지 않고 따로 보여준다 */
   cached: number;
+  /** 비용 예산 잔여. 한도(tyre)와는 다른 축이다 — 돈이 남아도 한도에 걸릴 수 있다 */
   fuel_pct: number;
-  tyre_pct?: number;       // 타이어 모드가 off면 부재. UI는 게이지 자체를 그리지 않는다
+  /** 한도 윈도우 잔여. 소스가 없으면 부재 — UI는 게이지를 그리지 않는다 */
+  tyre_pct?: number;
+  /** 그 한도의 창 길이 (분). 5시간인지 주간인지 모르면 잔여를 읽을 수 없다 */
+  limit_window_minutes?: number;
   cost_usd: number;
   last_event_ts: number;
   error_count: number;

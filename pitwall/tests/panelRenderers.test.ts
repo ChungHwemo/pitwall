@@ -107,15 +107,22 @@ describe('CameraRenderer', () => {
     // PRD §7.0: 소스 부재를 0%나 NaN%로 표시하면 없는 사실을 주장하게 된다.
     const r = new CameraRenderer(host, 1);
     r.render(state([car('a', { tyre_pct: undefined })]), ['a']);
-    expect(host.textContent).not.toContain('TYRE');
+    expect(host.textContent).not.toContain('LIMIT');
     expect(host.textContent).not.toContain('NaN');
     expect(host.textContent).toContain('FUEL');
   });
 
-  it('타이어 데이터가 있으면 게이지를 그린다', () => {
+  it('한도 데이터가 있으면 창 길이와 함께 그린다', () => {
     const r = new CameraRenderer(host, 1);
-    r.render(state([car('a', { tyre_pct: 33 })]), ['a']);
-    expect(host.textContent).toContain('TYRE 33%');
+    r.render(state([car('a', { tyre_pct: 28, limit_window_minutes: 10080 })]), ['a']);
+    expect(host.textContent).toContain('LIMIT 28%/7일');
+  });
+
+  it('창 길이를 모르면 잔여만 쓴다 — 창을 지어내지 않는다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('a', { tyre_pct: 28, limit_window_minutes: undefined })]), ['a']);
+    expect(host.textContent).toContain('LIMIT 28%');
+    expect(host.textContent).not.toContain('일');
   });
 });
 

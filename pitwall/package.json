@@ -14,7 +14,8 @@
     "import:real": "vite-node scripts/importClaudeCode.ts",
     "build:real": "PITWALL_REAL=1 npm run build && vite-node scripts/bundleSingleFile.ts",
     "build:app": "npm run build:single && bash app/build.sh",
-    "build:app:real": "npm run build:real && bash app/build.sh"
+    "build:app:real": "npm run build:real && bash app/build.sh",
+    "fetch:limits": "vite-node scripts/fetchLimits.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

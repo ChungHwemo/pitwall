@@ -82,7 +82,11 @@ function build(
  * Codex — `event_msg` / `token_count`.
  *
  * `last_token_usage`가 이번 호출분이다. `total_token_usage`는 누적이라 쓰면 이중 계산된다.
- * `rate_limits.primary.used_percent`는 **실제 한도 소진율**이라 연료가 추정이 아니다.
+ *
+ * `rate_limits.primary`는 **실제 한도 소진율**이다. 이건 연료(비용 예산)가 아니라
+ * 타이어(한도 윈도우)다 — 돈이 남았는데 한도에 걸리는 일이 실제로 일어나므로
+ * 두 축을 섞으면 어느 쪽이 바닥났는지 화면이 말해주지 못한다.
+ * 관측된 창은 10,080분(주간)이다. 5시간 창은 이 로그에 없다.
  */
 export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -106,7 +110,10 @@ export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
     // 추론 토큰도 출력으로 과금된다.
     completion: (u.output_tokens ?? 0) + (u.reasoning_output_tokens ?? 0),
     cacheRead: u.cached_input_tokens ?? 0,
-  }, { fuel_pct: used === null ? 100 : Math.max(0, 100 - used) });
+  }, used === null ? {} : {
+    tyre_pct: Math.max(0, 100 - used),
+    limit_window_minutes: typeof primary?.window_minutes === 'number' ? primary.window_minutes : undefined,
+  });
 }
 
 /** Grok — `shell.turn.inference_done`. 호출 하나당 한 줄이고 지연·TTFT까지 있다. */
