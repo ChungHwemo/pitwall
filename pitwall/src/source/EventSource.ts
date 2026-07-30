@@ -14,4 +14,6 @@ export interface EventSource {
    * 있으면 화면 시계가 이걸 따른다 — 시계와 이벤트가 갈라지면 안 된다.
    */
   replayClock?(): Date;
+  /** 기록 재생이 처음으로 되감길 때. 누적 상태를 비우라는 신호다. */
+  onWrap?(handler: () => void): void;
 }

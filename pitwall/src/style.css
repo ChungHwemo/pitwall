@@ -33,7 +33,7 @@ body {
   flex: 0 0 auto;
   min-height: 104px;
   display: grid;
-  grid-template-columns: 6px 58px 1fr 150px 104px;
+  grid-template-columns: 6px 58px 1fr 158px 158px;
   grid-template-areas:
     "bar num model  limit money"
     "bar num spark  limit money"

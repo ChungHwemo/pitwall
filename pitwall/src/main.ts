@@ -37,6 +37,8 @@ const RADIO_LINES = 3;
 const TOWER_ROWS = 10;
 /** 모델 판 줄 수. 넘치면 "그 외 N종"으로 접는다. */
 const MODEL_ROWS = 6;
+/** 속도를 재는 레이스 창. 타워 스파크라인과 같은 길이다. */
+const PACE_WINDOW_MS = 1_800_000;
 const FEED_ROWS = 12;
 /** 계정별로 보관하는 최근 호출 수 */
 /** 계정별로 들고 있는 최근 호출 수. 피드가 쓰고 스파크라인도 여기서 읽는다. */
@@ -176,6 +178,14 @@ export class PitwallApp {
 
   start(): void {
     this.running = true;
+    // 되감기면 누적을 비운다. 안 그러면 오늘 비용이 한 바퀴마다 한 벌씩 늘어난다.
+    this.source.onWrap?.(() => {
+      this.raceState = { ...emptyRaceState(this.raceState.now), phase: this.raceState.phase };
+      this.recent.clear();
+      this.modelCars = null;
+      this.selected = null;
+    });
+
     this.source.start((event) => {
       const before = this.raceState.cars.get(event.car_id);
       this.raceState = applyEvent(this.raceState, event);
@@ -270,7 +280,13 @@ export class PitwallApp {
     // 경과만으로는 어느 날 몇 시인지 알 수 없다. 벽시계를 같이 쓴다.
     setText(this.hudTime,
       `${formatWallClock(wall)}  ⏱ ${formatElapsed(this.raceState.elapsed_ms)} / ${total}`);
-    setText(this.hudPace, formatPace(paceOf(this.raceState)));
+    // 조직 속도도 최근 창이다. 타워 줄과 같은 기준이어야 둘이 안 어긋난다.
+    const window_ = PACE_WINDOW_MS / Math.max(1, this.settings.speed);
+    const allRecent: CarEvent[] = [];
+    for (const buf of this.recent.values()) allRecent.push(...buf.toArray());
+    setText(this.hudPace,
+      formatPace(paceOf(this.raceState,
+        { events: allRecent, now, windowMs: window_, speed: this.settings.speed })));
     setText(this.hudPhase,
       // 기록을 재생 중이면 시계는 지어낸 값이 아니라 재생 위치다 — DEMO를 붙이면
       // 그게 거짓말이 된다.

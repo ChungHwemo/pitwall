@@ -3,6 +3,7 @@ import { CLASS_STYLE } from '../config/theme';
 import { IDLE_THRESHOLD_MS } from '../state/reducer';
 import { setText } from './setText';
 import { sparkline } from './spark';
+import { recentPace } from '../state/pace';
 
 /**
  * 타이밍 타워 — 계정 한 대에 한 줄.
@@ -195,7 +196,6 @@ export class TowerRenderer {
       cars = kept.sort((a, b) => a.car_number - b.car_number);
     }
     const foldedOut = all.filter((c) => !cars.includes(c));
-    const hours = state.elapsed_ms / 3_600_000;
 
     this.rows.forEach((row, i) => {
       const car = cars[i];
@@ -226,19 +226,26 @@ export class TowerRenderer {
         const pct = `${Math.round(car.tyre_pct)}%`;
         if (fill.style.width !== pct) fill.style.width = pct;
         const left = car.limit_resets_at === undefined ? 0 : car.limit_resets_at - realNow;
+        // "62% 5시간 · 2시간"은 두 기간이 나란히 놓여 어느 쪽이 창이고 어느 쪽이
+        // 리셋인지 안 읽힌다. 각자 이름을 붙인다.
+        const win = windowLabel(car.limit_window_minutes);
         setText(row.limitText, left > 0
-          ? `${pct} ${windowLabel(car.limit_window_minutes)} · ${untilLabel(left)}`
-          : `${pct} ${windowLabel(car.limit_window_minutes)}`);
+          ? `${pct} · ${win}창 · 리셋 ${untilLabel(left)}`
+          : `${pct} · ${win}창`);
       }
 
       // 속도가 이 화면의 "랩타임"이다. 누적만으로는 지금 빠른지 알 수 없다.
       setText(row.cost, `$${car.cost_usd.toFixed(2)}`);
-      setText(row.rate, hours > 0
-        ? `$${(car.cost_usd / hours).toFixed(1)}/h · ${compact(car.distance / (hours * 60))}/분`
-        : '—');
+      const history = historyOf(car.car_id);
+      const window_ = SPARK_WINDOW_MS / Math.max(1, speed);
+      setText(row.spark, sparkline(history, now, window_, SPARK_BUCKETS));
 
-      setText(row.spark,
-        sparkline(historyOf(car.car_id), now, SPARK_WINDOW_MS / Math.max(1, speed), SPARK_BUCKETS));
+      // 속도는 **최근 창**이다. 레이스 평균을 쓰면 20분 쉰 계정에도 숫자가 남아
+      // 같은 줄의 IDLE과 어긋난다. 단위는 HUD와 맞춘다.
+      const pace = recentPace(history, now, window_, speed);
+      setText(row.rate, pace.workPerMinute > 0 || pace.costPerHour > 0
+        ? `$${pace.costPerHour.toFixed(1)}/시간 · ${compact(pace.workPerMinute)} tok/분`
+        : '유휴');
 
       const what = stateOf(car, now, speed);
       if (row.root.getAttribute('data-state') !== what) row.root.setAttribute('data-state', what);

@@ -12,6 +12,7 @@ import type { EventSource } from './EventSource';
  */
 export class ReplaySource implements EventSource {
   private onEvent: ((event: CarEvent) => void) | null = null;
+  private wrapHandler: (() => void) | null = null;
   private cursor = 0;
   private lastTickMs: number | null = null;
   /** 재생 위치 — 원본 타임라인 상의 경과 시간 */
@@ -31,6 +32,17 @@ export class ReplaySource implements EventSource {
   replayClock(): Date {
     const origin = this.events[0]?.ts ?? 0;
     return new Date(origin + this.elapsed);
+  }
+
+  /**
+   * 기록이 끝나 처음으로 돌아갈 때 부른다.
+   *
+   * 알리지 않으면 상태가 영원히 쌓인다 — 15시간짜리 하루를 60배속으로 걸어두면
+   * 15분마다 오늘 비용이 한 벌씩 더해져 $425가 $850이 된다. 상시 노출 화면에서
+   * 그 숫자는 몇 시간 뒤 완전한 거짓이 된다.
+   */
+  onWrap(handler: () => void): void {
+    this.wrapHandler = handler;
   }
 
   setSpeed(speed: number): void {
@@ -61,6 +73,7 @@ export class ReplaySource implements EventSource {
         // 한 바퀴 끝. 처음부터 다시 돈다.
         this.cursor = 0;
         this.elapsed = 0;
+        this.wrapHandler?.();
         return;
       }
       if (next.ts - origin > this.elapsed) return;

@@ -39,16 +39,22 @@ describe('TowerRenderer', () => {
 
   it('한 줄에 모델·한도·소진속도가 같이 있다', () => {
     const r = new TowerRenderer(host, 8);
+    // 속도는 최근 창에서 나온다 — 누적 distance가 아니라 최근 호출로 만든다.
+    const recent: CarEvent[] = [{
+      ts: T - 60_000, car_id: 'a', car_number: 12, car_class: 'H', model: 'gpt-5.6-luna',
+      kind: 'call', tokens: { prompt: 300_000, completion: 0, cache_read: 0 },
+      cache_hit: false, cost_usd: 1, latency_ms: 0, status: 'ok', fuel_pct: 100,
+    }];
     r.render(state([car('a', {
       model: 'gpt-5.6-luna', tyre_pct: 3, limit_window_minutes: 10080,
       cost_usd: 24.59, distance: 600_000,
-    })]), T, T, null, () => []);
+    })]), T, T, null, () => recent);
     const row = host.querySelector('.tower-row')!.textContent ?? '';
     expect(row).toContain('gpt-5.6-luna');
     expect(row).toContain('3%');
-    expect(row).toContain('7일');
+    expect(row).toContain('7일창');
     expect(row).toContain('$24.59');
-    expect(row).toContain('10.0k/분');
+    expect(row).toContain('10.0k tok/분');
   });
 
   it('한도 게이지를 막대 폭으로 그린다 — 숫자보다 먼저 읽힌다', () => {

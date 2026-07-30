@@ -122,3 +122,15 @@ describe('표시용 원본 시각', () => {
     expect(out[0]!.wall_ts).toBe(origin);
   });
 });
+
+describe('한 바퀴 끝', () => {
+  it('되감을 때 알린다 — 알리지 않으면 상태가 영원히 누적된다', () => {
+    const origin = 1_000;
+    const src = new ReplaySource([event({ ts: origin }), event({ ts: origin + 1_000 })], 1);
+    let wraps = 0;
+    src.onWrap(() => { wraps += 1; });
+    src.start(() => {});
+    for (let i = 1; i <= 6; i++) src.tick(i * 1_000);
+    expect(wraps).toBeGreaterThan(0);
+  });
+});
