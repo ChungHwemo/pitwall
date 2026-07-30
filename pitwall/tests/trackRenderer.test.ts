@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
 import { generateTrack } from '../src/track/generateTrack';
-import { buildTrackModel, BINS_PER_LAP, HOT_CAP } from '../src/track/trackModel';
+import { buildTrackModel, HOT_CAP } from '../src/track/trackModel';
 import type { HighlightType, TrackModelOptions } from '../src/track/trackModel';
 import { LANE_RENDER_CAP } from '../src/track/layout';
+import { MIN_SPACING } from '../src/track/spacing';
 import type { CarState, RaceState } from '../src/types';
 
 const T = 1_000_000;
@@ -40,7 +41,7 @@ beforeEach(() => {
 
 /** 화면에 실제로 보이는 노드의 좌표 */
 function visiblePositions(): { x: number; y: number }[] {
-  return [...svg.querySelectorAll('g.car, g.cluster')]
+  return [...svg.querySelectorAll('g.car, g.cold')]
     .filter((n) => (n as SVGGElement).style.opacity !== '0')
     .map((n) => {
       const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec((n as SVGGElement).style.transform)!;
@@ -56,10 +57,10 @@ describe('TrackRenderer', () => {
     expect(svg.querySelectorAll('path.track-centerline').length).toBe(1);
   });
 
-  it('사건 없는 차량은 클러스터로 그린다', () => {
+  it('사건 없는 차량은 강조 없이 그린다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('a'), car('b'), car('c')]), T);
-    expect(svg.querySelectorAll('g.cluster').length).toBeGreaterThan(0);
+    expect(svg.querySelectorAll('g.cold').length).toBe(3);
     expect([...svg.querySelectorAll('g.car')]
       .filter((n) => (n as SVGGElement).style.opacity !== '0').length).toBe(0);
   });
@@ -116,26 +117,11 @@ describe('TrackRenderer', () => {
     expect(svg.querySelectorAll('*').length).toBeLessThanOrEqual(800);
   });
 
-  it('클러스터 수를 텍스트로 쓰지 않는다 — 트랙 위 라벨 금지', () => {
+  it('트랙 위에 텍스트를 쓰지 않는다', () => {
     const r = new TrackRenderer(svg, track);
     const cars = Array.from({ length: 30 }, (_, i) => car(`car-${i}`));
     r.render(model(cars), T);
     expect(svg.querySelectorAll('text').length).toBe(0);
-  });
-
-  it('여럿을 겹친 실루엣으로 표현한다 — 1 / 2 / 3+', () => {
-    const r = new TrackRenderer(svg, track);
-    const cars = Array.from({ length: 40 }, (_, i) => car(`car-${i}`));
-    r.render(model(cars), T);
-
-    // 클러스터마다 실루엣 겹 수가 count에 따라 1·2·3으로 정해진다.
-    const layerCounts = [...svg.querySelectorAll('g.cluster')]
-      .filter((n) => (n as SVGGElement).style.opacity !== '0')
-      .map((n) => [...n.querySelectorAll('path')]
-        .filter((p) => (p as SVGPathElement).style.opacity !== '0').length);
-
-    expect(layerCounts.length).toBeGreaterThan(0);
-    for (const n of layerCounts) expect([1, 2, 3]).toContain(n);
   });
 
   it('노드를 재사용한다 — 반복 렌더에도 노드 수가 늘지 않는다', () => {
@@ -198,11 +184,11 @@ describe('TrackRenderer', () => {
 describe('프레임당 DOM 갱신', () => {
   /** 모든 노드의 transform 문자열 스냅샷 */
   function snapshot(): string[] {
-    return [...svg.querySelectorAll('g.car, g.cluster')]
+    return [...svg.querySelectorAll('g.car, g.cold')]
       .map((n) => (n as SVGGElement).style.transform);
   }
 
-  it('상태가 그대로면 클러스터는 프레임이 지나도 움직이지 않는다', () => {
+  it('상태가 그대로면 프레임이 지나도 제자리에 수렴한다', () => {
     const r = new TrackRenderer(svg, track);
     const m = model(Array.from({ length: 60 }, (_, i) => car(`cold-${i}`)));
     r.render(m, T);
@@ -227,22 +213,23 @@ describe('프레임당 DOM 갱신', () => {
     const r = new TrackRenderer(svg, track);
     const cars = [
       ...Array.from({ length: 30 }, (_, i) => car(`cold-${i}`)),
-      car('hot-0', { error_count: 1, distance: 0 }),
+      car('hot-0', { distance: 0 }),
     ];
-    r.render(model(cars), T);
+    const pinned = { pinned: new Set(['hot-0']) };   // 사건 차량은 멈추므로 핀으로 본다
+    r.render(model(cars, pinned), T);
 
-    const clustersBefore = [...svg.querySelectorAll('g.cluster')]
+    const clustersBefore = [...svg.querySelectorAll('g.cold')]
       .map((n) => (n as SVGGElement).style.transform);
 
     // 목표를 옮겨 hot이 보간으로 따라가게 한다.
     const moved = cars.map((c) =>
-      c.car_id === 'hot-0' ? car('hot-0', { error_count: 1, distance: 60_000 }) : c);
-    const m2 = model(moved);
+      c.car_id === 'hot-0' ? car('hot-0', { distance: 60_000 }) : c);
+    const m2 = model(moved, pinned);
     const hotBefore = (svg.querySelector('g.car') as SVGGElement).style.transform;
     for (let f = 1; f <= 20; f++) r.render(m2, T + f * 16);
 
     expect((svg.querySelector('g.car') as SVGGElement).style.transform).not.toBe(hotBefore);
-    expect([...svg.querySelectorAll('g.cluster')].map((n) => (n as SVGGElement).style.transform))
+    expect([...svg.querySelectorAll('g.cold')].map((n) => (n as SVGGElement).style.transform))
       .toEqual(clustersBefore);
   });
 });
@@ -250,12 +237,14 @@ describe('프레임당 DOM 갱신', () => {
 describe('hot 차량 보간', () => {
   it('앵커에서 목표를 향해 점진적으로 움직인다', () => {
     const r = new TrackRenderer(svg, track);
-    const near = car('boom', { error_count: 1, distance: 0 });
-    r.render(model([near]), T);
+    // 에러·한도 차량은 멈추므로 핀 고정 차량으로 본다.
+    const watch = { pinned: new Set(['boom']) };
+    const near = car('boom', { distance: 0 });
+    r.render(model([near], watch), T);
     const start = visiblePositions()[0]!;
 
-    const far = car('boom', { error_count: 1, distance: 40_000 });
-    const m2 = model([far]);
+    const far = car('boom', { distance: 40_000 });
+    const m2 = model([far], watch);
     r.render(m2, T + 16);
     const mid = visiblePositions()[0]!;
 
@@ -270,7 +259,7 @@ describe('hot 차량 보간', () => {
 
   it('목표를 앞지르지 않는다', () => {
     const r = new TrackRenderer(svg, track);
-    const m = model([car('boom', { error_count: 1, distance: 20_000 })]);
+    const m = model([car('boom', { distance: 20_000 })], { pinned: new Set(['boom']) });
     r.render(m, T);
     for (let f = 1; f < 2000; f++) r.render(m, T + f * 16);
 
@@ -288,15 +277,131 @@ describe('hot 차량 보간', () => {
   });
 });
 
-describe('빈 간격', () => {
-  it('빈 간격이 글리프 지름보다 크다 — 겹침이 구조적으로 불가능하다', () => {
-    // 이 불변식이 깨지면 BINS_PER_LAP을 줄여야 한다.
+describe('최소 간격', () => {
+  it('최소 간격이 글리프 지름보다 크다', () => {
     let perimeter = 0;
     for (let i = 0; i < track.points.length; i++) {
       const a = track.points[i]!;
       const b = track.points[(i + 1) % track.points.length]!;
       perimeter += Math.hypot(b.x - a.x, b.y - a.y);
     }
-    expect(perimeter / BINS_PER_LAP).toBeGreaterThan(GLYPH_DIAMETER);
+    expect(perimeter * MIN_SPACING).toBeGreaterThan(GLYPH_DIAMETER);
+  });
+});
+
+describe('모션', () => {
+  it('강조 없는 차량도 미끄러진다 — 순간이동하지 않는다', () => {
+    // 빈 양자화 시절에는 위치가 이산값이라 한 프레임에 글리프 1.4개 거리를
+    // 건너뛰었다(점멸). 지금은 매 프레임 목표를 향해 조금씩 다가간다.
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a', { distance: 0 })]), T);
+    const at0 = (svg.querySelector('g.cold') as SVGGElement).style.transform;
+
+    const far = model([car('a', { distance: 60_000 })]);
+    r.render(far, T + 16);
+    const afterOne = (svg.querySelector('g.cold') as SVGGElement).style.transform;
+    for (let f = 2; f < 300; f++) r.render(far, T + f * 16);
+    const settled = (svg.querySelector('g.cold') as SVGGElement).style.transform;
+
+    // 한 프레임 만에 목표에 닿지 않는다.
+    expect(afterOne).not.toBe(at0);
+    expect(afterOne).not.toBe(settled);
+  });
+
+  it('사건 차량은 시선을 끄는 표시를 받는다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    const hot = svg.querySelector('g.car') as SVGGElement;
+    expect(hot.getAttribute('data-reason')).toBe('error');
+  });
+
+  it('사유가 바뀌면 표시도 바뀐다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a', { fuel_pct: 5 })]), T);
+    expect((svg.querySelector('g.car') as SVGGElement).getAttribute('data-reason')).toBe('limit');
+  });
+
+  it('hot은 프레임마다 위치를 직접 쓰므로 전환 애니메이션을 걸지 않는다', () => {
+    // 보간과 CSS 전환을 겹치면 두 번 미끄러져 뒤처진다.
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    const hot = svg.querySelector('g.car') as SVGGElement;
+    expect(hot.style.transitionProperty).not.toContain('transform');
+  });
+});
+
+describe('사건 차량 정지', () => {
+  it('에러 난 차량은 트랙에서 멈춘다', () => {
+    // 에러는 호출이 실패한 것이다 — 진전이 없었으므로 움직이면 거짓말이다.
+    const r = new TrackRenderer(svg, track);
+    const boom = car('boom', { error_count: 1, distance: 0 });
+    r.render(model([boom]), T);
+    const at0 = (svg.querySelector('g.car') as SVGGElement).style.transform;
+
+    // 목표가 멀어져도 따라가지 않는다.
+    const moved = car('boom', { error_count: 1, distance: 80_000 });
+    for (let f = 1; f < 200; f++) r.render(model([moved]), T + f * 16);
+    expect((svg.querySelector('g.car') as SVGGElement).style.transform).toBe(at0);
+  });
+
+  it('한도에 걸린 차량도 멈춘다', () => {
+    // 연료가 없으면 더 갈 수 없다. 굴러가면 화면이 거짓말한다.
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('low', { fuel_pct: 5, distance: 0 })]), T);
+    const at0 = (svg.querySelector('g.car') as SVGGElement).style.transform;
+
+    const moved = car('low', { fuel_pct: 5, distance: 80_000 });
+    for (let f = 1; f < 200; f++) r.render(model([moved]), T + f * 16);
+    expect((svg.querySelector('g.car') as SVGGElement).style.transform).toBe(at0);
+  });
+
+  it('핀 고정 차량은 멈추지 않는다 — 사건이 아니라 사용자 선택이다', () => {
+    const r = new TrackRenderer(svg, track);
+    const opts = { pinned: new Set(['watch']) };
+    r.render(model([car('watch', { distance: 0 })], opts), T);
+    const at0 = (svg.querySelector('g.car') as SVGGElement).style.transform;
+
+    const moved = [car('watch', { distance: 80_000 })];
+    for (let f = 1; f < 200; f++) r.render(model(moved, opts), T + f * 16);
+    expect((svg.querySelector('g.car') as SVGGElement).style.transform).not.toBe(at0);
+  });
+
+  it('에러와 한도의 표시가 서로 다르다', () => {
+    const r1 = new TrackRenderer(svg, track);
+    r1.render(model([car('boom', { error_count: 1 })]), T);
+    const errMark = (svg.querySelector('g.car .alert') as SVGElement).getAttribute('d');
+    const errColor = (svg.querySelector('g.car .alert') as SVGElement).getAttribute('stroke');
+
+    document.body.innerHTML = '';
+    const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    document.body.appendChild(svg2);
+    const r2 = new TrackRenderer(svg2, track);
+    r2.render(model([car('low', { fuel_pct: 5 })]), T);
+    const limMark = (svg2.querySelector('g.car .alert') as SVGElement).getAttribute('d');
+    const limColor = (svg2.querySelector('g.car .alert') as SVGElement).getAttribute('stroke');
+
+    expect(limMark).not.toBe(errMark);
+    expect(limColor).not.toBe(errColor);
+  });
+
+  it('에러 난 차량에 경고 표시를 띄운다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    const mark = svg.querySelector('g.car .alert') as SVGElement;
+    expect(mark).not.toBeNull();
+    expect(mark.style.opacity).toBe('1');
+  });
+
+  it('경고 표시는 텍스트가 아니라 도형이다', () => {
+    // 트랙 위 텍스트 금지 (PRD §6.3). 느낌표도 글자로 그리지 않는다.
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    expect(svg.querySelectorAll('text').length).toBe(0);
+  });
+
+  it('핀 고정에는 경고 표시를 띄우지 않는다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('watch')], { pinned: new Set(['watch']) }), T);
+    expect((svg.querySelector('g.car .alert') as SVGElement).style.opacity).toBe('0');
   });
 });

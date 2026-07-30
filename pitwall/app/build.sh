@@ -30,6 +30,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleExecutable</key><string>PITWALL</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <!-- 로컬 파일만 연다. 네트워크 접근이 필요 없다. -->
   <key>NSAppTransportSecurity</key>
   <dict><key>NSAllowsArbitraryLoads</key><false/></dict>
@@ -43,6 +44,10 @@ swiftc -O -target arm64-apple-macos13 \
   app/PitwallApp.swift
 
 cp "$HTML" "$APP/Contents/Resources/pitwall.html"
+
+# 아이콘이 없으면 만든다. 있으면 그대로 쓴다 (Chromium 렌더가 느리다).
+[ -f dist/AppIcon.icns ] || bash app/makeIcon.sh
+cp dist/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # 서명 없이 배포하면 다른 기기에서 Gatekeeper가 막는다.
 # 로컬 실행용 ad-hoc 서명만 붙인다 — 배포는 별도 판단이 필요하다.

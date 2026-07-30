@@ -51,7 +51,7 @@ export class PitwallApp {
   /** 마지막으로 모델을 만든 cars 참조. 리듀서가 이벤트마다 새 Map을 만들므로
    *  참조 비교 한 번이 곧 "상태가 바뀌었나"다 — 별도 배칭 타이머가 필요 없다. */
   private modelCars: RaceState['cars'] | null = null;
-  private trackModel: TrackModel = { clusters: [], hot: [], hotOverflow: 0, laneOverflow: { H: 0, P: 0, GT: 0 } };
+  private trackModel: TrackModel = { cold: [], hot: [], hotOverflow: 0, laneOverflow: { H: 0, P: 0, GT: 0 } };
   private pinned = new Set<string>();
   private running = false;
   private lastPhase = phaseAt(new Date(), DEFAULT_WORKDAY);

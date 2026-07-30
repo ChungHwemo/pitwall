@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildTrackModel, progressOf, BINS_PER_LAP, HOT_CAP, LAP_TOKENS,
+  buildTrackModel, progressOf, HOT_CAP, LAP_TOKENS,
 } from '../src/track/trackModel';
 import type { CarClass, CarState, RaceState } from '../src/types';
 
@@ -28,9 +28,7 @@ const OPTS: TrackModelOptions = {
 };
 const opts = (over: Partial<TrackModelOptions> = {}): TrackModelOptions => ({ ...OPTS, ...over });
 
-function binOf(c: CarState): number {
-  return Math.floor(progressOf(c) * BINS_PER_LAP);
-}
+
 
 describe('progressOf', () => {
   it('차량마다 다른 시작 위상을 준다', () => {
@@ -57,39 +55,39 @@ describe('progressOf', () => {
   });
 });
 
-describe('클러스터', () => {
-  it('같은 빈의 차량을 하나로 합친다', () => {
-    // 40대를 100빈에 흩으면 반드시 몇몇은 같은 빈에 떨어진다.
+describe('cold 차량', () => {
+  it('모든 차량이 개별로 나온다 — 합치지 않는다', () => {
     const cars = Array.from({ length: 40 }, (_, i) => car(`car-${i}`));
     const m = buildTrackModel(state(cars), T, opts());
-    const distinctBins = new Set(cars.map(binOf)).size;
-
-    expect(distinctBins).toBeLessThan(cars.length);        // 실제로 겹침이 있어야 의미 있는 검사다
-    expect(m.clusters.length).toBe(distinctBins);          // 빈 하나에 클러스터 하나
-    expect(m.clusters.reduce((n, c) => n + c.count, 0)).toBe(cars.length);
+    expect(m.cold.length).toBe(40);
+    expect(new Set(m.cold.map((c) => c.carId)).size).toBe(40);
   });
 
-  it('클래스가 다르면 같은 빈이어도 따로 센다', () => {
-    const cars = [
-      car('a', { car_class: 'H', distance: 0 }),
-      car('b', { car_class: 'GT', distance: 0 }),
-    ];
+  it('같은 레인 안에서 최소 간격이 확보된다', () => {
+    const cars = Array.from({ length: 30 }, (_, i) => car(`car-${i}`, { distance: 0 }));
     const m = buildTrackModel(state(cars), T, opts());
-    const classes = new Set(m.clusters.map((c) => c.carClass));
-    expect(classes.size).toBe(2);
+    const sorted = m.cold.map((c) => c.progress).sort((a, b) => a - b);
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThan(0.004);
+    }
   });
 
-  it('클러스터는 빈 중앙에 고정된다 — 안에서 거리가 조금 달라져도 안 움직인다', () => {
-    const one = buildTrackModel(state([car('a', { distance: 0 })]), T, opts());
-    const step = LAP_TOKENS / BINS_PER_LAP;
-    const nudged = buildTrackModel(state([car('a', { distance: step * 0.4 })]), T, opts());
-    expect(nudged.clusters[0]!.progress).toBe(one.clusters[0]!.progress);
+  it('진행률이 조금 바뀌면 위치도 조금 바뀐다 — 점멸하지 않는다', () => {
+    const a = buildTrackModel(state([car('a', { distance: 0 })]), T, opts());
+    const b = buildTrackModel(state([car('a', { distance: LAP_TOKENS * 0.01 })]), T, opts());
+    const moved = Math.abs(b.cold[0]!.progress - a.cold[0]!.progress);
+    expect(moved).toBeGreaterThan(0);
+    expect(moved).toBeLessThan(0.02);
   });
 
-  it('빈 중앙 progress는 (bin + 0.5) / BINS다', () => {
-    const m = buildTrackModel(state([car('a')]), T, opts());
-    const c = m.clusters[0]!;
-    expect(c.progress).toBeCloseTo((c.bin + 0.5) / BINS_PER_LAP, 12);
+  it('차량마다 레인 안에서 타는 라인이 다르다 — 추월이 보인다', () => {
+    const cars = Array.from({ length: 10 }, (_, i) => car(`car-${i}`));
+    const lines = buildTrackModel(state(cars), T, opts()).cold.map((c) => c.laneLine);
+    expect(new Set(lines).size).toBeGreaterThan(1);
+    for (const l of lines) {
+      expect(l).toBeGreaterThanOrEqual(-1);
+      expect(l).toBeLessThanOrEqual(1);
+    }
   });
 
   it('유휴·리타이어 차량은 트랙에 올리지 않는다', () => {
@@ -98,7 +96,7 @@ describe('클러스터', () => {
       car('dead', { activity: 'retired' }),
     ];
     const m = buildTrackModel(state(cars), T, opts());
-    expect(m.clusters).toEqual([]);
+    expect(m.cold).toEqual([]);
     expect(m.hot).toEqual([]);
   });
 });
@@ -126,7 +124,7 @@ describe('hot 분류', () => {
   it('hot 차량은 클러스터에 중복으로 세지 않는다', () => {
     const cars = [car('a'), car('boom', { error_count: 1 })];
     const m = buildTrackModel(state(cars), T, opts());
-    const clustered = m.clusters.reduce((n, c) => n + c.count, 0);
+    const clustered = m.cold.length;
     expect(clustered + m.hot.length).toBe(2);
     expect(clustered).toBe(1);
   });
@@ -137,7 +135,7 @@ describe('hot 분류', () => {
     const m = buildTrackModel(state(cars), T, opts());
     expect(m.hot.length).toBe(HOT_CAP);
     expect(m.hotOverflow).toBe(5);
-    expect(m.clusters.reduce((n, c) => n + c.count, 0)).toBe(5);
+    expect(m.cold.length).toBe(5);
   });
 
   it('강등은 점수 낮은 쪽부터다 — 연료가 더 급한 차가 남는다', () => {
@@ -164,7 +162,7 @@ describe('필터', () => {
       car('low', { fuel_pct: 3 }),
     ];
     const shown = (m: ReturnType<typeof buildTrackModel>) =>
-      m.clusters.reduce((n, c) => n + c.count, 0) + m.hot.length;
+      m.cold.length + m.hot.length;
 
     expect(shown(buildTrackModel(state(cars), T, opts({ highlightTypes: ['error', 'limit'] })))).toBe(4);
     expect(shown(buildTrackModel(state(cars), T, opts({ highlightTypes: [] })))).toBe(4);

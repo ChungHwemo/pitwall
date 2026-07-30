@@ -1,7 +1,8 @@
 import type { CarClass, CarState, RaceState } from '../types';
 import { CAR_CLASSES } from '../types';
 import { activityOf } from '../state/reducer';
-import { LANE_RENDER_CAP } from './layout';
+import { LANE_RENDER_CAP, laneLineOf } from './layout';
+import { spreadProgress } from './spacing';
 
 /**
  * 트랙에 무엇을 그릴지 정하는 순수 함수.
@@ -28,37 +29,33 @@ import { LANE_RENDER_CAP } from './layout';
  */
 export const LAP_TOKENS = 200_000;
 
-/**
- * 레인당 빈 수. 트랙 둘레를 이 수로 나눈 간격이 글리프 지름(14)보다 커야 한다.
- * 늘리면 위치가 정밀해지는 대신 겹침이 돌아온다 — `trackRenderer.test.ts`가 지킨다.
- */
-export const BINS_PER_LAP = 100;
-
 /** 개별 추적할 차량 수 상한. 비싼 처리(보간·펄스)를 받는 인원이다. */
 export const HOT_CAP = 12;
 
 export type HighlightType = 'error' | 'limit';
 
-export interface Cluster {
-  key: string;
+export interface RenderCar {
+  carId: string;
   carClass: CarClass;
-  bin: number;
-  /** 빈 중앙. 안에서 차가 조금 움직여도 클러스터는 떨지 않는다. */
+  /** 겹침을 밀어낸 뒤의 진행률 */
   progress: number;
-  count: number;
+  /** 레인 안에서 타는 라인 (-1..1). 추월이 보이게 한다 */
+  laneLine: number;
 }
 
 export interface HotCar {
   carId: string;
   carClass: CarClass;
   progress: number;
+  laneLine: number;
   reason: HighlightType | 'pinned';
   /** 클수록 급한 차 */
   score: number;
 }
 
 export interface TrackModel {
-  clusters: Cluster[];
+  /** 개별 강조 없이 달리는 차량들 */
+  cold: RenderCar[];
   hot: HotCar[];
   /** hot 후보였지만 상한에 밀려 클러스터로 내려간 수. 조용히 버리지 않는다. */
   hotOverflow: number;
@@ -118,17 +115,14 @@ export function buildTrackModel(
   // 1. hot을 먼저 뽑는다. 사건이 난 차는 붐빈다고 잘려나가면 안 된다 —
   //    레인 상한은 밀도 조절 장치이지 사건을 버리는 장치가 아니다.
   const candidates: HotCar[] = [];
-  const cold: CarState[] = [];
   for (const car of running) {
     const reason = highlightOf(car, opts);
-    if (reason === null) {
-      cold.push(car);
-      continue;
-    }
+    if (reason === null) continue;
     candidates.push({
       carId: car.car_id,
       carClass: car.car_class,
       progress: progressOf(car),
+      laneLine: laneLineOf(car.car_id),
       reason,
       score: scoreOf(car, reason),
     });
@@ -159,23 +153,20 @@ export function buildTrackModel(
     }
   }
 
-  const clusters = new Map<string, Cluster>();
-  for (const car of clustered) {
-    const bin = Math.floor(progressOf(car) * BINS_PER_LAP) % BINS_PER_LAP;
-    const key = `${car.car_class}:${bin}`;
-    const existing = clusters.get(key);
-    if (existing) {
-      existing.count++;
-    } else {
-      clusters.set(key, {
-        key,
-        carClass: car.car_class,
-        bin,
-        progress: (bin + 0.5) / BINS_PER_LAP,
-        count: 1,
+  // 겹침은 클래스(=레인) 안에서만 생긴다. 레인별로 밀어낸다.
+  const cold: RenderCar[] = [];
+  for (const cls of CAR_CLASSES) {
+    const lane = clustered.filter((c) => c.car_class === cls);
+    const spread = spreadProgress(lane.map(progressOf));
+    lane.forEach((car, i) => {
+      cold.push({
+        carId: car.car_id,
+        carClass: cls,
+        progress: spread[i]!,
+        laneLine: laneLineOf(car.car_id),
       });
-    }
+    });
   }
 
-  return { clusters: [...clusters.values()], hot, hotOverflow, laneOverflow };
+  return { cold, hot, hotOverflow, laneOverflow };
 }

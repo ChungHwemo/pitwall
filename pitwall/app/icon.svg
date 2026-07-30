@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    PITWALL 앱 아이콘.
+
+    화면과 같은 언어를 쓴다 — 트랙 폐곡선 위에 세 클래스 글리프(원·삼각·사각).
+    아이콘만의 새 은유를 만들지 않는다. 축소해도 형태로 읽히도록
+    글리프를 크게 잡고 텍스트는 넣지 않는다 (§6.3: 트랙 위 텍스트 금지).
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2130"/>
+      <stop offset="1" stop-color="#0b0e13"/>
+    </linearGradient>
+  </defs>
+
+  <!-- macOS 아이콘 격자: 824px 스퀘어클을 100px 여백 안에 둔다 -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="none"
+        stroke="#2a323d" stroke-width="4"/>
+
+  <!-- 트랙. 화면의 서킷과 같은 굵기 비율(폭/둘레)을 유지한다 -->
+  <path d="M 512 236
+           C 660 236 762 320 762 432
+           C 762 528 700 566 700 640
+           C 700 726 634 788 512 788
+           C 390 788 324 726 324 640
+           C 324 566 262 528 262 432
+           C 262 320 364 236 512 236 Z"
+        fill="none" stroke="#2a323d" stroke-width="96" stroke-linejoin="round"/>
+
+  <!-- 스타트/피니시 -->
+  <path d="M 512 188 L 512 284" stroke="#e6edf3" stroke-width="14" opacity="0.55"/>
+
+  <!-- 세 클래스. 색 + 형태 이중 인코딩 그대로 (H 삼각 / P 원 / GT 사각) -->
+  <g>
+    <path d="M 512 196 L 556 272 L 468 272 Z" fill="#ff5c5c"/>
+    <circle cx="716" cy="470" r="44" fill="#4dc3ff"/>
+    <rect x="284" y="596" width="84" height="84" rx="10" fill="#ffd24d"/>
+  </g>
+</svg>
