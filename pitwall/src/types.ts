@@ -56,6 +56,14 @@ export interface CarEvent {
   limit_resets_at?: number;
   /** 그 한도를 읽은 시각 */
   limit_observed_at?: number;
+  /**
+   * 화면에 찍는 원본 시각.
+   *
+   * 재생 소스는 `ts`를 내부 시계로 갈아끼운다 — 안 그러면 리듀서가 모든 차를
+   * "오래 조용함"으로 본다. 그 대가로 원본 시각이 사라져 피드의 모든 줄이 같은
+   * 시각으로 찍혔다. 표시용은 여기서 읽는다.
+   */
+  wall_ts?: number;
 }
 
 export type CarActivity = 'running' | 'pit' | 'retired';

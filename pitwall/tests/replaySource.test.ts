@@ -107,3 +107,18 @@ describe('재생 시계', () => {
     expect(src.replayClock().getTime()).toBe(origin);
   });
 });
+
+describe('표시용 원본 시각', () => {
+  it('내부 ts는 재생 시계로 바꾸되 원래 시각을 따로 남긴다', () => {
+    const origin = Date.parse('2026-07-30T09:15:00.000Z');
+    const src = new ReplaySource([event({ ts: origin })], 1);
+    const out: CarEvent[] = [];
+    src.start((e) => out.push(e));
+    src.tick(5_000);
+    src.tick(6_000);
+    // 리듀서의 유휴 판정은 내부 시계를 써야 하므로 ts는 바뀐다.
+    expect(out[0]!.ts).not.toBe(origin);
+    // 화면에 찍는 시각은 원본이어야 한다 — 아니면 모든 줄이 같은 시각으로 보인다.
+    expect(out[0]!.wall_ts).toBe(origin);
+  });
+});

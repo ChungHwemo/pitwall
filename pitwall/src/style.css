@@ -7,16 +7,76 @@ body {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
+/*
+ * 척추는 타워다.
+ *
+ * 참고한 f1-telemetry의 라이브 화면도, 모터스포츠 매니저도, 방송 화면도 전부
+ * 왼쪽에 줄 세운 표를 두고 트랙맵은 곁에 작게 붙인다. 지도는 "어디쯤"만 말하고
+ * 숫자는 못 말한다 — 곁눈질로 읽히는 건 표다. 이 화면은 반대로 만들어져 있었다.
+ */
 .pitwall {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: minmax(420px, 1fr) 1.05fr;
   grid-template-rows: 48px 1fr 88px;
-  grid-template-areas: "hud hud" "track cams" "radio radio";
+  grid-template-areas: "hud hud" "tower detail" "radio radio";
   height: 100vh;
   gap: 8px;
   padding: 8px;
   box-sizing: border-box;
 }
+
+.tower-slot { grid-area: tower; overflow: hidden; }
+/* 줄이 세로를 나눠 갖는다. 계정 두 대에 작은 줄 두 개와 거대한 공백은 낭비다. */
+.tower { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+
+.tower-row {
+  flex: 1 1 0;
+  max-height: 150px;
+  display: grid;
+  grid-template-columns: 6px 58px 1fr 150px 104px;
+  grid-template-areas:
+    "bar num model  limit money"
+    "bar num spark  limit money"
+    "bar num state  limit money";
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid #1c222b;
+  cursor: pointer;
+}
+.tower-row:hover { background: rgba(255, 255, 255, 0.04); }
+.tower-row[data-selected="true"] { background: rgba(77, 195, 255, 0.10); }
+
+.tower-bar { grid-area: bar; height: 30px; border-radius: 2px; }
+.tower-number { grid-area: num; font-size: 30px; font-weight: 700; text-align: right; }
+.tower-model { grid-area: model; font-size: 14px; color: #e6edf3; align-self: end; }
+/* 최근 30분 소진. 숫자보다 먼저 도착하는 신호다. */
+.tower-spark {
+  grid-area: spark; font-size: 15px; line-height: 1.1; color: #4dc3ff;
+  letter-spacing: 1px; white-space: pre; align-self: center;
+}
+.tower-row[data-state="limit"] .tower-spark { color: #ffd24d; }
+.tower-row[data-state="error"] .tower-spark { color: #ff5c5c; }
+.tower-row[data-state="idle"] .tower-spark { color: #3b4655; }
+.tower-state {
+  grid-area: state; font-size: 10px; letter-spacing: 0.14em;
+  color: #6b7c91; align-self: start;
+}
+.tower-row[data-state="error"] .tower-state { color: #ff5c5c; }
+.tower-row[data-state="limit"] .tower-state { color: #ffd24d; }
+/* 멈춘 차는 줄 자체를 죽인다 — 굴러가는 줄과 한눈에 갈라져야 한다. */
+.tower-row[data-state="error"], .tower-row[data-state="limit"] { opacity: 0.62; }
+
+.tower-limit { grid-area: limit; }
+.tower-limit-track { height: 7px; background: #1c222b; border-radius: 4px; overflow: hidden; }
+.tower-limit-fill { height: 100%; background: #4dc3ff; border-radius: 4px; }
+/* 게이지 색이 곧 급한 정도다. 숫자를 읽기 전에 색이 먼저 도착한다. */
+.tower-row[data-state="limit"] .tower-limit-fill { background: #ffd24d; }
+.tower-limit-text { font-size: 11px; color: #9fb3c8; margin-top: 4px; white-space: nowrap; }
+
+.tower-money { grid-area: money; text-align: right; }
+.tower-cost { font-size: 16px; font-weight: 700; }
+.tower-rate { font-size: 10px; color: #6b7c91; margin-top: 2px; white-space: nowrap; }
 
 .hud { grid-area: hud; display: flex; align-items: center; gap: 24px; padding: 0 12px; }
 .hud-item { font-size: 15px; letter-spacing: 0.04em; }
@@ -24,6 +84,7 @@ body {
 svg.track { grid-area: track; width: 100%; height: 100%; }
 
 .cams { grid-area: cams; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.cams .cam-card { flex: 0 0 auto; }
 .cam-card {
   flex: 1; border: 1px solid #2a323d; border-radius: 6px;
   padding: 10px; cursor: pointer; transition: border-color 120ms;
@@ -99,3 +160,27 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
   fill: #9fb3c8; font-size: 17px; text-anchor: middle;
   font-family: ui-monospace, SFMono-Regular, monospace; pointer-events: none;
 }
+
+/* 접힌 계정. 조용히 사라지면 안 된다. */
+.tower-overflow {
+  flex: 0 0 auto; padding: 8px 10px; font-size: 12px;
+  color: #6b7c91; border-top: 1px solid #1c222b;
+}
+
+/* 오른쪽은 선택한 계정 전용 + 축소한 트랙. */
+.detail {
+  grid-area: detail; display: grid;
+  grid-template-rows: 1fr minmax(240px, 42%);
+  gap: 8px; overflow: hidden;
+}
+svg.track { grid-area: auto; width: 100%; height: 100%; min-height: 0; }
+.cams { grid-area: auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+.tower-total {
+  flex: 0 0 auto; margin-top: auto; padding: 10px 10px 2px;
+  border-top: 1px solid #1c222b; font-size: 12px; color: #9fb3c8;
+  letter-spacing: 0.03em;
+}
+
+/* 고른 계정이 없으면 내역 칸을 접고 트랙에 자리를 준다. */
+.detail[data-selected="false"] { grid-template-rows: 34px 1fr; }

@@ -18,7 +18,7 @@ import { Director } from './director/director';
 import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
 import { RoutineRadio } from './radio/routineRadio';
 import { TrackRenderer } from './render/trackRenderer';
-import { CameraRenderer } from './render/cameraRenderer';
+import { TowerRenderer } from './render/towerRenderer';
 import { RadioRenderer } from './render/radioRenderer';
 import { loadSalaryConfig, earnedSoFar, formatElapsed } from './render/hudRenderer';
 import { setText } from './render/setText';
@@ -32,9 +32,12 @@ import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RADIO_LINES = 3;
+/** 타워 줄 수. 계정이 더 많으면 남는 줄은 접힌 것으로 표시해야 한다 (미구현). */
+const TOWER_ROWS = 14;
 const FEED_ROWS = 12;
 /** 계정별로 보관하는 최근 호출 수 */
-const FEED_HISTORY = 60;
+/** 계정별로 들고 있는 최근 호출 수. 피드가 쓰고 스파크라인도 여기서 읽는다. */
+const FEED_HISTORY = 400;
 const ROUTINE_INTERVAL_MS = 3_600_000;
 
 export interface AppOptions {
@@ -53,12 +56,13 @@ export class PitwallApp {
   settings: PitwallSettings;
   private routine = new RoutineRadio();
   private trackRenderer: TrackRenderer;
-  private cameraRenderer: CameraRenderer;
+  private towerRenderer: TowerRenderer;
   private radioRenderer: RadioRenderer;
   private hudTime: HTMLElement;
   private hudSalary: HTMLElement;
   private hudPhase: HTMLElement;
   private hudPace: HTMLElement;
+  private detail: HTMLElement;
   private summaryRenderer: SummaryRenderer;
   private feedRenderer: FeedRenderer;
   /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
@@ -112,21 +116,31 @@ export class PitwallApp {
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'track');
 
+    // 타워가 먼저다. 트랙은 "어디쯤"을 말하고 타워가 "무엇이 일어나는가"를 말한다.
+    const tower = document.createElement('div');
+    tower.className = 'tower-slot';
+
     const cams = document.createElement('div');
     cams.className = 'cams';
+
+    // 오른쪽 한 칸: 위는 선택한 계정 내역, 아래는 줄어든 트랙.
+    const detail = document.createElement('div');
+    detail.className = 'detail';
+    detail.append(cams, svg);
+    this.detail = detail;
 
     const radio = document.createElement('div');
     radio.className = 'radio';
 
-    shell.append(hud, svg, cams, radio);
+    shell.append(hud, tower, detail, radio);
     root.appendChild(shell);
 
     this.summaryRenderer = new SummaryRenderer(shell);
     this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
     new SettingsPanel(hud, this.settings, (next) => this.applySettings(next));
 
+    this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
     this.trackRenderer = new TrackRenderer(svg, track);
-    this.cameraRenderer = new CameraRenderer(cams, this.settings.cameraSlots);
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed);
 
@@ -136,11 +150,14 @@ export class PitwallApp {
       this.modelCars = null;
     });
 
-    this.cameraRenderer.onPinToggle((carId) => {
-      this.director.pin(carId);
-      this.pinned.add(carId);
+    this.towerRenderer.onSelect((carId) => {
+      this.selected = this.selected === carId ? null : carId;
+      this.pinned.clear();
+      if (this.selected) this.pinned.add(this.selected);
       this.modelCars = null;   // 핀이 바뀌면 모델을 다시 만든다
     });
+    // 카메라 카드가 사라지면서 핀 토글의 진입점도 사라졌다. 핀 자체는 트랙
+    // 모델이 계속 쓰므로 남긴다 — 타워에서 고른 차를 그대로 핀으로 쓴다.
 
     // 탭 복귀 시 보간을 건너뛰고 현재 상태로 스냅한다 (PRD A9).
     document.addEventListener('visibilitychange', () => {
@@ -221,19 +238,23 @@ export class PitwallApp {
       });
     }
     this.trackRenderer.render(this.trackModel, now, this.selected);
+    this.towerRenderer.render(
+      this.raceState, now, real.getTime(), this.selected,
+      (carId) => this.recent.get(carId)?.toArray() ?? [],
+      // 줄이 모자랄 때 누구를 남길지는 디렉터가 고른다 — 에러·한도가 급한 쪽.
+      this.director.update(this.raceState, now),
+      this.settings.speed);
 
     // 선택이 있으면 카메라 대신 그 계정의 내역을 보여준다.
     const picked = this.selected ? this.raceState.cars.get(this.selected) : undefined;
+    const open = picked ? 'true' : 'false';
+    if (this.detail.getAttribute('data-selected') !== open) {
+      this.detail.setAttribute('data-selected', open);
+    }
     this.feedRenderer.render(
       picked ? { carNumber: picked.car_number, carClass: picked.car_class, model: picked.model } : null,
       picked ? (this.recent.get(picked.car_id)?.toArray() ?? []) : []);
     this.summaryRenderer.render(this.raceState);
-    // 선택 중에는 자동 선별 카드를 감춘다 — 한 화면에 둘 다 띄우면 읽을 게 두 배가 된다.
-    this.cameraRenderer.render(
-      this.raceState, this.selected ? [] : this.director.update(this.raceState, now),
-      // 한도 리셋과 판독 나이는 **실제 지금** 기준이다. 재생 위치로 재면
-      // 오늘 새벽 1시에 풀리는 창이 과거 시점에서는 15시간 뒤로 보인다.
-      real.getTime());
     this.radioRenderer.render();
 
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).

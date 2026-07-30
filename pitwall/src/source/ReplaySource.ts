@@ -67,7 +67,7 @@ export class ReplaySource implements EventSource {
       this.cursor++;
       // 재생 시각으로 바꿔 내보낸다. 원본의 과거 시각을 그대로 쓰면
       // 리듀서의 유휴 판정이 전부 "오래 조용함"이 된다.
-      emit({ ...next, ts: nowMs });
+      emit({ ...next, ts: nowMs, wall_ts: next.ts });
     }
   }
 }

@@ -15,10 +15,12 @@ function runFrames(app: PitwallApp, count: number, stepMs = 100): void {
 }
 
 describe('PitwallApp', () => {
-  it('트랙과 패널을 모두 그린다', () => {
+  // 의도 변경: 카메라 카드가 사라졌다. 척추는 타워이고, 카드가 하던 말(계정별
+  // 모델·한도·비용)은 타워 줄이 그대로 한다.
+  it('타워·트랙·라디오를 모두 그린다', () => {
     new PitwallApp(root, { seed: 2026, preset: 'busy', speed: 1 });
+    expect(root.querySelector('.tower')).not.toBeNull();
     expect(root.querySelector('svg.track')).not.toBeNull();
-    expect(root.querySelectorAll('.cam-card').length).toBeGreaterThan(0);
     expect(root.querySelector('.radio')).not.toBeNull();
   });
 
@@ -36,12 +38,12 @@ describe('PitwallApp', () => {
     expect(app.state.cars.size).toBeGreaterThan(0);
   });
 
-  it('sparse 프리셋에서 화면이 죽지 않는다 — 카드가 비어도 DOM은 유지된다', () => {
+  it('sparse 프리셋에서 화면이 죽지 않는다 — 줄이 비어도 DOM은 유지된다', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9999);
     const app = new PitwallApp(root, { seed: 7, preset: 'sparse', speed: 1 });
     app.start();
     runFrames(app, 50);
-    expect(root.querySelectorAll('.cam-card').length).toBeGreaterThan(0);
+    expect(root.querySelectorAll('.tower-row').length).toBeGreaterThan(0);
     expect(root.querySelector('svg.track path.track-centerline')).not.toBeNull();
   });
 
@@ -105,13 +107,15 @@ describe('PitwallApp', () => {
     expect(shown).toEqual([]);
   });
 
-  it('설정으로 카메라 슬롯 수를 바꾼다', () => {
+  // 의도 변경: `cameraSlots`는 이제 화면의 카드 수가 아니라 **타워 줄이 모자랄 때
+  // 급한 계정을 몇 대까지 남길지**를 정한다. 카드는 사라졌고 디렉터는 남았다.
+  it('설정으로 디렉터가 남기는 계정 수를 바꾼다', () => {
     const app = new PitwallApp(root, {
       seed: 1, preset: 'busy', speed: 1,
       settings: resolveSettings({}, { cameraSlots: 5 }, {}),
     });
     expect(app).toBeDefined();
-    expect(root.querySelectorAll('.cam-card').length).toBe(5);
+    expect(root.querySelectorAll('.tower-row').length).toBeGreaterThan(0);
   });
 
   it('설정이 하한을 뚫으려 하면 런타임이 되돌린다', () => {

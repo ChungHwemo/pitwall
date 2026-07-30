@@ -70,7 +70,7 @@ function collapse(sorted: CarEvent[]): Entry[] {
 
 function rowKey(e: CarEvent): string {
   return [
-    clockOf(e.ts), e.model, e.status, e.error_code ?? '',
+    clockOf(e.wall_ts ?? e.ts), e.model, e.status, e.error_code ?? '',
     e.agent ?? '', e.skill ?? '', workOf(e), cachedOf(e),
   ].join('|');
 }
@@ -152,7 +152,7 @@ export class FeedRenderer {
       const status = e.status === 'error' ? 'error' : 'ok';
       if (row.root.getAttribute('data-status') !== status) row.root.setAttribute('data-status', status);
 
-      setText(row.time, clockOf(e.ts));
+      setText(row.time, clockOf(e.wall_ts ?? e.ts));
       setText(row.model, shortModel(e.model));
       // 무엇이 돌렸는지 — 에이전트·스킬이 이 화면의 목적이다.
       setText(row.who, e.status === 'error'
