@@ -4,7 +4,12 @@
 
 대시보드가 아니다. 대시보드는 응시하는 물건이고, PITWALL은 곁눈질하는 물건이다. 체류 시간이 길면 실패다 — 3초 훑고 자기 일로 돌아가되 내일도 켜져 있으면 성공이다.
 
-현재 상태: **v1 구현 착수 승인.** 차단 조건 없음. 코드는 아직 없다.
+현재 상태: **v1 구현 완료.** 208 tests · `tsc` 0 오류 · 빌드 20 kB · 런타임 의존성 0개.
+브라우저 실측(프레임률·8시간 힙·색각 시뮬레이션)은 **미실시** — [CHECKLIST.md](pitwall/CHECKLIST.md) 참조.
+
+```bash
+cd pitwall && npm install && npm run dev
+```
 
 ---
 
@@ -15,6 +20,7 @@
 | [PRD v1.2](docs/superpowers/specs/2026-07-29-pitwall-prd.md) | 제품 정의, 은유 사전, 데이터 모델, 프라이버시 가드레일, 리스크 등록부 |
 | [구현 계획 v1](docs/superpowers/plans/2026-07-29-pitwall-v1.md) | 18개 태스크 TDD 실행 계획 |
 | [f1-telemetry 분해](docs/reference/2026-07-30-f1-telemetry-teardown.md) | 참조 구현 원본 코드 분석. 채택 기법 5건 / 기각 7건 |
+| [출시 검수](pitwall/CHECKLIST.md) | 측정한 것과 **측정하지 않은 것**을 분리해 기록 |
 
 ---
 
