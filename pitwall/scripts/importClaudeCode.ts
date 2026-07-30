@@ -48,10 +48,22 @@ for (const file of files) {
 
 events.sort((a, b) => a.ts - b.ts);
 
-// 연료는 차량별 누적 비용을 일간 예산으로 나눈 잔여다. 이벤트 단건은 이걸 모르므로
-// 여기서 시간순으로 훑으며 채운다 — 화면의 연료 링이 실제 지출을 반영한다.
-const spent = new Map<string, number>();
+// 레이스 한 판은 하루다. 여러 날을 이어 붙이면 연료가 첫 화면부터 0이 되고
+// 트랙에는 그 순간 활동한 한두 프로젝트만 남는다 — 실측에서 관측한 그대로다.
+// 가장 붐빈 하루를 골라 그 안에서만 재생한다.
+const dayOf = (ts: number) => new Date(ts).toISOString().slice(0, 10);
+const perDay = new Map<string, CarEvent[]>();
 for (const e of events) {
+  const key = dayOf(e.ts);
+  (perDay.get(key) ?? perDay.set(key, []).get(key)!).push(e);
+}
+const [busiestDay, dayEvents] = [...perDay.entries()]
+  .sort((a, b) => new Set(b[1].map((e) => e.car_id)).size - new Set(a[1].map((e) => e.car_id)).size
+    || b[1].length - a[1].length)[0]!;
+
+// 연료는 그날의 차량별 누적 비용을 일간 예산으로 나눈 잔여다.
+const spent = new Map<string, number>();
+for (const e of dayEvents) {
   const total = (spent.get(e.car_id) ?? 0) + e.cost_usd;
   spent.set(e.car_id, total);
   e.fuel_pct = Math.max(0, 100 - (total / dailyBudgetUsd) * 100);
@@ -59,20 +71,21 @@ for (const e of events) {
 
 const out = resolve(import.meta.dirname, '../fixtures/events.real.jsonl');
 mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+writeFileSync(out, dayEvents.map((e) => JSON.stringify(e)).join('\n') + '\n');
 
 const byModel = new Map<string, number>();
 const byCar = new Map<string, number>();
 let cost = 0;
 let tokens = 0;
-for (const e of events) {
+for (const e of dayEvents) {
   byModel.set(e.model, (byModel.get(e.model) ?? 0) + 1);
   byCar.set(e.car_id, (byCar.get(e.car_id) ?? 0) + 1);
   cost += e.cost_usd;
   tokens += e.tokens.prompt + e.tokens.completion;
 }
 
-console.log(`${events.length}건 → ${out}`);
+console.log(`${busiestDay} (가장 붐빈 하루) ${dayEvents.length}건 → ${out}`);
+console.log(`전체 ${events.length}건 중 ${perDay.size}일치에서 골랐다`);
 console.log(`파일 ${files.length}개 · 차량(프로젝트) ${byCar.size}대 · 토큰 ${tokens.toLocaleString('ko-KR')} · 비용 $${cost.toFixed(2)}`);
 console.log('모델:', [...byModel.entries()].sort((a, b) => b[1] - a[1])
   .map(([m, n]) => `${m}×${n}`).join(' '));
