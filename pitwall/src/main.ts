@@ -4,6 +4,7 @@ import { SimulatorSource } from './source/SimulatorSource';
 import { emptyRaceState, applyEvent } from './state/reducer';
 import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs } from './state/clock';
 import { generateTrack, validateTrack } from './track/generateTrack';
+import { buildTrackModel, type TrackModel } from './track/trackModel';
 import { Director } from './director/director';
 import { eventRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
 import { RoutineRadio } from './radio/routineRadio';
@@ -40,6 +41,11 @@ export class PitwallApp {
   private hudPhase: HTMLElement;
 
   private raceState: RaceState = emptyRaceState(0);
+  /** 마지막으로 모델을 만든 cars 참조. 리듀서가 이벤트마다 새 Map을 만들므로
+   *  참조 비교 한 번이 곧 "상태가 바뀌었나"다 — 별도 배칭 타이머가 필요 없다. */
+  private modelCars: RaceState['cars'] | null = null;
+  private trackModel: TrackModel = { clusters: [], hot: [], hotOverflow: 0, laneOverflow: { H: 0, P: 0, GT: 0 } };
+  private pinned = new Set<string>();
   private running = false;
   private lastPhase = phaseAt(new Date(), DEFAULT_WORKDAY);
   private lastRoutineAt = 0;
@@ -87,7 +93,11 @@ export class PitwallApp {
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = new SimulatorSource(PRESETS[opts.preset], opts.speed);
 
-    this.cameraRenderer.onPinToggle((carId) => this.director.pin(carId));
+    this.cameraRenderer.onPinToggle((carId) => {
+      this.director.pin(carId);
+      this.pinned.add(carId);
+      this.modelCars = null;   // 핀이 바뀌면 모델을 다시 만든다
+    });
 
     // 탭 복귀 시 보간을 건너뛰고 현재 상태로 스냅한다 (PRD A9).
     document.addEventListener('visibilitychange', () => {
@@ -143,7 +153,16 @@ export class PitwallApp {
     this.lastPhase = phase;
     this.raceState = { ...this.raceState, phase, elapsed_ms: elapsedMs(wall, this.settings.workday) };
 
-    this.trackRenderer.render(this.raceState, now);
+    // 모델은 상태가 바뀔 때만 만든다. 프레임은 hot 보간만 한다.
+    if (this.modelCars !== this.raceState.cars) {
+      this.modelCars = this.raceState.cars;
+      this.trackModel = buildTrackModel(this.raceState, now, {
+        highlightTypes: this.settings.highlightTypes,
+        fuelWarnPct: this.settings.fuelWarnThresholdPct,
+        pinned: this.pinned,
+      });
+    }
+    this.trackRenderer.render(this.trackModel, now);
     this.cameraRenderer.render(this.raceState, this.director.update(this.raceState, now));
     this.radioRenderer.render();
 
