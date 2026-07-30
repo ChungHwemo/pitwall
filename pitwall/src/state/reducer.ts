@@ -1,0 +1,59 @@
+import type { CarActivity, CarEvent, CarState, RaceState } from '../types';
+
+/**
+ * 마지막 호출 이후 이 시간이 지나면 피트인으로 간주한다.
+ * 이 신호는 '사용자 대기 / 자리 비움 / 로컬 툴 장기 실행'을 구분하지 못한다.
+ * UI는 "대기 중"이라 단정하지 않고 중립적으로 IN PIT만 표시한다 (PRD §7.2).
+ */
+export const IDLE_THRESHOLD_MS = 90_000;
+
+export function emptyRaceState(now: number): RaceState {
+  return { cars: new Map(), phase: 'pre_grid', elapsed_ms: 0, now };
+}
+
+function initialCar(event: CarEvent): CarState {
+  return {
+    car_id: event.car_id,
+    car_number: event.car_number,
+    car_class: event.car_class,
+    activity: 'running',
+    distance: 0,
+    fuel_pct: 100,
+    tyre_pct: event.tyre_pct === undefined ? undefined : 100,
+    cost_usd: 0,
+    last_event_ts: 0,
+    error_count: 0,
+    cache_hits: 0,
+    call_count: 0,
+  };
+}
+
+export function applyEvent(state: RaceState, event: CarEvent): RaceState {
+  const prev = state.cars.get(event.car_id) ?? initialCar(event);
+
+  // 리타이어는 최종 상태다. 이후 이벤트가 와도 되돌리지 않는다.
+  const retired = prev.activity === 'retired' || event.kind === 'retire';
+
+  const next: CarState = {
+    ...prev,
+    distance: prev.distance + event.tokens.prompt + event.tokens.completion,
+    cost_usd: prev.cost_usd + event.cost_usd,
+    fuel_pct: event.fuel_pct,
+    tyre_pct: event.tyre_pct,
+    last_event_ts: Math.max(prev.last_event_ts, event.ts),
+    error_count: prev.error_count + (event.status === 'error' ? 1 : 0),
+    cache_hits: prev.cache_hits + (event.cache_hit ? 1 : 0),
+    call_count: prev.call_count + 1,
+    activity: retired ? 'retired' : event.kind === 'pit_in' ? 'pit' : 'running',
+  };
+
+  const cars = new Map(state.cars);
+  cars.set(event.car_id, next);
+  return { ...state, cars, now: Math.max(state.now, event.ts) };
+}
+
+export function activityOf(car: CarState, now: number): CarActivity {
+  if (car.activity === 'retired') return 'retired';
+  if (now - car.last_event_ts > IDLE_THRESHOLD_MS) return 'pit';
+  return 'running';
+}
