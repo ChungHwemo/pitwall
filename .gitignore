@@ -1,2 +1,4 @@
 .DS_Store
 .codegraph
+node_modules/
+dist/
