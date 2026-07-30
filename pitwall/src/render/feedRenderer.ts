@@ -13,7 +13,10 @@ import { setText } from './setText';
  */
 export interface FeedTarget {
   carNumber: number;
+  /** 색을 정한다 — 등급은 모델의 등급이다 */
   carClass: CarClass;
+  /** 헤더에 쓰는 현재 모델. 등급 이름은 사람이 알고 싶은 게 아니다 */
+  model: string;
 }
 
 interface Row {
@@ -130,7 +133,7 @@ export class FeedRenderer {
 
     setText(this.title, `#${String(target.carNumber).padStart(3, '0')}`);
     const style = CLASS_STYLE[target.carClass];
-    setText(this.klass, style.label);
+    setText(this.klass, target.model);
     this.klass.style.color = style.color;
     setText(this.empty, events.length === 0 ? '아직 기록된 호출이 없습니다' : '');
 

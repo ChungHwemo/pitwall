@@ -211,7 +211,7 @@ export class PitwallApp {
     // 선택이 있으면 카메라 대신 그 계정의 내역을 보여준다.
     const picked = this.selected ? this.raceState.cars.get(this.selected) : undefined;
     this.feedRenderer.render(
-      picked ? { carNumber: picked.car_number, carClass: picked.car_class } : null,
+      picked ? { carNumber: picked.car_number, carClass: picked.car_class, model: picked.model } : null,
       picked ? (this.recent.get(picked.car_id)?.toArray() ?? []) : []);
     this.summaryRenderer.render(this.raceState);
     // 선택 중에는 자동 선별 카드를 감춘다 — 한 화면에 둘 다 띄우면 읽을 게 두 배가 된다.

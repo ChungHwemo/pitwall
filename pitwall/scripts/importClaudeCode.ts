@@ -203,8 +203,12 @@ events.sort((a, b) => a.ts - b.ts);
 
 // 레이스 한 판은 하루다. 여러 날을 이어 붙이면 연료가 첫 화면부터 0이 되고
 // 트랙에는 그 순간 활동한 한두 프로젝트만 남는다 — 실측에서 관측한 그대로다.
-// 가장 붐빈 하루를 골라 그 안에서만 재생한다.
-const dayOf = (ts: number) => new Date(ts).toISOString().slice(0, 10);
+// 하루를 골라 그 안에서만 재생한다. 기본은 오늘이다.
+// 로컬 자정 기준으로 하루를 자른다. UTC로 자르면 한국 오전 9시가 전날에 붙는다.
+const dayOf = (ts: number) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const perDay = new Map<string, CarEvent[]>();
 for (const e of events) {
   const key = dayOf(e.ts);
@@ -222,12 +226,26 @@ function balance(events: CarEvent[]): [number, number] {
   return [byCar.size, counts[1] ?? 0];
 }
 
-const [busiestDay, dayEvents] = [...perDay.entries()]
-  .sort((a, b) => {
-    const [carsA, secondA] = balance(a[1]);
-    const [carsB, secondB] = balance(b[1]);
-    return carsB - carsA || secondB - secondA || b[1].length - a[1].length;
-  })[0]!;
+/**
+ * **오늘이 있으면 오늘이다.** 화면이 답해야 하는 질문은 "지금 무슨 일이 벌어지고
+ * 있는가"인데, 지난 어느 날을 재생하면 방금 태운 토큰이 어디에도 안 나온다.
+ * 오늘 기록이 없을 때만(아직 아무도 안 돌렸을 때) 가장 균형 잡힌 과거 하루로
+ * 물러난다. 특정 날짜를 보고 싶으면 세 번째 인자로 준다.
+ */
+const requestedDay = process.argv[4];
+const today = dayOf(Date.now());
+const ranked = [...perDay.entries()].sort((a, b) => {
+  const [carsA, secondA] = balance(a[1]);
+  const [carsB, secondB] = balance(b[1]);
+  return carsB - carsA || secondB - secondA || b[1].length - a[1].length;
+});
+const chosen = (requestedDay && perDay.has(requestedDay)
+  ? [requestedDay, perDay.get(requestedDay)!] as const
+  : perDay.has(today) ? [today, perDay.get(today)!] as const : ranked[0]!);
+if (requestedDay && !perDay.has(requestedDay)) {
+  console.log(`${requestedDay}에는 기록이 없다. 대신 ${chosen[0]}을 쓴다.`);
+}
+const [busiestDay, dayEvents] = chosen;
 
 // 연료는 그날의 차량별 누적 비용을 일간 예산으로 나눈 잔여다.
 const spent = new Map<string, number>();
@@ -252,7 +270,7 @@ for (const e of dayEvents) {
   tokens += e.tokens.prompt + e.tokens.completion;
 }
 
-console.log(`${busiestDay} (가장 붐빈 하루) ${dayEvents.length}건 → ${out}`);
+console.log(`${busiestDay}${busiestDay === today ? " (오늘)" : " (오늘 기록이 없어 대체)"} ${dayEvents.length}건 → ${out}`);
 console.log(`전체 ${events.length}건 중 ${perDay.size}일치에서 골랐다`);
 console.log(`파일 ${files.length}개 · 차량(계정) ${byCar.size}대 · 토큰 ${tokens.toLocaleString('ko-KR')} · 비용 $${cost.toFixed(2)}`);
 console.log('모델:', [...byModel.entries()].sort((a, b) => b[1] - a[1])

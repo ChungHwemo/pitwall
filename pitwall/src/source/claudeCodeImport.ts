@@ -54,6 +54,9 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
   if (!Number.isFinite(ts)) return null;
 
   const model = typeof message?.model === 'string' ? message.model : 'unknown';
+  // Claude Code가 API를 부르지 않고 자체 생성한 줄이다. 호출로 세면 차가
+  // 존재하지 않은 일을 한 것이 된다.
+  if (model === '<synthetic>') return null;
   const prompt = (usage.input_tokens ?? 0)
     + (usage.cache_read_input_tokens ?? 0)
     + (usage.cache_creation_input_tokens ?? 0);

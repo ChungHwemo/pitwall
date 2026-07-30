@@ -126,3 +126,20 @@ describe('activityOf', () => {
     expect(activityOf(car, T0 + 10_000_000)).toBe('retired');
   });
 });
+
+describe('현재 모델', () => {
+  it('마지막으로 쓴 모델을 들고 있는다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ model: 'claude-fable-5' }));
+    s = applyEvent(s, makeEvent({ model: 'gpt-5.6-sol', ts: T0 + 1_000 }));
+    expect(s.cars.get('car-a')!.model).toBe('gpt-5.6-sol');
+  });
+
+  it('모델이 바뀌면 클래스도 따라간다 — 라벨과 색이 어긋나면 거짓말이다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ model: 'claude-fable-5', car_class: 'H' }));
+    s = applyEvent(s, makeEvent({ model: 'claude-haiku-4-5', car_class: 'GT', ts: T0 + 1_000 }));
+    const car = s.cars.get('car-a')!;
+    expect([car.model, car.car_class]).toEqual(['claude-haiku-4-5', 'GT']);
+  });
+});

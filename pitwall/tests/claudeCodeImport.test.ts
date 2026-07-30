@@ -130,3 +130,13 @@ describe('모델 별칭', () => {
     expect(toCarEvent(other)!.cost_usd).toBe(0);
   });
 });
+
+describe('합성 메시지', () => {
+  it('<synthetic>은 호출이 아니라 버린다', () => {
+    expect(toCarEvent({
+      timestamp: '2026-07-30T10:00:00.000Z',
+      sessionId: 's1',
+      message: { model: '<synthetic>', usage: { input_tokens: 0, output_tokens: 0 } },
+    })).toBeNull();
+  });
+});

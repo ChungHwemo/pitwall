@@ -8,7 +8,7 @@ const T = 1_000_000;
 
 function car(id: string, over: Partial<CarState> = {}): CarState {
   return {
-    car_id: id, car_number: 17, car_class: 'P', activity: 'running',
+    car_id: id, car_number: 17, model: 'claude-sonnet-5', car_class: 'P', activity: 'running',
     distance: 12_345, cached: 0, fuel_pct: 42, tyre_pct: 33, cost_usd: 3.5,
     last_event_ts: T, error_count: 0, cache_hits: 5, call_count: 20,
     ...over,
@@ -166,5 +166,15 @@ describe('RadioRenderer', () => {
   it('메시지가 없어도 예외 없이 렌더한다', () => {
     const r = new RadioRenderer(host, 5);
     expect(() => r.render()).not.toThrow();
+  });
+});
+
+describe('모델명 표기', () => {
+  it('카메라 카드는 등급 이름이 아니라 돌고 있는 모델을 쓴다', () => {
+    const r = new CameraRenderer(host, 1);
+    r.render(state([car('car-a', { model: 'gpt-5.6-sol', car_class: 'H' })]), ['car-a']);
+    const text = host.textContent ?? '';
+    expect(text).toContain('gpt-5.6-sol');
+    expect(text).not.toContain('HYPERCAR');
   });
 });

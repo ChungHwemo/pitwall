@@ -59,6 +59,8 @@ export type CarActivity = 'running' | 'pit' | 'retired';
 export interface CarState {
   car_id: string;
   car_number: number;
+  /** 지금 돌고 있는 모델. 클래스는 이 모델의 등급이라 둘은 같이 움직인다 */
+  model: string;
   car_class: CarClass;
   activity: CarActivity;
   /** 달린 거리 = 실제 작업 토큰 누적 (캐시 재전송 제외) */

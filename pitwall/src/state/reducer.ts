@@ -31,6 +31,7 @@ function initialCar(event: CarEvent): CarState {
   return {
     car_id: event.car_id,
     car_number: event.car_number,
+    model: event.model,
     car_class: event.car_class,
     activity: 'running',
     distance: 0,
@@ -54,6 +55,10 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
 
   const next: CarState = {
     ...prev,
+    // 계정이 모델을 갈아타면 등급도 같이 간다. 라벨이 모델을 말하는데 색이
+    // 옛 등급이면 화면이 서로 다른 소리를 한다.
+    model: event.model,
+    car_class: event.car_class,
     distance: prev.distance + workOf(event),
     cached: prev.cached + cachedOf(event),
     cost_usd: prev.cost_usd + event.cost_usd,

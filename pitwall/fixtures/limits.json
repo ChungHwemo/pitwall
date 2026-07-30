@@ -1,16 +1,16 @@
 [
   {
     "vendor": "claude",
-    "fetchedAt": 1785410009382,
+    "fetchedAt": 1785412440788,
     "windows": [
       {
-        "utilization": 97,
-        "resets_at": "2026-07-30T14:20:00.317484+00:00",
+        "utilization": 19,
+        "resets_at": "2026-07-30T16:29:59.681432+00:00",
         "window_minutes": 300
       },
       {
-        "utilization": 65,
-        "resets_at": "2026-08-03T16:59:59.317504+00:00",
+        "utilization": 93,
+        "resets_at": "2026-07-31T19:59:59.681455+00:00",
         "window_minutes": 10080
       }
     ]

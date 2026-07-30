@@ -76,7 +76,10 @@ export class CameraRenderer {
       card.root.setAttribute('data-empty', 'false');
       // 카넘버만 쓴다. car_id 원문은 절대 화면에 넣지 않는다 (PRD PRIV-1/PRIV-3).
       setText(card.number, `#${String(car.car_number).padStart(3, '0')}`);
-      setText(card.klass, style.label);
+      // 등급 이름(HYPERCAR/PROTOTYPE)은 개발용 자리표시였다. 알고 싶은 것은
+      // "이 계정이 지금 무슨 모델을 돌리는가"이므로 모델명을 쓴다. 색은 등급을
+      // 계속 나타내므로 라벨과 색이 같은 사실의 두 면이다.
+      setText(card.klass, car.model);
       card.klass.style.color = style.color;
 
       // 타이어는 소스가 있을 때만 게이지를 그린다 (PRD §7.0).
