@@ -13,7 +13,89 @@ import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'n
 import { homedir } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
 import { toCarEvent } from '../src/source/claudeCodeImport';
+import { accountCar, codexEvent, grokEvent, copilotEvents } from '../src/source/agentLogs';
+import { specOf } from '../src/config/models';
 import type { CarEvent } from '../src/types';
+
+/** 로그를 남기는 에이전트를 전부 훑는다. 벤더 하나당 계정 하나 = 차량 한 대. */
+function readJsonl(file: string): unknown[] {
+  const out: unknown[] = [];
+  try {
+    for (const line of readFileSync(file, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try { out.push(JSON.parse(line)); } catch { /* 깨진 줄은 건너뛴다 */ }
+    }
+  } catch { /* 못 읽는 파일은 건너뛴다 */ }
+  return out;
+}
+
+function newestFiles(dir: string, limit: number): string[] {
+  try {
+    return walk(dir)
+      .map((f) => ({ f, m: statSync(f).mtimeMs }))
+      .sort((a, b) => b.m - a.m)
+      .slice(0, limit)
+      .map(({ f }) => f);
+  } catch {
+    return [];
+  }
+}
+
+/** Codex. 계정 id는 auth.json에 있고 토큰은 건드리지 않는다. */
+function codexAccount(): string {
+  try {
+    const auth = JSON.parse(readFileSync(join(homedir(), '.codex', 'auth.json'), 'utf8'));
+    return String(auth?.tokens?.account_id ?? 'codex');
+  } catch {
+    return 'codex';
+  }
+}
+
+function collectCodex(limit: number): CarEvent[] {
+  const car = accountCar('codex', codexAccount());
+  const out: CarEvent[] = [];
+  for (const file of newestFiles(join(homedir(), '.codex'), limit)) {
+    let model: string | undefined;
+    for (const row of readJsonl(file)) {
+      const p = (row as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
+      // 모델은 상태다 — 바뀐 시점 이벤트로 추적한다.
+      const ctxModel = (p?.ctx as Record<string, unknown> | undefined)?.model
+        ?? (p as Record<string, unknown> | undefined)?.model;
+      if (typeof ctxModel === 'string' && ctxModel.startsWith('gpt-')) model = ctxModel;
+      const e = codexEvent(row, { car, model });
+      if (e) out.push(e);
+    }
+  }
+  return out;
+}
+
+/** Grok. 모델은 `model changed` 이벤트로 추적한다. */
+function collectGrok(limit: number): CarEvent[] {
+  const car = accountCar('grok', 'grok');
+  const out: CarEvent[] = [];
+  for (const file of newestFiles(join(homedir(), '.grok'), limit)) {
+    let model: string | undefined;
+    for (const row of readJsonl(file)) {
+      const r = row as Record<string, unknown>;
+      const c = r.ctx as Record<string, unknown> | undefined;
+      const m = c?.model ?? c?.current_model_id;
+      if (typeof m === 'string' && m.startsWith('grok-')) model = m;
+      const e = grokEvent(row, { car, model });
+      if (e) out.push(e);
+    }
+  }
+  return out;
+}
+
+/** Copilot. 세션 집계라 호출 단위가 아니다 — 차량 하나에 굵직한 이벤트 몇 개. */
+function collectCopilot(limit: number): CarEvent[] {
+  const car = accountCar('copilot', 'copilot');
+  const out: CarEvent[] = [];
+  for (const file of newestFiles(join(homedir(), '.copilot'), limit)) {
+    for (const row of readJsonl(file)) out.push(...copilotEvents(row, { car }));
+  }
+  return out;
+}
 
 // 실측 차량당 비용 중앙값이 9일에 $92.84였다. 일 $20은 즉시 소진된다.
 const dailyBudgetUsd = Number(process.argv[2] ?? 60);
@@ -63,6 +145,13 @@ for (const file of files) {
   }
 }
 
+// 다른 벤더 계정들을 같은 트랙에 올린다.
+const codex = collectCodex(maxFiles);
+const grok = collectGrok(maxFiles);
+const copilot = collectCopilot(60);
+events.push(...codex, ...grok, ...copilot);
+console.log(`벤더별: claude ${events.length - codex.length - grok.length - copilot.length} · codex ${codex.length} · grok ${grok.length} · copilot ${copilot.length}`);
+
 events.sort((a, b) => a.ts - b.ts);
 
 // 레이스 한 판은 하루다. 여러 날을 이어 붙이면 연료가 첫 화면부터 0이 되고
@@ -74,9 +163,24 @@ for (const e of events) {
   const key = dayOf(e.ts);
   (perDay.get(key) ?? perDay.set(key, []).get(key)!).push(e);
 }
+/**
+ * 계정이 여럿 활동한 하루를 고른다. 총량이 아니라 **균형**으로 고른다 —
+ * 한 계정이 98%인 날을 뽑으면 트랙에 차는 둘인데 볼 것은 하나다.
+ * 두 번째로 활발한 계정의 호출 수를 기준으로 삼는다.
+ */
+function balance(events: CarEvent[]): [number, number] {
+  const byCar = new Map<string, number>();
+  for (const e of events) byCar.set(e.car_id, (byCar.get(e.car_id) ?? 0) + 1);
+  const counts = [...byCar.values()].sort((a, b) => b - a);
+  return [byCar.size, counts[1] ?? 0];
+}
+
 const [busiestDay, dayEvents] = [...perDay.entries()]
-  .sort((a, b) => new Set(b[1].map((e) => e.car_id)).size - new Set(a[1].map((e) => e.car_id)).size
-    || b[1].length - a[1].length)[0]!;
+  .sort((a, b) => {
+    const [carsA, secondA] = balance(a[1]);
+    const [carsB, secondB] = balance(b[1]);
+    return carsB - carsA || secondB - secondA || b[1].length - a[1].length;
+  })[0]!;
 
 // 연료는 그날의 차량별 누적 비용을 일간 예산으로 나눈 잔여다.
 const spent = new Map<string, number>();
@@ -106,5 +210,6 @@ console.log(`전체 ${events.length}건 중 ${perDay.size}일치에서 골랐다
 console.log(`파일 ${files.length}개 · 차량(계정) ${byCar.size}대 · 토큰 ${tokens.toLocaleString('ko-KR')} · 비용 $${cost.toFixed(2)}`);
 console.log('모델:', [...byModel.entries()].sort((a, b) => b[1] - a[1])
   .map(([m, n]) => `${m}×${n}`).join(' '));
-const unknown = [...byModel.keys()].filter((m) => !m.startsWith('claude-'));
+// 카탈로그에 실제로 없는 것만 센다. 접두어로 판단하면 다른 벤더가 전부 미상으로 잡힌다.
+const unknown = [...byModel.keys()].filter((m) => !specOf(m));
 if (unknown.length) console.log('카탈로그 밖 모델(비용 0 처리):', unknown.join(', '));

@@ -1,0 +1,140 @@
+import { describe, it, expect } from 'vitest';
+import { codexEvent, grokEvent, copilotEvents, accountCar } from '../src/source/agentLogs';
+import { workOf, cachedOf } from '../src/state/reducer';
+
+describe('accountCar', () => {
+  it('벤더가 다르면 다른 차량이다', () => {
+    expect(accountCar('codex', 'acct-1').car_id).not.toBe(accountCar('grok', 'acct-1').car_id);
+  });
+
+  it('같은 벤더·계정이면 같은 차량이다', () => {
+    expect(accountCar('codex', 'a').car_id).toBe(accountCar('codex', 'a').car_id);
+  });
+
+  it('원본 계정 식별자를 담지 않는다', () => {
+    const car = accountCar('codex', 'super-secret-account-id');
+    expect(JSON.stringify(car)).not.toContain('super-secret-account-id');
+  });
+
+  it('카넘버가 1..999다', () => {
+    for (const v of ['codex', 'grok', 'copilot', 'claude']) {
+      const n = accountCar(v, 'x').car_number;
+      expect(n).toBeGreaterThanOrEqual(1);
+      expect(n).toBeLessThanOrEqual(999);
+    }
+  });
+});
+
+const CAR = accountCar('codex', 'acct');
+
+describe('codexEvent', () => {
+  const row = {
+    timestamp: '2026-07-30T09:02:18.426Z',
+    type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: {
+        last_token_usage: {
+          input_tokens: 25153, cached_input_tokens: 6912,
+          cache_write_input_tokens: 0, output_tokens: 520, reasoning_output_tokens: 201,
+        },
+      },
+      rate_limits: { primary: { used_percent: 72, window_minutes: 10080 } },
+    },
+  };
+
+  it('token_count를 CarEvent로 옮긴다', () => {
+    const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna', sessionId: 's1' })!;
+    expect(e.model).toBe('gpt-5.6-luna');
+    expect(e.ts).toBe(Date.parse('2026-07-30T09:02:18.426Z'));
+  });
+
+  it('추론 토큰을 출력에 합산한다 — 과금 대상이다', () => {
+    const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
+    expect(e.tokens.completion).toBe(520 + 201);
+  });
+
+  it('캐시 읽기를 분리해 담는다', () => {
+    const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
+    expect(e.tokens.cache_read).toBe(6912);
+    expect(workOf(e)).toBe(25153 - 6912 + 721);
+    expect(cachedOf(e)).toBe(6912);
+  });
+
+  it('실제 한도 소진율을 연료로 쓴다 — 하드코딩 예산이 아니다', () => {
+    const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
+    expect(e.fuel_pct).toBe(28);
+  });
+
+  it('한도 정보가 없으면 연료를 100으로 두고 지어내지 않는다', () => {
+    const noLimit = { ...row, payload: { ...row.payload, rate_limits: undefined } };
+    expect(codexEvent(noLimit, { car: CAR, model: 'gpt-5.6-luna' })!.fuel_pct).toBe(100);
+  });
+
+  it('token_count가 아닌 줄은 건너뛴다', () => {
+    expect(codexEvent({ type: 'event_msg', payload: { type: 'other' } }, { car: CAR })).toBeNull();
+  });
+});
+
+describe('grokEvent', () => {
+  const row = {
+    ts: '2026-07-10T14:40:56.321Z',
+    msg: 'shell.turn.inference_done',
+    sid: 'sess-9',
+    ctx: {
+      prompt_tokens: 48229, cached_prompt_tokens: 26368,
+      completion_tokens: 541, reasoning_tokens: 427,
+      ttft_ms: 4842, model_elapsed_ms: 22393,
+    },
+  };
+
+  it('추론 완료를 CarEvent로 옮긴다', () => {
+    const e = grokEvent(row, { car: CAR, model: 'grok-4.5' })!;
+    expect(e.model).toBe('grok-4.5');
+    expect(e.tokens.prompt).toBe(48229);
+    expect(e.tokens.cache_read).toBe(26368);
+    expect(e.tokens.completion).toBe(541 + 427);
+  });
+
+  it('지연과 TTFT를 담는다', () => {
+    const e = grokEvent(row, { car: CAR, model: 'grok-4.5' })!;
+    expect(e.latency_ms).toBe(22393);
+    expect(e.ttft_ms).toBe(4842);
+  });
+
+  it('다른 이벤트는 건너뛴다', () => {
+    expect(grokEvent({ msg: 'turn.phase_transition', ts: row.ts }, { car: CAR })).toBeNull();
+  });
+});
+
+describe('copilotEvents', () => {
+  const row = {
+    type: 'session.shutdown',
+    data: {
+      sessionStartTime: 1778169277217,
+      modelMetrics: {
+        'gpt-5.4': { usage: { inputTokens: 16936, outputTokens: 95, cacheReadTokens: 1536, reasoningTokens: 85 } },
+        'claude-haiku-4.5': { usage: { inputTokens: 500, outputTokens: 20, cacheReadTokens: 0 } },
+      },
+    },
+  };
+
+  it('모델마다 이벤트 하나씩 낸다 — 세션 집계라 호출 단위가 아니다', () => {
+    const events = copilotEvents(row, { car: CAR });
+    expect(events.map((e) => e.model).sort()).toEqual(['claude-haiku-4.5', 'gpt-5.4']);
+  });
+
+  it('추론 토큰을 출력에 합산한다', () => {
+    const e = copilotEvents(row, { car: CAR }).find((x) => x.model === 'gpt-5.4')!;
+    expect(e.tokens.completion).toBe(95 + 85);
+    expect(e.tokens.cache_read).toBe(1536);
+  });
+
+  it('세션 시작 시각을 쓴다', () => {
+    expect(copilotEvents(row, { car: CAR })[0]!.ts).toBe(1778169277217);
+  });
+
+  it('다른 이벤트는 빈 배열이다', () => {
+    expect(copilotEvents({ type: 'session.start' }, { car: CAR })).toEqual([]);
+  });
+});
