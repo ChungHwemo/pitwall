@@ -10,9 +10,13 @@
 8시간 힙 구동만 남았다 — [CHECKLIST.md](pitwall/CHECKLIST.md).
 
 ```bash
-cd pitwall && npm install && npm run dev
-npm run dump:events -- chaos 300     # 더미 이벤트를 JSONL로 덤프
+cd pitwall && npm install
+npm run dev                  # 개발 서버
+npm run build:single         # dist/pitwall.html — 파일 하나로 어디서나 열림
+npm run dump:events -- chaos 300
 ```
+
+**단일 파일 빌드가 앱·위젯으로 가는 경로다.** JS·CSS를 HTML 한 장에 인라인하므로 `file://`로 열어도 돌고, 서버가 없으니 WebView에 그대로 얹힌다.
 
 ## 더미 데이터
 

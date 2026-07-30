@@ -13,6 +13,8 @@ import { CameraRenderer } from './render/cameraRenderer';
 import { RadioRenderer } from './render/radioRenderer';
 import { loadSalaryConfig, earnedSoFar, formatElapsed } from './render/hudRenderer';
 import { setText } from './render/setText';
+import { SummaryRenderer } from './render/summaryRenderer';
+import { SettingsPanel } from './render/settingsPanel';
 import { saveSession } from './session/sessionStore';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 
@@ -31,7 +33,7 @@ export interface AppOptions {
 export class PitwallApp {
   private source: SimulatorSource;
   private director: Director;
-  readonly settings: PitwallSettings;
+  settings: PitwallSettings;
   private routine = new RoutineRadio();
   private trackRenderer: TrackRenderer;
   private cameraRenderer: CameraRenderer;
@@ -39,6 +41,7 @@ export class PitwallApp {
   private hudTime: HTMLElement;
   private hudSalary: HTMLElement;
   private hudPhase: HTMLElement;
+  private summaryRenderer: SummaryRenderer;
 
   private raceState: RaceState = emptyRaceState(0);
   /** 마지막으로 모델을 만든 cars 참조. 리듀서가 이벤트마다 새 Map을 만들므로
@@ -87,6 +90,9 @@ export class PitwallApp {
 
     shell.append(hud, svg, cams, radio);
     root.appendChild(shell);
+
+    this.summaryRenderer = new SummaryRenderer(shell);
+    new SettingsPanel(hud, this.settings, (next) => this.applySettings(next));
 
     this.trackRenderer = new TrackRenderer(svg, track);
     this.cameraRenderer = new CameraRenderer(cams, this.settings.cameraSlots);
@@ -163,6 +169,7 @@ export class PitwallApp {
       });
     }
     this.trackRenderer.render(this.trackModel, now);
+    this.summaryRenderer.render(this.raceState);
     this.cameraRenderer.render(this.raceState, this.director.update(this.raceState, now));
     this.radioRenderer.render();
 
@@ -175,6 +182,16 @@ export class PitwallApp {
     setText(this.hudSalary, salary
       ? `💰 ${Math.round(earnedSoFar(salary, this.settings.workday, wall)).toLocaleString('ko-KR')}원`
       : '💰 연봉 미설정');
+  }
+
+  /**
+   * 설정 변경을 반영한다. 프리셋·배속은 다음 이벤트부터 적용되고
+   * 이미 발생한 이벤트의 의미를 소급 변경하지 않는다 (PRD §7.0).
+   */
+  private applySettings(next: PitwallSettings): void {
+    this.settings = next;
+    this.source.setSpeed(next.speed);
+    this.modelCars = null;   // 하이라이트 필터가 바뀌었을 수 있다
   }
 
   get state(): RaceState {

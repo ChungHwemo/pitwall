@@ -92,6 +92,9 @@ export function saveLocalSettings(s: Partial<PitwallSettings>): void {
  * 같은 오리진의 배포 자산을 읽을 뿐 아무것도 보내지 않는다 — PRIV-6이 금지하는 것은 전송이다.
  */
 export async function loadOrgSettings(): Promise<Partial<PitwallSettings>> {
+  // file:// 로 열면(단일 파일 배포·앱 래핑) fetch가 스킴을 거부하며 콘솔 에러를 남긴다.
+  // 조직 파일은 없어도 되는 물건이라, 아예 시도하지 않는다.
+  if (!globalThis.location?.protocol.startsWith('http')) return {};
   try {
     const res = await fetch(ORG_SETTINGS_URL);
     if (!res.ok) return {};

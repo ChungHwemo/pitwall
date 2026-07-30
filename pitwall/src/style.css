@@ -36,3 +36,28 @@ svg.track { grid-area: track; width: 100%; height: 100%; }
 
 .radio { grid-area: radio; border-top: 1px solid #2a323d; padding: 8px 12px; overflow: hidden; }
 .radio-line { font-size: 13px; line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 설정 패널 — 상단 바 오른쪽 끝 */
+.settings { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 12px; }
+.settings-field, .settings-group { display: flex; align-items: center; gap: 6px; }
+.settings-label { color: #9fb3c8; letter-spacing: 0.06em; }
+.settings select {
+  background: #161b22; color: #e6edf3; border: 1px solid #2a323d;
+  border-radius: 4px; padding: 2px 6px; font: inherit;
+}
+.settings-check { display: flex; align-items: center; gap: 3px; color: #9fb3c8; cursor: pointer; }
+.settings-check input { accent-color: #4dc3ff; }
+
+/* 하루 요약 카드 — 체커기 이후 */
+.summary {
+  grid-area: track; align-self: center; justify-self: center;
+  background: #161b22ee; border: 1px solid #2a323d; border-radius: 10px;
+  padding: 22px 28px; min-width: 460px; backdrop-filter: blur(6px);
+}
+.summary[data-open="false"] { display: none; }
+.summary-title {
+  font-size: 13px; letter-spacing: 0.16em; color: #ffd24d; margin-bottom: 16px;
+}
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 28px; }
+.summary-key { font-size: 11px; color: #9fb3c8; letter-spacing: 0.08em; }
+.summary-value { font-size: 19px; font-weight: 700; margin-top: 3px; }

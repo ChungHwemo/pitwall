@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
-  resolveSettings, clampSettings, loadLocalSettings, saveLocalSettings,
+  resolveSettings, clampSettings, loadLocalSettings, saveLocalSettings, loadOrgSettings,
   DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY,
 } from '../src/config/settings';
 
@@ -68,6 +68,17 @@ describe('clampSettings — 하한 강제', () => {
 
   it('레이스 시간은 설정 키가 아니다 — 파생값이다', () => {
     expect(DEFAULT_SETTINGS).not.toHaveProperty('raceDurationMs');
+  });
+});
+
+describe('조직 기본값', () => {
+  it('http가 아니면 조직 파일을 아예 요청하지 않는다', async () => {
+    // 단일 파일을 file://로 열었을 때 콘솔 에러를 남기지 않기 위해서다.
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('location', { protocol: 'file:' });
+    expect(await loadOrgSettings()).toEqual({});
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
