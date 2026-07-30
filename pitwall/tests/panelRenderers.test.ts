@@ -9,7 +9,7 @@ const T = 1_000_000;
 function car(id: string, over: Partial<CarState> = {}): CarState {
   return {
     car_id: id, car_number: 17, car_class: 'P', activity: 'running',
-    distance: 12_345, fuel_pct: 42, tyre_pct: 33, cost_usd: 3.5,
+    distance: 12_345, cached: 0, fuel_pct: 42, tyre_pct: 33, cost_usd: 3.5,
     last_event_ts: T, error_count: 0, cache_hits: 5, call_count: 20,
     ...over,
   };

@@ -71,7 +71,7 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
     model,
     kind: 'call',
     session_id: typeof row.sessionId === 'string' ? row.sessionId : undefined,
-    tokens: { prompt, completion },
+    tokens: { prompt, completion, cache_read: usage.cache_read_input_tokens ?? 0 },
     cache_hit: cacheHit,
     // 단가를 모르면 0이다. 지어내지 않는다.
     cost_usd: spec ? costUsd(spec, prompt, completion, cacheHit) : 0,

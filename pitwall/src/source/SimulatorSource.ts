@@ -137,7 +137,8 @@ export class SimulatorSource implements EventSource {
       car_class: profile.car_class,
       model: profile.model.id,
       kind: isError ? 'error' : profile.fuel_pct <= 0 ? 'retire' : 'call',
-      tokens: { prompt, completion },
+      // 캐시 히트면 프롬프트 대부분이 재전송이다 — 실측 분포를 따른다.
+      tokens: { prompt, completion, cache_read: cacheHit ? Math.round(prompt * 0.965) : 0 },
       cache_hit: cacheHit,
       cost_usd: costUsd(profile.model, prompt, completion, cacheHit),
       latency_ms: latency,

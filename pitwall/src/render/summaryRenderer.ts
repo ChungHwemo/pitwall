@@ -25,7 +25,7 @@ export class SummaryRenderer {
     const grid = document.createElement('div');
     grid.className = 'summary-grid';
     // 라벨 6개 + 값 6개. 노드 수를 고정하려고 생성 시점에 다 만든다.
-    for (const label of ['총 주행거리', '총 비용', '완주 / 리타이어', '클래스', '캐시 히트율', '에러']) {
+    for (const label of ['작업 토큰', '캐시 재전송', '총 비용', '완주 / 리타이어', '클래스', '에러']) {
       const cell = document.createElement('div');
       cell.className = 'summary-cell';
       const k = document.createElement('div');
@@ -51,11 +51,15 @@ export class SummaryRenderer {
     const classes = (['H', 'P', 'GT'] as const)
       .map((c) => `${CLASS_STYLE[c].label[0]}${s.byClass[c]}`).join(' · ');
 
+    const share = s.totalTokens + s.totalCachedTokens;
     setText(this.rows[0]!, `${s.totalTokens.toLocaleString('ko-KR')} tok`);
-    setText(this.rows[1]!, `$${s.totalCostUsd.toFixed(2)}`);
-    setText(this.rows[2]!, `${s.finished} / ${s.retired}`);
-    setText(this.rows[3]!, classes);
-    setText(this.rows[4]!, `${Math.round(s.cacheHitRate * 100)}%`);
+    // 재전송이 전체의 몇 %인지 같이 쓴다 — 이 화면의 핵심 인사이트다.
+    setText(this.rows[1]!, share === 0
+      ? '0 tok'
+      : `${s.totalCachedTokens.toLocaleString('ko-KR')} tok (${Math.round(s.totalCachedTokens / share * 100)}%)`);
+    setText(this.rows[2]!, `$${s.totalCostUsd.toFixed(2)}`);
+    setText(this.rows[3]!, `${s.finished} / ${s.retired}`);
+    setText(this.rows[4]!, classes);
     setText(this.rows[5]!, String(s.errors));
   }
 }

@@ -18,8 +18,8 @@ function event(over: Partial<CarEvent> = {}): CarEvent {
 function car(over: Partial<CarState> = {}): CarState {
   return {
     car_id: 'car-a', car_number: 17, car_class: 'P', activity: 'running',
-    distance: 50_000, fuel_pct: 80, tyre_pct: 70, cost_usd: 1,
-    last_event_ts: T, error_count: 0, cache_hits: 40, call_count: 100,
+    distance: 50_000, cached: 0, fuel_pct: 80, tyre_pct: 70, cost_usd: 1,
+    last_event_ts: T, error_count: 0, cache_hits: 97, call_count: 100,
     ...over,
   };
 }
@@ -93,10 +93,17 @@ describe('RoutineRadio', () => {
     expect(r.evaluate(car(), T)).toBeNull();
   });
 
-  it('캐시 히트율이 낮으면 발화한다', () => {
+  it('캐시 재사용률이 평소보다 낮으면 발화한다', () => {
+    // 실측 정상값이 97.5%다. 임계값 80%는 거기서 나왔다 —
+    // 원래 규칙(20% 미만)은 실데이터에서 영원히 침묵했다.
     const r = new RoutineRadio();
-    const msg = r.evaluate(car({ cache_hits: 5, call_count: 100 }), T);
+    const msg = r.evaluate(car({ cache_hits: 50, call_count: 100 }), T);
     expect(msg?.text).toContain('캐시');
+  });
+
+  it('실측 정상값(97%)에는 침묵한다', () => {
+    const r = new RoutineRadio();
+    expect(r.evaluate(car({ cache_hits: 97, call_count: 100 }), T)).toBeNull();
   });
 
   it('에러가 반복되면 발화한다', () => {
@@ -106,14 +113,14 @@ describe('RoutineRadio', () => {
 
   it('쿨다운 안에는 같은 유형을 재발화하지 않는다', () => {
     const r = new RoutineRadio();
-    const c = car({ cache_hits: 5, call_count: 100 });
+    const c = car({ cache_hits: 50, call_count: 100 });
     expect(r.evaluate(c, T)).not.toBeNull();
     expect(r.evaluate(c, T + 60_000)).toBeNull();
   });
 
   it('쿨다운이 지나면 재발화한다', () => {
     const r = new RoutineRadio();
-    const c = car({ cache_hits: 5, call_count: 100 });
+    const c = car({ cache_hits: 50, call_count: 100 });
     r.evaluate(c, T);
     expect(r.evaluate(c, T + ROUTINE_COOLDOWN_MS + 1)).not.toBeNull();
   });
@@ -125,8 +132,8 @@ describe('RoutineRadio', () => {
 
   it('차량마다 쿨다운이 독립적이다', () => {
     const r = new RoutineRadio();
-    const a = car({ car_id: 'a', car_number: 1, cache_hits: 5, call_count: 100 });
-    const b = car({ car_id: 'b', car_number: 2, cache_hits: 5, call_count: 100 });
+    const a = car({ car_id: 'a', car_number: 1, cache_hits: 50, call_count: 100 });
+    const b = car({ car_id: 'b', car_number: 2, cache_hits: 50, call_count: 100 });
     expect(r.evaluate(a, T)).not.toBeNull();
     expect(r.evaluate(b, T)).not.toBeNull();
   });

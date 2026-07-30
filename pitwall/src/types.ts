@@ -25,7 +25,16 @@ export interface CarEvent {
   model: string;
   kind: EventKind;
   session_id?: string;
-  tokens: { prompt: number; completion: number };
+  tokens: {
+    prompt: number;
+    completion: number;
+    /**
+     * 캐시에서 다시 읽힌 입력 토큰. `prompt`에 포함돼 있다.
+     * 실측(2026-07-30)상 전체 토큰의 96.5%가 이것이라, 작업량과 섞으면
+     * "달린 거리"가 같은 컨텍스트를 다시 보낸 양이 된다.
+     */
+    cache_read?: number;
+  };
   cache_hit: boolean;
   cost_usd: number;
   latency_ms: number;
@@ -43,7 +52,10 @@ export interface CarState {
   car_number: number;
   car_class: CarClass;
   activity: CarActivity;
-  distance: number;        // 누적 토큰 = 달린 거리
+  /** 달린 거리 = 실제 작업 토큰 누적 (캐시 재전송 제외) */
+  distance: number;
+  /** 캐시에서 다시 읽힌 토큰 누적. 거리와 섞지 않고 따로 보여준다 */
+  cached: number;
   fuel_pct: number;
   tyre_pct?: number;       // 타이어 모드가 off면 부재. UI는 게이지 자체를 그리지 않는다
   cost_usd: number;

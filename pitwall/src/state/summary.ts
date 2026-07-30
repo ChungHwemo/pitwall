@@ -9,7 +9,10 @@ import { CAR_CLASSES } from '../types';
  * car_id는 요약에 들어오지 않는다.
  */
 export interface RaceSummary {
+  /** 실제 작업 토큰 (캐시 재전송 제외) */
   totalTokens: number;
+  /** 캐시에서 다시 읽힌 토큰. 작업량과 섞지 않는다 */
+  totalCachedTokens: number;
   totalCostUsd: number;
   finished: number;
   retired: number;
@@ -23,6 +26,7 @@ export function summarise(state: RaceState): RaceSummary {
   for (const cls of CAR_CLASSES) byClass[cls] = 0;
 
   let totalTokens = 0;
+  let totalCachedTokens = 0;
   let totalCostUsd = 0;
   let finished = 0;
   let retired = 0;
@@ -32,6 +36,7 @@ export function summarise(state: RaceState): RaceSummary {
 
   for (const car of state.cars.values()) {
     totalTokens += car.distance;
+    totalCachedTokens += car.cached;
     totalCostUsd += car.cost_usd;
     cacheHits += car.cache_hits;
     calls += car.call_count;
@@ -43,6 +48,7 @@ export function summarise(state: RaceState): RaceSummary {
 
   return {
     totalTokens,
+    totalCachedTokens,
     totalCostUsd,
     finished,
     retired,

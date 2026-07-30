@@ -2,6 +2,13 @@ import type { CarState, RaceState } from '../types';
 import { CLASS_STYLE } from '../config/theme';
 import { setText } from './setText';
 
+/** 억 단위까지 가는 토큰 수를 카드 한 줄에 담는다. */
+function compact(tokens: number): string {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
+  return String(tokens);
+}
+
 interface Card {
   root: HTMLElement;
   number: HTMLElement;
@@ -68,7 +75,10 @@ export class CameraRenderer {
       // 없는 값을 0%로 표시하면 화면이 "소진됨"이라는 없는 사실을 주장한다.
       const parts = [`FUEL ${Math.round(car.fuel_pct)}%`];
       if (car.tyre_pct !== undefined) parts.push(`TYRE ${Math.round(car.tyre_pct)}%`);
-      parts.push(`${car.distance.toLocaleString('ko-KR')} tok`);
+      // 작업량과 캐시 재전송을 나눠 쓴다. 실측상 전체의 96.5%가 재전송이라
+      // 합쳐 쓰면 화면이 실제 작업량을 수십 배로 부풀린다.
+      parts.push(`WORK ${compact(car.distance)}`);
+      if (car.cached > 0) parts.push(`CACHE ${compact(car.cached)}`);
       setText(card.stats, parts.join(' · '));
     });
   }

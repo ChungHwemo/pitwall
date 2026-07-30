@@ -7,6 +7,22 @@ import type { CarActivity, CarEvent, CarState, RaceState } from '../types';
  */
 export const IDLE_THRESHOLD_MS = 90_000;
 
+/**
+ * 실제 작업 토큰 = 입력에서 캐시 재전송을 뺀 값 + 출력.
+ *
+ * 실측(2026-07-30, 10,734건): 캐시 읽기가 전체 토큰의 96.5%다. 이걸 거리에 넣으면
+ * 화면이 "같은 컨텍스트를 다시 보낸 양"을 주행거리로 보여주게 된다.
+ */
+export function workOf(event: CarEvent): number {
+  const cached = event.tokens.cache_read ?? 0;
+  return Math.max(0, event.tokens.prompt - cached) + event.tokens.completion;
+}
+
+/** 캐시에서 다시 읽힌 토큰. 거리와 분리해 따로 표시한다. */
+export function cachedOf(event: CarEvent): number {
+  return event.tokens.cache_read ?? 0;
+}
+
 export function emptyRaceState(now: number): RaceState {
   return { cars: new Map(), phase: 'pre_grid', elapsed_ms: 0, now };
 }
@@ -18,6 +34,7 @@ function initialCar(event: CarEvent): CarState {
     car_class: event.car_class,
     activity: 'running',
     distance: 0,
+    cached: 0,
     fuel_pct: 100,
     tyre_pct: event.tyre_pct === undefined ? undefined : 100,
     cost_usd: 0,
@@ -36,7 +53,8 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
 
   const next: CarState = {
     ...prev,
-    distance: prev.distance + event.tokens.prompt + event.tokens.completion,
+    distance: prev.distance + workOf(event),
+    cached: prev.cached + cachedOf(event),
     cost_usd: prev.cost_usd + event.cost_usd,
     fuel_pct: event.fuel_pct,
     tyre_pct: event.tyre_pct,
