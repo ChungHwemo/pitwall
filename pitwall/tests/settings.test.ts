@@ -120,3 +120,27 @@ describe('프리셋 노출', () => {
     expect(host.textContent).toContain('프리셋');
   });
 });
+
+describe('설명과 노출', () => {
+  it('기록을 재생 중이면 DEMO 시계를 감춘다 — 실제 시계를 쓰므로 효과가 없다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: false });
+    expect(host.textContent).not.toContain('DEMO');
+  });
+
+  it('시뮬레이터면 DEMO 시계를 보여준다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    expect(host.textContent).toContain('DEMO');
+  });
+
+  it('모든 조작에 설명이 붙는다 — 이름만으로는 뭘 하는지 모른다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    const controls = [...host.querySelectorAll('.settings-field, .settings-check, .settings-group')];
+    expect(controls.length).toBeGreaterThan(3);
+    for (const c of controls) {
+      expect(c.getAttribute('title'), c.textContent ?? '').toBeTruthy();
+    }
+  });
+});

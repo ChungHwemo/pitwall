@@ -180,6 +180,29 @@ body {
  */
 .hud-item { flex-shrink: 0; }
 
+/* 범례 — 기본은 접힘. 상시 노출 화면에서 늘 떠 있으면 그 자체가 방해다. */
+.legend { position: relative; flex-shrink: 0; }
+.legend-toggle {
+  background: #161b22; color: #9fb3c8; border: var(--hair) solid #2a323d;
+  border-radius: 0.25rem; padding: 0.1rem 0.45rem; font: inherit; font-size: 0.75rem;
+  cursor: pointer;
+}
+.legend-toggle:hover { color: #e6edf3; border-color: #4dc3ff; }
+.legend[data-open="false"] .legend-body { display: none; }
+/*
+ * 화면에 고정한다. 상단 바가 줄바꿈을 막으려고 넘침을 자르는데, 그 안에
+ * 절대 위치로 띄우면 같이 잘린다 — 열어도 아무것도 안 보였다.
+ */
+.legend-body {
+  position: fixed; right: 0.6rem; top: 3rem; z-index: 20;
+  margin: 0; padding: 0.7rem 0.9rem; width: 26rem;
+  display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem;
+  background: #161b22f2; border: var(--hair) solid #2a323d; border-radius: 0.4rem;
+  font-size: 0.72rem; line-height: 1.45; backdrop-filter: blur(6px);
+}
+.legend-body dt { color: #e6edf3; white-space: nowrap; }
+.legend-body dd { margin: 0; color: #9fb3c8; }
+
 /*
  * 무엇을 보고 있는가 — 실시간인지, 실기록인지, 지어낸 것인지.
  * 숨기면 안 되는 사실이라 고르는 곳과 밝히는 곳을 같은 자리에 둔다.

@@ -28,6 +28,7 @@ import { SummaryRenderer } from './render/summaryRenderer';
 import { FeedRenderer } from './render/feedRenderer';
 import type { CarEvent } from './types';
 import { SettingsPanel } from './render/settingsPanel';
+import { Legend } from './render/legend';
 import { saveSession } from './session/sessionStore';
 import { RingBuffer } from './state/ringBuffer';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
@@ -156,6 +157,8 @@ export class PitwallApp {
     this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
     new SettingsPanel(hud, this.settings, (next) => this.applySettings(next),
       { simulated: opts.source === undefined });
+    // 화면의 말이 대부분 이 안에서만 통한다. 접힌 채로 곁에 둔다.
+    new Legend(hud);
 
     this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
     this.modelPanel = new ModelPanel(models, MODEL_ROWS);

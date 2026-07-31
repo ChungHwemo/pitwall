@@ -47,3 +47,18 @@ describe('DatasetPicker', () => {
     expect(host.textContent).toContain('실기록');
   });
 });
+
+describe('설명', () => {
+  it('무엇을 고르는 칸인지 밝힌다', () => {
+    new DatasetPicker(host, SETS, 'real', () => {});
+    expect(host.querySelector('.dataset')!.getAttribute('title')).toBeTruthy();
+  });
+
+  it('실시간은 무엇인지 따로 말한다', () => {
+    const withLive: Dataset[] = [
+      { id: 'live', label: '실시간', synthetic: false, events: [] }, ...SETS,
+    ];
+    new DatasetPicker(host, withLive, 'live', () => {});
+    expect(host.querySelector('.dataset')!.getAttribute('title')).toContain('지금');
+  });
+});
