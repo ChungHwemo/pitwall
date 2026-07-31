@@ -1,5 +1,8 @@
 .DS_Store
 .codegraph
+.codegraph-rust
+.omo/
+corpus.jsonl
 node_modules/
 dist/
 pitwall/dist/
