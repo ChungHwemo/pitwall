@@ -93,6 +93,13 @@ export interface CarState {
   last_event_ts: number;
   error_count: number;
   /**
+   * 분당 작업 토큰 (평활). 화면에서 "지금 빠른가"를 그림으로 말하는 재료다.
+   *
+   * 위치는 누적이라 속도를 못 말한다 — 500 tok/분과 40,000 tok/분이 화면에서
+   * 0.14px/초와 11px/초로, 사람이 실제로 머무는 아래쪽이 전부 0에 눌린다.
+   */
+  work_per_min: number;
+  /**
    * 마지막 에러 시각.
    *
    * `error_count`는 하루 누적이라 "지금 문제가 있는가"에 답하지 못한다 —

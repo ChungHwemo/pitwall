@@ -2,29 +2,45 @@ import { readFileSync, existsSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 
 /**
- * PITWALL_REAL=1 이면 실 사용 기록을 번들에 심는다 (`npm run build:real`).
- * 그러면 화면이 시뮬레이터가 아니라 실제 호출 기록으로 돈다.
+ * 화면에서 고를 수 있는 데이터셋.
+ *
+ * 예전에는 빌드마다 한 벌만 심어서, 무엇을 보고 있는지 화면만 봐서는 알 수 없고
+ * 바꾸려면 다시 빌드해야 했다. 여러 벌을 심고 고르게 한다.
+ *
+ * 데이터셋마다 상한을 둔다 — 전부 심으면 번들이 수십 MB가 된다. 잘랐다는 사실은
+ * 빌드 로그에 남긴다.
  */
-/** 심을 기록. 기본은 실측이고, 조직 규모 확인용 더미로 바꿀 수 있다. */
-const realPath = process.env.PITWALL_FIXTURE ?? 'fixtures/events.real.jsonl';
-const real = process.env.PITWALL_REAL === '1' && existsSync(realPath)
-  // 전체를 심으면 번들이 수 MB가 된다. 최근 것만 자른다 —
-  // 잘랐다는 사실은 콘솔이 아니라 빌드 로그에 남긴다.
-  ? readFileSync(realPath, 'utf8').trim().split('\n')
-    .slice(-Number(process.env.PITWALL_MAX_EVENTS ?? 3000)).map((l) => JSON.parse(l))
-  : undefined;
+const PER_SET = Number(process.env.PITWALL_MAX_EVENTS ?? 5000);
 
-if (real) console.log(`[pitwall] 실 기록 ${real.length}건을 번들에 심는다`);
+const SOURCES = [
+  { id: 'real', label: '실기록', file: 'fixtures/events.real.jsonl' },
+  { id: 'demo-small', label: '데모 · 소규모', file: 'fixtures/events.demo-small.jsonl' },
+  { id: 'demo', label: '데모 · 중규모', file: 'fixtures/events.demo.jsonl' },
+  { id: 'demo-large', label: '데모 · 대규모', file: 'fixtures/events.demo-large.jsonl' },
+];
 
 /** 벤더 한도 스냅샷. 실시간 모드에서 Claude 게이지가 비지 않게 같이 심는다. */
 const limitsPath = 'fixtures/limits.json';
-const limits = existsSync(limitsPath)
-  ? JSON.parse(readFileSync(limitsPath, 'utf8'))
+const limits = existsSync(limitsPath) ? JSON.parse(readFileSync(limitsPath, 'utf8')) : undefined;
+
+const datasets = process.env.PITWALL_REAL === '1'
+  ? SOURCES.flatMap((src) => {
+    if (!existsSync(src.file)) return [];
+    const lines = readFileSync(src.file, 'utf8').trim().split('\n');
+    const kept = lines.slice(-PER_SET);
+    console.log(`[pitwall] ${src.label}: ${kept.length}/${lines.length}건`);
+    return [{
+      id: src.id,
+      label: src.label,
+      synthetic: src.id !== 'real',
+      events: kept.map((l) => JSON.parse(l)),
+    }];
+  })
   : undefined;
 
 export default defineConfig({
   define: {
-    __PITWALL_REAL_EVENTS__: JSON.stringify(real),
+    __PITWALL_DATASETS__: JSON.stringify(datasets),
     __PITWALL_LIMITS__: JSON.stringify(limits),
   },
   test: {

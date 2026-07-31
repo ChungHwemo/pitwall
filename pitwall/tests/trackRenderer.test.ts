@@ -22,7 +22,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
   return {
     car_id: id, car_number: 7, model: 'claude-sonnet-5', car_class: 'P', activity: 'running',
     distance: 1000, cached: 0, fuel_pct: 80, tyre_pct: 70, cost_usd: 1,
-    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1,
+    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0,
     ...over,
   };
 }
@@ -175,10 +175,12 @@ describe('TrackRenderer', () => {
     expect(node.getAttribute('x')).toBeNull();
   });
 
-  it('유휴 차량은 트랙에 그리지 않는다', () => {
+  // 의도 변경: 유휴 차량도 그린다. 흐리게 그려 구분할 뿐이다.
+  it('유휴 차량도 그리되 흐리게 표시한다', () => {
     const r = new TrackRenderer(svg, track);
-    r.render(model([car('a', { last_event_ts: T - 500_000 })]), T);
-    expect(visiblePositions()).toEqual([]);
+    r.render(model([car('q', { last_event_ts: T - 600_000 })]), T);
+    const g = svg.querySelector('g.cold, g.car') as SVGGElement;
+    expect(g.getAttribute('data-idle')).toBe('true');
   });
 
   it('빈 상태에서도 예외 없이 렌더한다', () => {

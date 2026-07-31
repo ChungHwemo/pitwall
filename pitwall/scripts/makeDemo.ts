@@ -24,6 +24,8 @@ import type { CarEvent, CarClass } from '../src/types';
 
 const accountCount = Number(process.argv[2] ?? 14);
 const seed = Number(process.argv[3] ?? 20260731);
+/** 파일 이름 꼬리표. 여러 규모를 나란히 두고 화면에서 골라 쓴다. */
+const label = process.argv[4] ?? 'demo';
 const rng = createRng(seed);
 
 /**
@@ -157,7 +159,7 @@ for (const account of accounts) {
 
 events.sort((a, b) => a.ts - b.ts);
 
-const out = resolve(import.meta.dirname, '../fixtures/events.demo.jsonl');
+const out = resolve(import.meta.dirname, `../fixtures/events.${label}.jsonl`);
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
 

@@ -51,6 +51,7 @@ function initialCar(event: CarEvent): CarState {
     error_count: 0,
     cache_hits: 0,
     call_count: 0,
+    work_per_min: 0,
   };
 }
 
@@ -77,6 +78,7 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
     last_event_ts: Math.max(prev.last_event_ts, event.ts),
     error_count: prev.error_count + (event.status === 'error' ? 1 : 0),
     last_error_ts: event.status === 'error' ? event.ts : prev.last_error_ts,
+    work_per_min: nextRate(prev, event),
     cache_hits: prev.cache_hits + (event.cache_hit ? 1 : 0),
     call_count: prev.call_count + 1,
     activity: retired ? 'retired' : event.kind === 'pit_in' ? 'pit' : 'running',
@@ -96,6 +98,23 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
   });
 
   return { ...state, cars, byModel, now: Math.max(state.now, event.ts) };
+}
+
+/** 속도 평활 계수. 한 번의 큰 호출로 화면이 확 달아오르지 않게 한다. */
+const RATE_SMOOTHING = 0.3;
+
+/**
+ * 분당 작업 토큰. 직전 호출과의 간격으로 재고 지수 평활한다.
+ *
+ * 간격이 아주 짧으면(같은 밀리초에 여러 건) 나눗셈이 폭발하므로 하한을 둔다.
+ */
+function nextRate(prev: CarState, event: CarEvent): number {
+  const gap = event.ts - prev.last_event_ts;
+  if (prev.call_count === 0 || gap <= 0) return prev.work_per_min;
+  const measured = workOf(event) / Math.max(gap, 250) * 60_000;
+  return prev.work_per_min === 0
+    ? measured
+    : prev.work_per_min + (measured - prev.work_per_min) * RATE_SMOOTHING;
 }
 
 export function activityOf(car: CarState, now: number): CarActivity {

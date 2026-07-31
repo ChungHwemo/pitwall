@@ -112,6 +112,22 @@ function glyphPath(shape: 'circle' | 'triangle' | 'square', s: number, dx = 0, d
   }
 }
 
+/**
+ * 속도와 유휴를 DOM에 얹는다. **위치는 건드리지 않는다** — 위치는 누적이고
+ * 속도는 별개의 사실이다. 어떻게 보일지는 CSS가 정한다.
+ *
+ * 값은 소수 둘째 자리로 자른다. 프레임마다 미세하게 다른 문자열을 쓰면
+ * 재계산이 공짜가 아니다.
+ */
+function applyHeat(el: SVGGElement, heat: number, idle: boolean): void {
+  const rounded = heat.toFixed(2);
+  if (el.style.getPropertyValue('--pw-heat') !== rounded) {
+    el.style.setProperty('--pw-heat', rounded);
+  }
+  const flag = idle ? 'true' : 'false';
+  if (el.getAttribute('data-idle') !== flag) el.setAttribute('data-idle', flag);
+}
+
 function translate(el: SVGGElement, p: Point): void {
   el.style.transform = `translate(${p.x.toFixed(2)}px, ${p.y.toFixed(2)}px)`;
 }
@@ -291,6 +307,7 @@ export class TrackRenderer {
       }
 
       setLabel(node, String(car.carNumber), labelled);
+      applyHeat(node.group, car.heat, car.idle);
       const next = this.projector.step(car.carId, car.progress, now);
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
@@ -346,6 +363,7 @@ export class TrackRenderer {
       // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
       setLabel(node, String(car.carNumber), labelled);
+      applyHeat(node.group, car.heat, car.idle);
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);

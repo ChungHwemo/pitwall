@@ -20,7 +20,7 @@ function car(over: Partial<CarState> = {}): CarState {
   return {
     car_id: 'car-a', car_number: 17, model: 'claude-sonnet-5', car_class: 'P', activity: 'running',
     distance: 50_000, cached: 0, fuel_pct: 80, tyre_pct: 70, cost_usd: 1,
-    last_event_ts: T, error_count: 0, cache_hits: 97, call_count: 100,
+    last_event_ts: T, error_count: 0, cache_hits: 97, call_count: 100, work_per_min: 0,
     ...over,
   };
 }
@@ -149,7 +149,7 @@ describe('stateRadio', () => {
   const carAt = (over: Partial<CarState>): CarState => ({
     car_id: 'car-a', car_number: 883, model: 'gpt-5.5', car_class: 'H',
     activity: 'running', distance: 0, cached: 0, fuel_pct: 100, cost_usd: 0,
-    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, ...over,
+    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0, ...over,
   });
 
   it('계정이 모델을 갈아타면 알린다 — 실데이터에서 실제로 일어나는 사건이다', () => {

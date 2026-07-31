@@ -186,3 +186,28 @@ describe('마지막 에러 시각', () => {
     expect(s.cars.get('car-a')!.last_error_ts).toBeUndefined();
   });
 });
+
+describe('작업 속도', () => {
+  it('호출이 잦고 크면 속도가 오른다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ ts: T0, tokens: { prompt: 10_000, completion: 0 } }));
+    s = applyEvent(s, makeEvent({ ts: T0 + 60_000, tokens: { prompt: 10_000, completion: 0 } }));
+    // 1분에 1만 토큰 → 분당 1만 근처
+    expect(s.cars.get('car-a')!.work_per_min).toBeGreaterThan(5_000);
+    expect(s.cars.get('car-a')!.work_per_min).toBeLessThan(20_000);
+  });
+
+  it('간격이 벌어지면 속도가 떨어진다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ ts: T0, tokens: { prompt: 10_000, completion: 0 } }));
+    s = applyEvent(s, makeEvent({ ts: T0 + 60_000, tokens: { prompt: 10_000, completion: 0 } }));
+    const fast = s.cars.get('car-a')!.work_per_min;
+    s = applyEvent(s, makeEvent({ ts: T0 + 3_660_000, tokens: { prompt: 10_000, completion: 0 } }));
+    expect(s.cars.get('car-a')!.work_per_min).toBeLessThan(fast);
+  });
+
+  it('첫 호출에는 속도가 없다 — 간격을 모른다', () => {
+    const s = applyEvent(emptyRaceState(T0), makeEvent());
+    expect(s.cars.get('car-a')!.work_per_min).toBe(0);
+  });
+});

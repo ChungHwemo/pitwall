@@ -72,6 +72,8 @@ export class PitwallApp {
   private hudPhase: HTMLElement;
   private hudPace: HTMLElement;
   private detail: HTMLElement;
+  /** 데이터셋 선택기가 붙는 자리. 무엇을 보는지 화면이 늘 말해야 한다. */
+  private hudSlot: HTMLElement;
   private live = false;
   /** 실시간 창을 다시 뽑는 재료. 이벤트가 올 때마다 늘어난다. */
   private liveSamples: ActivitySample[] = [];
@@ -124,6 +126,7 @@ export class PitwallApp {
     this.hudPace = document.createElement('div');
     this.hudPace.className = 'hud-item hud-pace';
     hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary);
+    this.hudSlot = hud;
 
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'track');
@@ -212,6 +215,11 @@ export class PitwallApp {
         ?? stateRadio(before, this.raceState.cars.get(event.car_id)!);
       if (msg) this.radioRenderer.push(msg);
     });
+  }
+
+  /** 데이터셋 선택기를 상단 바에 붙인다. 배선은 browser.ts가 한다. */
+  mountDatasetPicker(mount: (host: HTMLElement) => void): void {
+    mount(this.hudSlot);
   }
 
   start(): void {

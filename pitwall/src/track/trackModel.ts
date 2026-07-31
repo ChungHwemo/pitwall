@@ -39,6 +39,10 @@ export type HighlightType = 'error' | 'limit';
 
 export interface RenderCar {
   carId: string;
+  /** 0..1. 지금 얼마나 빨리 태우는가 — 위치와 별개다 */
+  heat: number;
+  /** 오래 조용한 차. 트랙에는 남되 흐리게 그린다 */
+  idle: boolean;
   /** 트랙 라벨용. 계정 식별자가 아니라 해시에서 나온 번호다 (PRIV-3) */
   carNumber: number;
   carClass: CarClass;
@@ -51,6 +55,8 @@ export interface RenderCar {
 export interface HotCar {
   carId: string;
   carNumber: number;
+  heat: number;
+  idle: boolean;
   carClass: CarClass;
   progress: number;
   laneLine: number;
@@ -97,6 +103,27 @@ export function progressOf(car: CarState): number {
 }
 
 /**
+ * 분당 작업 토큰 → 0..1 발열.
+ *
+ * **위치는 누적이라 속도를 못 말한다.** 벤치마크에서 확인한 대로(toki-monitor)
+ * 선형 매핑은 사람이 실제로 머무는 구간을 0 근처에 눌러버린다 — 실측 계산에서
+ * 500 tok/분이 0.14px/초, 40,000이 11px/초였다. 그래서 **위치는 그대로 두고**
+ * 속도만 따로 말한다. 로지스틱의 가운데를 그 구간에 놓는다.
+ *
+ * 저쪽처럼 속도 자체를 비선형으로 만들지는 않는다 — 그러면 "한 바퀴 = 작업
+ * 토큰 5만"이 깨진다. 저쪽 캐릭터는 제자리 달리기라 위치에 의미가 없다.
+ */
+const HEAT_MID = 1_500;
+const HEAT_STEEP = 1.7;
+
+export function heatOf(workPerMin: number): number {
+  if (workPerMin <= 0) return 0;
+  // 로그 축의 로지스틱. 토큰 속도는 자릿수로 움직인다.
+  const x = Math.log10(workPerMin / HEAT_MID) * HEAT_STEEP;
+  return 1 / (1 + Math.exp(-x * Math.LN10 / 1.6));
+}
+
+/**
  * hot 사유. 해당 없으면 null이며, 그런 차는 클러스터로 간다.
  *
  * **한도는 연료가 아니다.** 연료는 돈(비용 예산)이고 한도는 벤더가 거는 벽이다.
@@ -126,10 +153,14 @@ export function buildTrackModel(
   now: number,
   opts: TrackModelOptions,
 ): TrackModel {
+  // 유휴라고 트랙에서 지우지 않는다. 실측에서 계정 하나가 레이스의 67%를 5분
+  // 넘는 공백으로 보내는데, 그때마다 차가 사라지면 트랙이 대부분 비어 있게 된다.
+  // 리타이어만 뺀다 — 그건 되돌아오지 않는 상태다.
   const running: CarState[] = [];
   for (const car of state.cars.values()) {
-    if (activityOf(car, now) === 'running') running.push(car);
+    if (activityOf(car, now) !== 'retired') running.push(car);
   }
+  const isIdle = (car: CarState): boolean => activityOf(car, now) !== 'running';
 
   // 1. hot을 먼저 뽑는다. 사건이 난 차는 붐빈다고 잘려나가면 안 된다 —
   //    레인 상한은 밀도 조절 장치이지 사건을 버리는 장치가 아니다.
@@ -140,6 +171,8 @@ export function buildTrackModel(
     candidates.push({
       carId: car.car_id,
       carNumber: car.car_number,
+      heat: heatOf(car.work_per_min),
+      idle: isIdle(car),
       carClass: car.car_class,
       progress: progressOf(car),
       laneLine: laneLineOf(car.car_id),
@@ -182,6 +215,8 @@ export function buildTrackModel(
       cold.push({
         carId: car.car_id,
         carNumber: car.car_number,
+        heat: heatOf(car.work_per_min),
+        idle: isIdle(car),
         carClass: cls,
         progress: spread[i]!,
         laneLine: laneLineOf(car.car_id),

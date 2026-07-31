@@ -7,13 +7,15 @@ import { workOf } from './state/reducer';
 import { ReplaySource } from './source/ReplaySource';
 import { LiveSource } from './source/LiveSource';
 import type { LiveAccounts, LiveVendor, VendorLimitSnapshot } from './source/LiveSource';
-import type { CarEvent } from './types';
+import { DATASET_KEY, type Dataset } from './config/datasets';
+import { DatasetPicker } from './render/datasetPicker';
 
 /**
  * 빌드 시 실 기록을 심을 자리 (`build:real`).
  * 비어 있으면 시뮬레이터로 간다 — 기본 빌드는 그대로다.
  */
-declare const __PITWALL_REAL_EVENTS__: CarEvent[] | undefined;
+/** 빌드에 심은 데이터셋들. 화면에서 고른다. */
+declare const __PITWALL_DATASETS__: Dataset[] | undefined;
 /** 빌드 시점의 벤더 한도 스냅샷 (`npm run fetch:limits`). */
 declare const __PITWALL_LIMITS__: VendorLimitSnapshot[] | undefined;
 
@@ -36,7 +38,11 @@ if (mount) {
     const resumed = latestSession();
     const seed = resumed?.seed ?? Math.floor(Math.random() * 1_000_000);
 
-    const recorded = typeof __PITWALL_REAL_EVENTS__ === 'undefined' ? [] : __PITWALL_REAL_EVENTS__;
+    const datasets = typeof __PITWALL_DATASETS__ === 'undefined' ? [] : (__PITWALL_DATASETS__ ?? []);
+    // 마지막에 고른 것을 기억한다. 없으면 실기록부터.
+    const wanted = localStorage.getItem(DATASET_KEY);
+    const chosen = datasets.find((d) => d.id === wanted) ?? datasets[0];
+    const recorded = chosen?.events ?? [];
 
     // 근무창은 기록이 정한다. 09:00-18:00을 고집하면 실측 기준 하루 작업의
     // 61.4%가 창 밖으로 밀려나 화면에 아예 오지 않는다.
@@ -67,6 +73,15 @@ if (mount) {
       speed: observed.speed,
       settings: observed,
       source: recorded.length ? new ReplaySource(recorded, settings.speed) : undefined,
+    });
+
+    // 무엇을 보고 있는지 상단 바가 말한다. 고르면 그 데이터로 다시 연다 —
+    // 누적 상태를 이어 붙이면 두 데이터가 한 화면에서 합산된다.
+    app.mountDatasetPicker((host) => {
+      new DatasetPicker(host, datasets, chosen?.id ?? '', (id) => {
+        localStorage.setItem(DATASET_KEY, id);
+        location.reload();
+      });
     });
 
     win.pitwallLive = (accounts) => {

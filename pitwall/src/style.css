@@ -106,6 +106,10 @@ body {
 }
 .tower[data-dense="true"] .tower-model,
 .tower[data-dense="true"] .tower-rate { display: none; }
+/* 한 단이면 위아래 정렬이 갈 곳이 없다 — 가운데로 모으지 않으면 잘린다. */
+.tower[data-dense="true"] .tower-state,
+.tower[data-dense="true"] .tower-spark { align-self: center; }
+.tower[data-dense="true"] .tower-limit-text { margin-top: 0.12rem; }
 
 .tower-bar { grid-area: bar; height: 62%; border-radius: 0.13rem; align-self: center; }
 .tower-number { grid-area: num; font-size: 1.875rem; font-weight: 700; text-align: right; }
@@ -305,6 +309,21 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
 .summary-value { font-size: 1.2rem; font-weight: 700; margin-top: 0.18rem; }
 
 /* ── SVG 안 (user unit — rem 금지) ───────────────────────────── */
+
+/*
+ * 발열 — 지금 얼마나 빨리 태우는가.
+ *
+ * 위치는 누적이라 속도를 못 말한다. 벤치마크에서 확인한 대로 선형 매핑은
+ * 사람이 실제로 머무는 500~3,000 tok/분 구간을 전부 "안 움직임"으로 눌러버린다.
+ * 그래서 **위치는 그대로 두고** 밝기와 맥박으로 속도를 말한다.
+ */
+svg.track g.car, svg.track g.cold { --pw-heat: 0; }
+svg.track g.car path, svg.track g.cold path {
+  filter: brightness(calc(0.72 + 0.5 * var(--pw-heat)));
+}
+/* 조용한 차는 트랙에 남되 물러나 있는다 — 사라지면 트랙이 텅 빈다. */
+svg.track [data-idle="true"] { opacity: 0.4; }
+svg.track [data-idle="true"] .car-label { fill: #4b5666; }
 
 /* 피트 — 멈춘 차가 서는 자리. 주행선보다 어둡게 두어 트랙과 구분한다. */
 .pit-label {

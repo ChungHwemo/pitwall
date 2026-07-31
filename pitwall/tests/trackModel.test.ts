@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildTrackModel, progressOf, HOT_CAP, LAP_TOKENS,
+  buildTrackModel, progressOf, heatOf, HOT_CAP, LAP_TOKENS,
 } from '../src/track/trackModel';
 import type { CarClass, CarState, RaceState } from '../src/types';
 
@@ -10,7 +10,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
   return {
     car_id: id, car_number: 7, model: 'claude-sonnet-5', car_class: 'P', activity: 'running',
     distance: 0, cached: 0, fuel_pct: 80, cost_usd: 1,
-    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1,
+    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0,
     ...over,
   };
 }
@@ -91,14 +91,14 @@ describe('cold 차량', () => {
     }
   });
 
-  it('유휴·리타이어 차량은 트랙에 올리지 않는다', () => {
-    const cars = [
-      car('idle', { last_event_ts: T - 500_000 }),
-      car('dead', { activity: 'retired' }),
-    ];
-    const m = buildTrackModel(state(cars), T, opts());
-    expect(m.cold).toEqual([]);
-    expect(m.hot).toEqual([]);
+  // 의도 변경: 유휴는 트랙에 남긴다 — 사라지면 실측 기준 트랙이 대부분 빈다.
+  // 리타이어만 뺀다.
+  it('리타이어 차량만 트랙에서 뺀다', () => {
+    const m = buildTrackModel(state([
+      car('idle', { last_event_ts: T - 600_000 }),
+      car('gone', { activity: 'retired' }),
+    ]), T, opts());
+    expect(m.cold.map((c) => c.carId)).toEqual(['idle']);
   });
 });
 
@@ -207,5 +207,53 @@ describe('한도 하이라이트는 한도 축에서만 나온다', () => {
     const race = state([car('car-blind', { tyre_pct: undefined, fuel_pct: 0 })]);
     const model = buildTrackModel(race, T, { ...OPTS, limitWarnPct: 15 });
     expect(model.hot).toEqual([]);
+  });
+});
+
+describe('발열 — 속도를 위치와 분리해 말한다', () => {
+  it('사람이 실제로 머무는 구간에서 값이 크게 갈린다', () => {
+    // 벤치마크(toki-monitor)가 가장 가파르다고 밝힌 구간이 500~3,000 tok/분이다.
+    // 선형이면 이 구간이 전부 0 근처에 눌린다.
+    const lo = heatOf(500);
+    const mid = heatOf(1_500);
+    const hi = heatOf(3_000);
+    expect(mid - lo).toBeGreaterThan(0.15);
+    expect(hi - mid).toBeGreaterThan(0.15);
+  });
+
+  it('0에서 0, 아주 빠르면 1에 붙는다', () => {
+    expect(heatOf(0)).toBe(0);
+    expect(heatOf(200_000)).toBeGreaterThan(0.98);
+    expect(heatOf(200_000)).toBeLessThanOrEqual(1);
+  });
+
+  it('단조 증가한다', () => {
+    const xs = [0, 100, 500, 1_000, 3_000, 10_000, 50_000];
+    const ys = xs.map(heatOf);
+    for (let i = 1; i < ys.length; i++) expect(ys[i]!).toBeGreaterThanOrEqual(ys[i - 1]!);
+  });
+
+  it('차마다 발열이 모델에 실린다', () => {
+    const m = buildTrackModel(state([car('a', { work_per_min: 2_000 })]), T, opts());
+    expect(m.cold[0]!.heat).toBeCloseTo(heatOf(2_000), 5);
+  });
+});
+
+describe('유휴 차량', () => {
+  it('조용해도 트랙에서 지우지 않는다 — 사라지면 트랙이 텅 빈다', () => {
+    const quiet = car('q', { last_event_ts: T - 30 * 60_000 });
+    const m = buildTrackModel(state([quiet]), T, opts());
+    expect(m.cold.map((c) => c.carId)).toEqual(['q']);
+    expect(m.cold[0]!.idle).toBe(true);
+  });
+
+  it('막 달린 차는 유휴가 아니다', () => {
+    const m = buildTrackModel(state([car('a', { last_event_ts: T })]), T, opts());
+    expect(m.cold[0]!.idle).toBe(false);
+  });
+
+  it('리타이어한 차는 여전히 뺀다', () => {
+    const m = buildTrackModel(state([car('r', { activity: 'retired' })]), T, opts());
+    expect(m.cold).toEqual([]);
   });
 });
