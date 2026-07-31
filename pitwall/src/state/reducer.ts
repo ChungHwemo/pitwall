@@ -1,3 +1,4 @@
+import { cacheSavingOf } from './savings';
 import type { CarActivity, CarEvent, CarState, RaceState } from '../types';
 
 /**
@@ -52,6 +53,7 @@ function initialCar(event: CarEvent): CarState {
     cache_hits: 0,
     call_count: 0,
     work_per_min: 0,
+    saved_usd: 0,
   };
 }
 
@@ -79,6 +81,7 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
     error_count: prev.error_count + (event.status === 'error' ? 1 : 0),
     last_error_ts: event.status === 'error' ? event.ts : prev.last_error_ts,
     work_per_min: nextRate(prev, event),
+    saved_usd: prev.saved_usd + cacheSavingOf(event),
     cache_hits: prev.cache_hits + (event.cache_hit ? 1 : 0),
     call_count: prev.call_count + 1,
     activity: retired ? 'retired' : event.kind === 'pit_in' ? 'pit' : 'running',

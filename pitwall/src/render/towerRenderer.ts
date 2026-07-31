@@ -284,9 +284,10 @@ export class TowerRenderer {
       setText(this.overflow, `접힘 ${hidden.length}대 · 합계 $${sum.toFixed(2)}`);
     }
 
-    let calls = 0; let work = 0; let cached = 0; let cost = 0;
+    let calls = 0; let work = 0; let cached = 0; let cost = 0; let saved = 0;
     for (const c of all) {
       calls += c.call_count; work += c.distance; cached += c.cached; cost += c.cost_usd;
+      saved += c.saved_usd;
     }
     const share = work + cached;
     setText(this.total, [
@@ -294,8 +295,10 @@ export class TowerRenderer {
       `${calls.toLocaleString('ko-KR')}콜`,
       // 캐시 비중은 이 화면의 핵심 사실이다 — 실측 98%였고, 섞어 쓰면 작업량이
       // 수십 배로 부풀어 보인다.
+      // 비율은 크다는 사실만 말한다. 그게 좋은 일인지는 아낀 돈이 말한다.
       share > 0 ? `캐시 ${Math.round(cached / share * 100)}%` : '캐시 —',
       `$${cost.toFixed(2)}`,
+      ...(saved > 0 ? [`$${saved.toFixed(2)} 아낌`] : []),
     ].join('  ·  '));
   }
 }

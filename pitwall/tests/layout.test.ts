@@ -12,7 +12,7 @@ function car(id: string, cls: CarClass, lastTs: number, distance = 0): CarState 
   return {
     car_id: id, car_number: 1, model: 'claude-sonnet-5', car_class: cls, activity: 'running',
     distance, cached: 0, fuel_pct: 100, tyre_pct: 100, cost_usd: 0,
-    last_event_ts: lastTs, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0,
+    last_event_ts: lastTs, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0, saved_usd: 0,
   };
 }
 

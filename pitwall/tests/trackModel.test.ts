@@ -10,7 +10,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
   return {
     car_id: id, car_number: 7, model: 'claude-sonnet-5', car_class: 'P', activity: 'running',
     distance: 0, cached: 0, fuel_pct: 80, cost_usd: 1,
-    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0,
+    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0, saved_usd: 0,
     ...over,
   };
 }

@@ -93,6 +93,11 @@ export interface CarState {
   last_event_ts: number;
   error_count: number;
   /**
+   * 캐시가 아낀 돈 누적. 재전송이 전체 토큰의 99%인데 화면에서는 비율 한 칸이라
+   * 아무 말도 못 하고 있었다 — 비율은 크다는 사실만 말한다.
+   */
+  saved_usd: number;
+  /**
    * 분당 작업 토큰 (평활). 화면에서 "지금 빠른가"를 그림으로 말하는 재료다.
    *
    * 위치는 누적이라 속도를 못 말한다 — 500 tok/분과 40,000 tok/분이 화면에서

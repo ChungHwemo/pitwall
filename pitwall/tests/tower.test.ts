@@ -8,7 +8,7 @@ function car(id: string, over: Partial<CarState> = {}): CarState {
   return {
     car_id: id, car_number: 12, model: 'claude-opus-5', car_class: 'H',
     activity: 'running', distance: 0, cached: 0, fuel_pct: 100, cost_usd: 0,
-    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0, ...over,
+    last_event_ts: T, error_count: 0, cache_hits: 0, call_count: 1, work_per_min: 0, saved_usd: 0, ...over,
   };
 }
 const state = (cars: CarState[]): RaceState =>
@@ -201,5 +201,22 @@ describe('에러는 시효가 있다', () => {
       error_count: 5, last_error_ts: T - 3 * 3_600_000, tyre_pct: 0, last_event_ts: T,
     })]), T, T, null, () => []);
     expect(host.querySelector('.tower-row')!.getAttribute('data-state')).toBe('limit');
+  });
+});
+
+describe('캐시가 아낀 돈', () => {
+  it('합계에 절약액을 쓴다 — 비율만으로는 좋은 일인지 알 수 없다', () => {
+    const r = new TowerRenderer(host, 4);
+    r.render(state([
+      car('a', { cached: 900_000, distance: 100_000, saved_usd: 12.5 }),
+      car('b', { car_number: 2, cached: 100_000, distance: 10_000, saved_usd: 3.25 }),
+    ]), T, T, null, () => []);
+    expect(host.querySelector('.tower-total')!.textContent).toContain('$15.75 아낌');
+  });
+
+  it('아낀 게 없으면 그 칸을 쓰지 않는다', () => {
+    const r = new TowerRenderer(host, 4);
+    r.render(state([car('a', { saved_usd: 0 })]), T, T, null, () => []);
+    expect(host.querySelector('.tower-total')!.textContent).not.toContain('아낌');
   });
 });

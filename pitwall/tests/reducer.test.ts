@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { emptyRaceState, applyEvent, activityOf, IDLE_THRESHOLD_MS } from '../src/state/reducer';
+import { cacheSavingOf } from '../src/state/savings';
 import type { CarEvent } from '../src/types';
 
 const T0 = 1_800_000_000_000;
@@ -209,5 +210,19 @@ describe('작업 속도', () => {
   it('첫 호출에는 속도가 없다 — 간격을 모른다', () => {
     const s = applyEvent(emptyRaceState(T0), makeEvent());
     expect(s.cars.get('car-a')!.work_per_min).toBe(0);
+  });
+});
+
+describe('캐시 절약', () => {
+  it('차량마다 아낀 돈을 쌓는다', () => {
+    let s = emptyRaceState(T0);
+    const big = { prompt: 100_000, completion: 100, cache_read: 99_000 };
+    s = applyEvent(s, makeEvent({ model: 'claude-opus-5', tokens: big, cache_hit: true }));
+    s = applyEvent(s, makeEvent({ model: 'claude-opus-5', tokens: big, cache_hit: true, ts: T0 + 1_000 }));
+    const car = s.cars.get('car-a')!;
+    expect(car.saved_usd).toBeGreaterThan(0);
+    expect(car.saved_usd).toBeCloseTo(cacheSavingOf(makeEvent({
+      model: 'claude-opus-5', tokens: big, cache_hit: true,
+    })) * 2, 9);
   });
 });
