@@ -1,6 +1,7 @@
 import { trackWidth } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
 import { positionAt, pitBoxAt, pitLanePoints } from '../track/layout';
+import { Projector } from './projection';
 import { CLASS_STYLE } from '../config/theme';
 import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
@@ -131,7 +132,8 @@ export class TrackRenderer {
    * 같은 차는 이어서 움직여야 한다. 숫자 하나뿐이라 쌓여도 싸지만,
    * hot에서 빠진 차는 지워서 무한 증가를 막는다.
    */
-  private visual = new Map<string, number>();
+  /** 샘플 사이를 이어 달리게 하는 투영기. 보간만으로는 호출 사이에 멈춰 선다. */
+  private projector = new Projector();
   /** 강조 없는 차량 노드 풀. 슬롯을 재사용해 노드가 누적되지 않게 한다. */
   private coldPool: ColdNode[] = [];
   private carLayer: SVGGElement;
@@ -256,12 +258,16 @@ export class TrackRenderer {
     this.selectHandler = handler;
   }
 
-  render(model: TrackModel, _now: number, selected: string | null = null): void {
+  render(model: TrackModel, now: number, selected: string | null = null): void {
     this.selected = selected;
     // 밀도가 라벨을 정한다. 몇 대 없으면 이름을 붙이고, 붐비면 글리프만 남긴다.
     const labelled = model.cold.length + model.hot.length <= LABEL_MAX_CARS;
-    this.renderCold(model.cold, labelled);
-    this.renderHot(model.hot, labelled);
+    this.renderCold(model.cold, labelled, now);
+    this.renderHot(model.hot, labelled, now);
+    // 화면을 떠난 차의 투영 상태는 버린다.
+    this.projector.retain(new Set([
+      ...model.cold.map((c) => c.carId), ...model.hot.map((c) => c.carId),
+    ]));
   }
 
   private markSelection(group: SVGGElement, carId: string): void {
@@ -269,7 +275,7 @@ export class TrackRenderer {
     if (group.getAttribute('data-selected') !== flag) group.setAttribute('data-selected', flag);
   }
 
-  private renderCold(cars: RenderCar[], labelled: boolean): void {
+  private renderCold(cars: RenderCar[], labelled: boolean, now: number): void {
     cars.forEach((car, i) => {
       const node = this.coldSlot(i);
 
@@ -281,12 +287,10 @@ export class TrackRenderer {
           node.carClass = car.carClass;
         }
         node.carId = car.carId;
-        // 슬롯을 새로 맡은 차는 목표 위치에서 시작한다. 날아오면 안 된다.
-        this.visual.set(car.carId, car.progress);
       }
 
       setLabel(node, String(car.carNumber), labelled);
-      const next = this.step(car.carId, car.progress);
+      const next = this.projector.step(car.carId, car.progress, now);
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
@@ -305,20 +309,8 @@ export class TrackRenderer {
    * 목표를 향해 한 프레임만큼 다가간다. 폐곡선이라 결승선을 넘는 경우를 따로 본다.
    * 진행률이 조금 바뀌면 위치도 조금 바뀐다 — 이게 점멸을 없앤다.
    */
-  private step(carId: string, target: number): number {
-    const from = this.visual.get(carId) ?? target;
-    let delta = target - from;
-    if (delta > 0.5) delta -= 1;
-    if (delta < -0.5) delta += 1;
 
-    const next = Math.abs(delta) < SNAP
-      ? target
-      : (from + delta * Math.min(LERP, PROJECTION_CLAMP) + 1) % 1;
-    this.visual.set(carId, next);
-    return next;
-  }
-
-  private renderHot(hot: HotCar[], labelled: boolean): void {
+  private renderHot(hot: HotCar[], labelled: boolean, now: number): void {
     // 피트 박스 번호. 멈춘 차만 센다.
     let pitSlot = 0;
 
@@ -354,11 +346,12 @@ export class TrackRenderer {
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
       setLabel(node, String(car.carNumber), labelled);
       if (STOPPED.has(car.reason)) {
+        // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
+        this.projector.hold(car.carId, now);
         translate(node.group, pitBoxAt(this.track, pitSlot, hot.length));
         pitSlot += 1;
       } else {
-        const next = this.step(car.carId, car.progress);
-        this.visual.set(car.carId, next);
+        const next = this.projector.step(car.carId, car.progress, now);
         translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
       }
       this.markSelection(node.group, car.carId);
@@ -372,9 +365,9 @@ export class TrackRenderer {
 
   }
 
-  /** 테스트용 — 보간이 목표를 앞지르지 않는지 확인한다. */
+  /** 테스트용 — 투영이 목표를 지나치게 앞지르지 않는지 확인한다. */
   visualProgressOf(carId: string): number | undefined {
-    return this.visual.get(carId);
+    return this.projector.visual(carId);
   }
 
   get nodeCount(): number {
