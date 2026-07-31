@@ -40,9 +40,16 @@ if (mount) {
      * 며칠을 켜도 같은 코스만 나왔다. 이어붙일 이벤트도 없으므로 복원할 이유가
      * 없다. `?seed=` 로 고정할 수 있게만 남긴다 (버그 재현용).
      */
+    /*
+     * URL은 사용자가 손으로 고칠 수 있는 유일한 입력이다. 검증 없이 받으면
+     * `?seed=abc`가 NaN, `?seed=1e999`가 Infinity로 들어오고 둘 다 인덱스 계산에서
+     * NaN이 되어 코스 선택이 `undefined`를 집는다 — 렌더 시작 전에 죽어서
+     * 화면이 통째로 빈다. 못 읽는 값은 조용히 무시하고 무작위로 간다.
+     */
     const pinned = new URLSearchParams(location.search).get('seed');
-    const seed = pinned !== null && pinned !== ''
-      ? Number(pinned)
+    const asked = pinned === null || pinned === '' ? Number.NaN : Number(pinned);
+    const seed = Number.isFinite(asked)
+      ? Math.trunc(asked)
       : Math.floor(Math.random() * 1_000_000);
 
     const embedded = typeof __PITWALL_DATASETS__ === 'undefined' ? [] : (__PITWALL_DATASETS__ ?? []);

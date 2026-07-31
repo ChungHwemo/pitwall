@@ -23,6 +23,19 @@
   font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34px));
   /* 경계선. 해상도가 아니라 시야거리 문제라 Retina에서 얇아지면 안 된다. */
   --hair: max(1px, 0.0625rem);
+  /*
+   * 타워 한 줄이 실제로 차지하는 폭. `.tower-row`의 고정 칸 합이다.
+   *
+   *   0.4 + 4 + 5 + 10.4 + 11.6 = 31.4rem   (bar·num·state·limit·money)
+   * + 0.6 × 5                  =  3rem      (column-gap)
+   * + 0.65                     =  0.65rem   (오른쪽 padding)
+   * = 35.05rem — 여유 0.95rem을 얹어 36rem.
+   *
+   * 왼쪽 칸이 이보다 좁으면 `.tower-slot`의 `overflow: hidden`이 오른쪽 끝부터
+   * 자른다. 잘리는 것은 `$총액`과 `$/시간`이다 — 이 화면에서 제일 중요한 숫자가
+   * 제일 먼저 죽는다. `--pw-zoom: 1.3`이면 1440×900에서도 그렇게 잘렸다.
+   */
+  --tower-min: 36rem;
 }
 
 body {
@@ -47,7 +60,12 @@ body {
  */
 .pitwall {
   display: grid;
-  grid-template-columns: minmax(28rem, 1fr) 1.05fr;
+  /*
+   * 하한은 `--tower-min`이다. 28rem이었는데 타워 줄은 35.05rem이라,
+   * 칸이 하한 근처로 내려가는 조건(좁은 창·큰 --pw-zoom)에서 금액이 잘렸다.
+   * 여기서 막지 않으면 잘린 사실조차 화면에 안 나온다.
+   */
+  grid-template-columns: minmax(var(--tower-min), 1fr) 1.05fr;
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: "hud hud" "tower detail" "radio radio";
   height: 100vh;
@@ -94,6 +112,14 @@ body {
 }
 .tower-row:hover { background: rgba(255, 255, 255, 0.04); }
 .tower-row[data-selected="true"] { background: rgba(77, 195, 255, 0.10); }
+/*
+ * 어디에 있는지 보이지 않으면 탭 순서는 있으나 마나다. 안쪽으로 그린다 —
+ * 바깥 아웃라인은 `overflow: hidden`인 타워 칸에서 잘린다.
+ */
+.tower-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 max(2px, 0.125rem) #4dc3ff;
+}
 
 /*
  * 계정이 많아지면 한 줄로 접는다. 모델명과 속도가 먼저 사라지는 이유는
@@ -124,7 +150,12 @@ body {
 }
 .tower-row[data-state="limit"] .tower-spark { color: #ffd24d; }
 .tower-row[data-state="error"] .tower-spark { color: #ff5c5c; }
-.tower-row[data-state="idle"] .tower-spark { color: #3b4655; }
+/*
+ * 유휴는 물러나 있되 **보이기는 해야 한다.** #3b4655는 배경 대비 1.91:1로,
+ * 비텍스트 그래픽 하한 3:1에 못 미쳐 스파크라인이 사실상 사라졌다 — 조용한 것과
+ * 아무것도 없는 것이 같아 보이면 화면이 거짓을 말한다. #55636f는 3.05:1이다.
+ */
+.tower-row[data-state="idle"] .tower-spark { color: #55636f; }
 .tower-state {
   grid-area: state; font-size: 0.7rem; letter-spacing: 0.14em;
   color: #6b7c91; align-self: end; text-align: right;
@@ -133,6 +164,14 @@ body {
 .tower-row[data-state="limit"] .tower-state { color: #ffd24d; }
 /* 멈춘 차는 줄 자체를 죽인다 — 굴러가는 줄과 한눈에 갈라져야 한다. */
 .tower-row[data-state="error"], .tower-row[data-state="limit"] { opacity: 0.62; }
+
+/*
+ * 그리드 아이템의 `min-width`는 기본이 `auto`다 — 내용이 길면 칸이 선언한 폭을
+ * **밀어낸다**. `--tower-min` 산수는 칸이 선언대로 있다는 전제이므로, 여기가
+ * 뚫리면 줄이 다시 넓어지고 오른쪽 끝(금액)이 잘린다. 한 줄로 못박는다.
+ * `overflow: hidden`이 있어야 `min-width: auto`가 0으로 풀린다.
+ */
+.tower-row > * { min-width: 0; overflow: hidden; }
 
 .tower-limit { grid-area: limit; align-self: center; }
 .tower-limit-track { height: 0.45rem; background: #1c222b; border-radius: 0.28rem; overflow: hidden; }
@@ -207,6 +246,8 @@ body {
  * 무엇을 보고 있는가 — 실시간인지, 실기록인지, 지어낸 것인지.
  * 숨기면 안 되는 사실이라 고르는 곳과 밝히는 곳을 같은 자리에 둔다.
  */
+/* 자리만 잡아두는 껍데기. 상자를 하나 더 만들면 flex 계산에 끼어든다. */
+.dataset-slot { display: contents; }
 .dataset { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
 .dataset-name { font-size: 0.8rem; }
 .dataset-select {
@@ -286,9 +327,10 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
   padding: 0.18rem 0; border-bottom: var(--hair) solid #1c222b;
   white-space: nowrap; overflow: hidden;
 }
+/* 타워 줄과 같은 이유. 긴 모델 id 하나가 뒤의 토큰 수를 밖으로 밀어낸다. */
+.feed-row > *, .model-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .feed-time { color: #6b7c91; }
 .feed-model { color: #e6edf3; }
-.feed-who { overflow: hidden; text-overflow: ellipsis; }
 .feed-size { color: #6b7c91; }
 .feed-row[data-status="error"] .feed-who { color: #ff5c5c; }
 

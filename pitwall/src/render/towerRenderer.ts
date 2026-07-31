@@ -120,9 +120,24 @@ export class TowerRenderer {
       const row = document.createElement('div');
       row.className = 'tower-row';
       row.style.display = 'none';
-      row.addEventListener('click', () => {
+      /*
+       * 줄은 누를 수 있는 물건이다. div에 클릭만 달면 마우스 없이는 이 화면의
+       * 유일한 조작(계정 고르기)에 아예 도달하지 못한다 — 트랙의 글리프도 클릭
+       * 전용이라 대체 경로가 없었다. 역할과 탭 순서를 주고 Enter·Space를 받는다.
+       * 안 쓰는 줄은 `display: none`이라 탭 순서에서 저절로 빠진다.
+       */
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      const pick = (): void => {
         const id = this.rows[i]?.carId;
         if (id) this.selectHandler?.(id);
+      };
+      row.addEventListener('click', pick);
+      row.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        // Space는 기본이 스크롤이다. 상시 노출 화면에서 화면이 튀면 그 자체가 고장이다.
+        e.preventDefault();
+        pick();
       });
 
       const bar = document.createElement('div');
@@ -266,6 +281,8 @@ export class TowerRenderer {
       const picked = car.car_id === selected ? 'true' : 'false';
       if (row.root.getAttribute('data-selected') !== picked) {
         row.root.setAttribute('data-selected', picked);
+        // 고른 상태는 색으로만 말하고 있었다. 눌린 버튼이라고 읽히게 한다.
+        row.root.setAttribute('aria-pressed', picked);
       }
     });
 
