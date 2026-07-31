@@ -547,6 +547,33 @@ describe('피트', () => {
   });
 });
 
+describe('피트 표지', () => {
+  // 하드 룰: 트랙 위 텍스트 라벨 금지. 'PIT' 글자를 체커드 플래그 도형으로 바꾼다.
+  it('피트 표지는 글자가 아니라 도형이다', () => {
+    new TrackRenderer(svg, track);
+    expect(svg.querySelectorAll('text.pit-label').length).toBe(0);
+    const shapes = svg.querySelectorAll('path.pit-label, rect.pit-label');
+    expect(shapes.length).toBeGreaterThan(0);
+  });
+
+  it('피트 표지를 피트레인 끝에 둔다', () => {
+    new TrackRenderer(svg, track);
+    // 도형이 피트레인 마지막 점(tail) 아래 34px 부근에 있는지만 본다.
+    const d = svg.querySelector('path.pit-lane')!.getAttribute('d')!;
+    const pts = [...d.matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: +m[1]!, y: +m[2]! }));
+    const tail = pts[pts.length - 1]!;
+    const coords = [...svg.querySelectorAll('path.pit-label, rect.pit-label')]
+      .flatMap((el) => {
+        const raw = el.getAttribute('d') ?? '';
+        return [...raw.matchAll(/(-?[\d.]+)\s+(-?[\d.]+)/g)].map((m) => ({ x: +m[1]!, y: +m[2]! }));
+      });
+    expect(coords.length).toBeGreaterThan(0);
+    const near = coords.some((c) =>
+      Math.abs(c.x - tail.x) < 12 && Math.abs(c.y - (tail.y + 34)) < 12);
+    expect(near).toBe(true);
+  });
+});
+
 describe('트랙 라벨', () => {
   it('차가 몇 대 없으면 카넘버를 트랙에 쓴다 — 클릭해야 아는 화면은 앰비언트가 아니다', () => {
     const r = new TrackRenderer(svg, track);

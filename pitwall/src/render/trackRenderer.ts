@@ -208,13 +208,44 @@ export class TrackRenderer {
     this.container.appendChild(path);
 
     // 표지는 레인 끝에 둔다. 입구에 두면 첫 박스에 선 차가 그대로 덮는다.
+    // 'PIT' 글자 대신 체커드 플래그 도형 — 트랙 위 텍스트 라벨 금지 (§6.3 하드 룰).
     const tail = pts[pts.length - 1]!;
-    const label = document.createElementNS(SVG_NS, 'text');
-    label.setAttribute('class', 'pit-label');
-    label.setAttribute('x', tail.x.toFixed(2));
-    label.setAttribute('y', (tail.y + 34).toFixed(2));
-    label.textContent = 'PIT';
-    this.container.appendChild(label);
+    this.drawPitFlag(tail.x, tail.y + 34);
+  }
+
+  /**
+   * 체커기(체커드 플래그) 표지. 글자가 아니라 획으로 그린다 (§6.3: 트랙 위 텍스트 금지).
+   * 중심을 (cx, cy)에 두고, 좌표는 path에 굽는다 — glyphPath와 같은 이유로 transform을 쓰지 않는다.
+   */
+  private drawPitFlag(cx: number, cy: number): void {
+    const q = 4.5;
+    const cols = 3;
+    const rows = 2;
+    const gx = cx - (cols * q) / 2 + 1;
+    const gy = cy - (rows * q) / 2;
+    const rect = (x: number, y: number, w: number, h: number): string =>
+      `M ${x.toFixed(2)} ${y.toFixed(2)} L ${(x + w).toFixed(2)} ${y.toFixed(2)} ` +
+      `L ${(x + w).toFixed(2)} ${(y + h).toFixed(2)} L ${x.toFixed(2)} ${(y + h).toFixed(2)} Z`;
+
+    // 깃대 + 천 바탕. 어두운 채움이라 밝은 칸이 대비로 뜬다.
+    const base = document.createElementNS(SVG_NS, 'path');
+    base.setAttribute('class', 'pit-label');
+    base.setAttribute('d', rect(gx - 3, gy - 3, 1.6, cols * q + 6) + ' ' + rect(gx, gy, cols * q, rows * q));
+    base.setAttribute('fill', '#11161d');
+    this.container.appendChild(base);
+
+    // 밝은 칸만 그린다 — (행+열)이 짝수인 칸. 나머지는 바탕이 비쳐 체커 무늬가 된다.
+    let checker = '';
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if ((r + c) % 2 === 0) checker += rect(gx + c * q, gy + r * q, q, q) + ' ';
+      }
+    }
+    const light = document.createElementNS(SVG_NS, 'path');
+    light.setAttribute('class', 'pit-label');
+    light.setAttribute('d', checker.trim());
+    light.setAttribute('fill', '#e8edf3');
+    this.container.appendChild(light);
   }
 
   private hotSlot(index: number): HotNode {
