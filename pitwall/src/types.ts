@@ -92,6 +92,13 @@ export interface CarState {
   cost_usd: number;
   last_event_ts: number;
   error_count: number;
+  /**
+   * 마지막 에러 시각.
+   *
+   * `error_count`는 하루 누적이라 "지금 문제가 있는가"에 답하지 못한다 —
+   * 아침에 한 번 실패한 계정이 종일 피트에 갇혀 있었다.
+   */
+  last_error_ts?: number;
   cache_hits: number;
   call_count: number;
 }

@@ -76,6 +76,7 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
     limit_observed_at: event.limit_observed_at ?? prev.limit_observed_at,
     last_event_ts: Math.max(prev.last_event_ts, event.ts),
     error_count: prev.error_count + (event.status === 'error' ? 1 : 0),
+    last_error_ts: event.status === 'error' ? event.ts : prev.last_error_ts,
     cache_hits: prev.cache_hits + (event.cache_hit ? 1 : 0),
     call_count: prev.call_count + 1,
     activity: retired ? 'retired' : event.kind === 'pit_in' ? 'pit' : 'running',

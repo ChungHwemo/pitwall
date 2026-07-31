@@ -166,3 +166,23 @@ describe('모델별 집계', () => {
     expect(emptyRaceState(T0).byModel.size).toBe(0);
   });
 });
+
+describe('마지막 에러 시각', () => {
+  it('에러가 나면 그 시각을 기억한다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ status: 'error', ts: T0 + 5_000 }));
+    expect(s.cars.get('car-a')!.last_error_ts).toBe(T0 + 5_000);
+  });
+
+  it('성공한 호출은 그 시각을 지우지 않는다 — 방금 난 문제는 계속 최근이다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ status: 'error', ts: T0 + 5_000 }));
+    s = applyEvent(s, makeEvent({ ts: T0 + 6_000 }));
+    expect(s.cars.get('car-a')!.last_error_ts).toBe(T0 + 5_000);
+  });
+
+  it('에러가 없으면 없다', () => {
+    const s = applyEvent(emptyRaceState(T0), makeEvent());
+    expect(s.cars.get('car-a')!.last_error_ts).toBeUndefined();
+  });
+});

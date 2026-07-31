@@ -69,7 +69,11 @@ type RowState = 'error' | 'limit' | 'idle' | 'run';
  * 문제 없는 계정을 문제로 만든다.
  */
 function stateOf(car: CarState, now: number, speed: number): RowState {
-  if (car.error_count > 0) return 'error';
+  // 에러에는 시효가 있다. `error_count`는 하루 누적이라 아침의 실패 한 번으로
+  // 종일 피트에 갇혔다 — 지금 문제가 있는지는 마지막 실패가 언제였는지가 답한다.
+  const failedRecently = car.last_error_ts !== undefined
+    && now - car.last_error_ts < ERROR_FRESH_MS / Math.max(1, speed);
+  if (failedRecently) return 'error';
   if (car.tyre_pct !== undefined && car.tyre_pct < LIMIT_BOX_PCT) return 'limit';
   // 유휴 기준도 레이스 시간이다. 실시간 90초로 재면 600배속에서는 레이스로
   // 15시간을 쉰 계정도 "방금까지 돌던 중"으로 보인다.
@@ -83,6 +87,9 @@ const STATE_LABEL: Record<RowState, string> = {
   idle: 'IDLE',
   run: 'RUN',
 };
+
+/** 에러가 이보다 오래되면 더는 그 차를 세워두지 않는다 (레이스 시간). */
+const ERROR_FRESH_MS = 300_000;
 
 /** 이보다 많으면 줄을 한 단으로 접는다. 2단 줄로는 화면에 다 안 들어간다. */
 const DENSE_FROM = 10;

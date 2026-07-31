@@ -73,7 +73,8 @@ describe('TowerRenderer', () => {
     const r = new TowerRenderer(host, 8);
     r.render(state([
       car('a', { car_number: 1, tyre_pct: 2 }),
-      car('b', { car_number: 2, error_count: 3 }),
+      // 의도 보강: 에러는 최근이어야 세운다.
+      car('b', { car_number: 2, error_count: 3, last_error_ts: T - 1_000 }),
     ]), T, T, null, () => []);
     const rows = [...host.querySelectorAll('.tower-row')];
     expect(rows[0]!.getAttribute('data-state')).toBe('limit');
@@ -176,5 +177,29 @@ describe('타워 — 밀집 모드', () => {
     const r = new TowerRenderer(host, 16);
     r.render(state([car('a')]), T, T, null, () => []);
     expect(host.querySelector('.tower')!.getAttribute('data-dense')).toBe('false');
+  });
+});
+
+describe('에러는 시효가 있다', () => {
+  it('방금 난 에러는 피트로 보낸다', () => {
+    const r = new TowerRenderer(host, 4);
+    r.render(state([car('a', { error_count: 1, last_error_ts: T - 10_000 })]), T, T, null, () => []);
+    expect(host.querySelector('.tower-row')!.getAttribute('data-state')).toBe('error');
+  });
+
+  it('오래전 에러로는 붙잡아 두지 않는다 — 하루 한 번 실패하면 종일 갇혔다', () => {
+    const r = new TowerRenderer(host, 4);
+    r.render(state([car('a', {
+      error_count: 1, last_error_ts: T - 3 * 3_600_000, last_event_ts: T,
+    })]), T, T, null, () => []);
+    expect(host.querySelector('.tower-row')!.getAttribute('data-state')).toBe('run');
+  });
+
+  it('한도 0%는 오래된 에러보다 먼저 말한다', () => {
+    const r = new TowerRenderer(host, 4);
+    r.render(state([car('a', {
+      error_count: 5, last_error_ts: T - 3 * 3_600_000, tyre_pct: 0, last_event_ts: T,
+    })]), T, T, null, () => []);
+    expect(host.querySelector('.tower-row')!.getAttribute('data-state')).toBe('limit');
   });
 });
