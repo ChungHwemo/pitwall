@@ -3,7 +3,7 @@
 **PITWALL 렌더링 엔진 용 검증된 GitHub 오픈소스 SVG 아이콘 컬렉션**
 
 수집일: 2026-07-31  
-범위: 16 SVG 파일 + 7개 소스 저장소  
+범위: 17 SVG 파일 + 7개 소스 저장소  
 철학: zero-dep 원칙 준수 (모든 에셋은 로컬 파일로 인라인, 외부 의존성 없음)
 
 ---
@@ -69,9 +69,9 @@
 | **출처** | https://github.com/game-icons/icons |
 | **라이선스** | **CC BY 3.0** ⚠️ **저작자 표시 필수** |
 | **저장소** | https://github.com/game-icons/icons |
-| **파일** | `game-icons/checkered-flag.svg` (저작자: delapouite)<br/>`game-icons/checkered-diamond.svg` (저작자: lorc) (2개) |
+| **파일** | `game-icons/checkered-flag.svg` (저작자: delapouite)<br/>`game-icons/checkered-diamond.svg` (저작자: lorc)<br/>`game-icons/f1-car.svg` (F1 Car, 저작자: Skoll, https://game-icons.net/1x1/skoll/f1-car.html) (3개) |
 | **상태** | ✅ 검증됨 (GitHub tree API) |
-| **용도** | **P0-1 대안**: checkered-flag (PIT 플래그, 게임 스타일)<br/>**미할당**: checkered-diamond (백업 옵션) |
+| **용도** | **P0-1 대안**: checkered-flag (PIT 플래그, 게임 스타일)<br/>**P0-1**: f1-car (트랙 차량 본체 실루엣)<br/>**미할당**: checkered-diamond (백업 옵션) |
 | **특징** | 1,325★ · 게임 테마 · F1 게임 감성 부합 |
 | **다운로드** | 2026-07-31 |
 | **⚠️ 저작자 표시 규칙** | **CC BY 3.0 준수**: 인라인 SVG 사용 시 HTML 주석에 다음 형식 필수 |
@@ -79,7 +79,12 @@
 ```html
 <!-- Icon by delapouite, from game-icons.net, CC BY 3.0 -->
 <!-- Icon by lorc, from game-icons.net, CC BY 3.0 -->
+<!-- Icon by Skoll, from game-icons.net, CC BY 3.0 -->
 ```
+
+- F1 실루엣은 H/P/GT 공통 본체다.
+- 클래스는 색과 삼각형/원/사각형 배지로 이중 인코딩한다.
+- F1 실루엣만 보고 클래스를 추정하지 않는다.
 
 ---
 
@@ -200,8 +205,8 @@
 | 항목 | 수치 |
 |---|---|
 | **총 소스** | 7개 |
-| **총 SVG 파일** | 16개 |
-| **검증된 에셋** | 16개 ✅ |
+| **총 SVG 파일** | 17개 |
+| **검증된 에셋** | 17개 ✅ |
 | **미존재 에셋** | 1개 ❌ (tdesign/formula.svg) |
 | **라이선스 종류** | 5가지 (Apache-2.0, MIT, ISC, CC BY 3.0, Oracle APEX) |
 | **별점 합계** | 122,883★ (가장 인기 많은 오픈소스 아이콘 서버) |

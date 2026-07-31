@@ -163,7 +163,7 @@ body {
   grid-area: spark; font-size: 0.95rem; line-height: 1.1; color: #4dc3ff;
   letter-spacing: 0.06em; white-space: pre; align-self: start; overflow: hidden;
 }
-.tower-row[data-state="limit"] .tower-spark { color: #ffd24d; }
+.tower-row[data-state="limit"] .tower-spark { color: #ff5c5c; }
 .tower-row[data-state="error"] .tower-spark { color: #ff5c5c; }
 /*
  * 유휴는 물러나 있되 **보이기는 해야 한다.** #3b4655는 배경 대비 1.91:1로,
@@ -176,7 +176,7 @@ body {
   color: #6b7c91; align-self: end; text-align: right;
 }
 .tower-row[data-state="error"] .tower-state { color: #ff5c5c; }
-.tower-row[data-state="limit"] .tower-state { color: #ffd24d; }
+.tower-row[data-state="limit"] .tower-state { color: #ff5c5c; }
 /* 멈춘 차는 줄 자체를 죽인다 — 굴러가는 줄과 한눈에 갈라져야 한다. */
 .tower-row[data-state="error"], .tower-row[data-state="limit"] { opacity: 0.62; }
 
@@ -191,8 +191,8 @@ body {
 .tower-limit { grid-area: limit; align-self: center; }
 .tower-limit-track { height: 0.45rem; background: #1c222b; border-radius: 0.28rem; overflow: hidden; }
 .tower-limit-fill { height: 100%; background: #4dc3ff; border-radius: 0.28rem; }
-/* 게이지 색이 곧 급한 정도다. 숫자를 읽기 전에 색이 먼저 도착한다. */
-.tower-row[data-state="limit"] .tower-limit-fill { background: #ffd24d; }
+/* 게이지 색이 곧 급한 정도다. 숫자를 읽기 전에 색이 먼저 도착한다 — caution 빨강을 공유한다. */
+.tower-row[data-state="limit"] .tower-limit-fill { background: #ff5c5c; }
 .tower-limit-text {
   font-size: 0.7rem; color: #9fb3c8; margin-top: 0.25rem; white-space: nowrap;
 }
@@ -293,10 +293,10 @@ body {
   background: #161b22; color: #e6edf3; border: var(--hair) solid #2a323d;
   border-radius: 0.25rem; padding: 0.1rem 0.35rem; font: inherit; font-size: 0.8rem;
 }
-.dataset[data-synthetic="true"] .dataset-select { border-color: #ffd24d; color: #ffd24d; }
+.dataset[data-synthetic="true"] .dataset-select { border-color: #9fb3c8; color: #9fb3c8; }
 .dataset-warn {
-  font-size: 0.66rem; letter-spacing: 0.06em; color: #ffd24d; white-space: nowrap;
-  border: var(--hair) solid #ffd24d; border-radius: 0.2rem; padding: 0.04rem 0.28rem;
+  font-size: 0.66rem; letter-spacing: 0.06em; color: #9fb3c8; white-space: nowrap;
+  border: var(--hair) solid #9fb3c8; border-radius: 0.2rem; padding: 0.04rem 0.28rem;
 }
 
 /* 오른쪽 끝으로 민다. 자르지 않는다 — 버튼 하나라 자를 것이 없다. */
@@ -358,17 +358,20 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
 .feed-class { font-size: 0.7rem; letter-spacing: 0.12em; }
 .feed-empty { font-size: 0.8rem; color: #9fb3c8; line-height: 1.5; }
 .feed-row {
-  display: grid; grid-template-columns: 4rem 5rem 1fr auto;
+  display: grid; grid-template-columns: 12px 4rem 5rem 1fr auto;
   gap: 0.5rem; font-size: 0.75rem; color: #9fb3c8;
   padding: 0.18rem 0; border-bottom: var(--hair) solid #1c222b;
   white-space: nowrap; overflow: hidden;
 }
+.feed-icon { align-self: center; }
 /* 타워 줄과 같은 이유. 긴 모델 id 하나가 뒤의 토큰 수를 밖으로 밀어낸다. */
 .feed-row > *, .model-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .feed-time { color: #6b7c91; }
 .feed-model { color: #e6edf3; }
 .feed-size { color: #6b7c91; }
 .feed-row[data-status="error"] .feed-who { color: #ff5c5c; }
+/* 사건 없이도 데이터로 판정되는 한도·은퇴까지 포함하는 상위 규칙 (§4.3.2). */
+.feed-row[data-polarity="caution"] .feed-who { color: #ff5c5c; }
 
 /* ── 모델별 오늘 — 타워가 계정을 말하고 여기가 모델을 말한다 ──── */
 
@@ -419,7 +422,7 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
 }
 .summary[data-open="false"] { display: none; }
 .summary-title {
-  font-size: 0.85rem; letter-spacing: 0.06em; color: #ffd24d; margin-bottom: 1rem;
+  font-size: 0.85rem; letter-spacing: 0.06em; color: #9fb3c8; margin-bottom: 1rem;
 }
 .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 1.75rem; }
 .summary-key { font-size: 0.7rem; color: #9fb3c8; letter-spacing: 0.08em; }
@@ -440,3 +443,19 @@ svg.track g.car path, svg.track g.cold path {
 }
 /* 조용한 차는 트랙에 남되 물러나 있는다 — 사라지면 트랙이 텅 빈다. */
 svg.track [data-idle="true"] { opacity: 0.4; }
+
+/*
+ * F1 차량 실루엣 + 클래스 배지 (P0-1). 배지·아이콘 모두 클릭 대상이 아니다 —
+ * 클릭은 `g.car`/`g.cold` 자체가 받는다. 발열·유휴 규칙은 위의 `path`/`[data-idle]`
+ * 선택자가 이미 자손까지 적용하므로 여기서 다시 정의하지 않는다.
+ */
+svg.track .class-badge,
+svg.track .class-car-icon {
+  pointer-events: none;
+}
+
+/* 스타트/피니시 체커 스트립과 섹터 틱 (P0-2). 정적 표지 — 클릭 대상이 아니다. */
+svg.track .start-finish-marker,
+svg.track .sector-marker {
+  pointer-events: none;
+}

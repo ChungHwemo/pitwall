@@ -4,6 +4,8 @@
 파일 목록:
   - checkered-flag.svg (저작자: delapouite)
   - checkered-diamond.svg (저작자: lorc)
+  - f1-car.svg (F1 Car, 저작자: Skoll, 출처: game-icons.net, 라이선스: CC BY 3.0, URL: https://game-icons.net/1x1/skoll/f1-car.html)
 저작자 표시: 인라인 사용 시 HTML 주석으로 저작자명 명시 필수
   <!-- Icon by delapouite, from game-icons.net, CC BY 3.0 -->
   <!-- Icon by lorc, from game-icons.net, CC BY 3.0 -->
+  <!-- Icon by Skoll, from game-icons.net, CC BY 3.0 -->

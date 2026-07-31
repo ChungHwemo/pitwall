@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { RadioRenderer } from '../src/render/radioRenderer';
 import type { CarState, RaceState } from '../src/types';
 import type { RadioMessage } from '../src/radio/eventRadio';
+import { EVENT_POLARITY_COLOR, ACCENT_DELTA } from '../src/config/theme';
 
 const T = 1_000_000;
 
@@ -20,6 +21,12 @@ function state(cars: CarState[]): RaceState {
 
 function msg(id: string, over: Partial<RadioMessage> = {}): RadioMessage {
   return { id, carNumber: 17, text: 'test', severity: 'info', ts: T, ...over };
+}
+
+/** jsdom은 인라인 `style.color`를 `rgb(r, g, b)`로 정규화한다 — hex와 비교하려면 같은 형식으로 맞춘다. */
+function toRgb(hex: string): string {
+  const int = parseInt(hex.slice(1), 16);
+  return `rgb(${(int >> 16) & 0xff}, ${(int >> 8) & 0xff}, ${int & 0xff})`;
 }
 
 let host: HTMLElement;
@@ -69,6 +76,55 @@ describe('RadioRenderer', () => {
   it('메시지가 없어도 예외 없이 렌더한다', () => {
     const r = new RadioRenderer(host, 5);
     expect(() => r.render()).not.toThrow();
+  });
+});
+
+describe('RadioRenderer — 이벤트 극성 (P0-3)', () => {
+  it('warn/critical 심각도는 data-polarity="caution"이고 색이 EVENT_POLARITY_COLOR.caution이다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { severity: 'warn', text: '문제 발생 — rate_limit' }));
+    r.render();
+    const line = host.querySelector('.radio-line')!;
+    expect(line.getAttribute('data-polarity')).toBe('caution');
+    expect((line as HTMLElement).style.color).toBe(toRgb(EVENT_POLARITY_COLOR.caution));
+  });
+
+  it('한도 회복 메시지는 positive다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { severity: 'info', text: '한도 회복 — 코스 복귀' }));
+    r.render();
+    const line = host.querySelector('.radio-line')!;
+    expect(line.getAttribute('data-polarity')).toBe('positive');
+    expect((line as HTMLElement).style.color).toBe(toRgb(EVENT_POLARITY_COLOR.positive));
+  });
+
+  it('그 외 info 메시지는 neutral이다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { severity: 'info', text: '스킬 — doctor' }));
+    r.render();
+    const line = host.querySelector('.radio-line')!;
+    expect(line.getAttribute('data-polarity')).toBe('neutral');
+    expect((line as HTMLElement).style.color).toBe(toRgb(EVENT_POLARITY_COLOR.neutral));
+  });
+
+  it('critical은 warn과 색이 같되 굵기로 더 강하게 표시된다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { severity: 'critical', text: 'RETIRED — 한도 소진' }));
+    r.render();
+    const line = host.querySelector('.radio-line')! as HTMLElement;
+    expect(line.style.color).toBe(toRgb(EVENT_POLARITY_COLOR.caution));
+    expect(line.style.fontWeight).toBe('700');
+  });
+
+  it('ACCENT_DELTA를 쓰지 않는다 — 델타·갭 전용 색이다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { severity: 'warn' }));
+    r.push(msg('m2', { severity: 'critical' }));
+    r.push(msg('m3', { severity: 'info' }));
+    r.render();
+    for (const line of host.querySelectorAll('.radio-line')) {
+      expect((line as HTMLElement).style.color).not.toBe(toRgb(ACCENT_DELTA));
+    }
   });
 });
 

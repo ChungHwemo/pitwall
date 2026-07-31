@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { CLASS_STYLE, SEVERITY_COLOR, BACKGROUND, contrastRatio } from '../src/config/theme';
+import {
+  CLASS_STYLE, SEVERITY_COLOR, BACKGROUND, contrastRatio, relativeLuminance,
+  TRACK_COLOR, EVENT_POLARITY_COLOR, ACCENT_DELTA,
+} from '../src/config/theme';
 import { CAR_CLASSES } from '../src/types';
 
 describe('CLASS_STYLE', () => {
@@ -58,5 +61,53 @@ describe('contrastRatio', () => {
 
   it('잘못된 hex를 거부한다', () => {
     expect(() => contrastRatio('red', BACKGROUND)).toThrow('invalid hex color');
+  });
+});
+
+describe('TRACK_COLOR', () => {
+  it('중심선 대비가 배경 대비 2.5:1 이상이다', () => {
+    expect(contrastRatio(TRACK_COLOR.centerline, BACKGROUND)).toBeGreaterThanOrEqual(2.5);
+  });
+
+  it('피트레인 대비가 2.0:1 이상이고 중심선보다 어둡다', () => {
+    expect(contrastRatio(TRACK_COLOR.pitLane, BACKGROUND)).toBeGreaterThanOrEqual(2.0);
+    expect(relativeLuminance(TRACK_COLOR.pitLane)).toBeLessThan(relativeLuminance(TRACK_COLOR.centerline));
+  });
+
+  it('마커 색이 기존 체커드 플래그 값과 같다', () => {
+    expect(TRACK_COLOR.markerDark).toBe('#11161d');
+    expect(TRACK_COLOR.markerLight).toBe('#e8edf3');
+  });
+
+  it('섹터 색이 6자리 hex다', () => {
+    expect(TRACK_COLOR.sector).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
+});
+
+describe('EVENT_POLARITY_COLOR', () => {
+  it('positive/caution/neutral 세 극성이 정의되어 있다', () => {
+    expect(Object.keys(EVENT_POLARITY_COLOR).sort()).toEqual(['caution', 'neutral', 'positive']);
+  });
+
+  it('caution이 SEVERITY_COLOR.warn과 같은 계열이다 — 표면 간 빨강 의미가 어긋나지 않는다', () => {
+    expect(SEVERITY_COLOR.warn).toBe(EVENT_POLARITY_COLOR.caution);
+  });
+});
+
+describe('ACCENT_DELTA — 따뜻한 노랑 단일 액센트', () => {
+  it('F2C744 계열이다', () => {
+    expect(ACCENT_DELTA.toLowerCase()).toBe('#f2c744');
+  });
+
+  it('GT 클래스와 warn 상태는 ACCENT_DELTA를 쓰지 않는다', () => {
+    expect(CLASS_STYLE.GT.color.toLowerCase()).not.toBe(ACCENT_DELTA.toLowerCase());
+    expect(SEVERITY_COLOR.warn.toLowerCase()).not.toBe(ACCENT_DELTA.toLowerCase());
+  });
+});
+
+describe('GT 클래스 — 색만 이동, 형태는 유지', () => {
+  it('보라 계열 색상이고 사각형 배지를 유지한다', () => {
+    expect(CLASS_STYLE.GT.shape).toBe('square');
+    expect(contrastRatio(CLASS_STYLE.GT.color, BACKGROUND)).toBeGreaterThanOrEqual(4.5);
   });
 });

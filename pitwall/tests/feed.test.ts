@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FeedRenderer } from '../src/render/feedRenderer';
 import type { CarEvent } from '../src/types';
+import { EVENT_POLARITY_COLOR } from '../src/config/theme';
 
 const T = 1_800_000_000_000;
 
@@ -135,5 +136,92 @@ describe('피드 헤더', () => {
     r.render({ carNumber: 883, carClass: 'H', model: 'gpt-5.6-sol' }, [event()]);
     const head = host.querySelector('.feed-class')!;
     expect(head.textContent).toBe('gpt-5.6-sol');
+  });
+});
+
+describe('이벤트 극성 (P0-3)', () => {
+  it('일반 call 행은 neutral이다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [event({ kind: 'call', status: 'ok' })]);
+    expect(host.querySelector('.feed-row')!.getAttribute('data-polarity')).toBe('neutral');
+  });
+
+  it('status=error 행은 caution이다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ kind: 'error', status: 'error', error_code: 'x' })]);
+    expect(host.querySelector('.feed-row')!.getAttribute('data-polarity')).toBe('caution');
+  });
+
+  it('kind=limit_warn 행은 caution이다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ kind: 'limit_warn', status: 'ok' })]);
+    expect(host.querySelector('.feed-row')!.getAttribute('data-polarity')).toBe('caution');
+  });
+
+  it('kind=retire 행은 caution이다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ kind: 'retire', status: 'ok' })]);
+    expect(host.querySelector('.feed-row')!.getAttribute('data-polarity')).toBe('caution');
+  });
+
+  it('kind=pit_in/pit_out은 neutral이다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [
+      event({ kind: 'pit_in', status: 'ok' }),
+      event({ kind: 'pit_out', status: 'ok', ts: T + 1 }),
+    ]);
+    for (const row of host.querySelectorAll('.feed-row')) {
+      if ((row as HTMLElement).style.display === 'none') continue;
+      expect(row.getAttribute('data-polarity')).toBe('neutral');
+    }
+  });
+});
+
+describe('피드 행 generic 아이콘 (P1-1)', () => {
+  it('call 행에는 lucide car 경로가 선택된다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [event({ kind: 'call' })]);
+    const icon = host.querySelector('.feed-icon')!;
+    expect(icon.querySelector('circle')).not.toBeNull();
+  });
+
+  it('pit_in/pit_out 행에는 tabler car 경로가 선택된다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [event({ kind: 'pit_in' })]);
+    const icon = host.querySelector('.feed-icon')!;
+    expect(icon.querySelectorAll('path').length).toBe(3);
+    expect(icon.querySelector('circle')).toBeNull();
+  });
+
+  it('retire/error/limit_warn 행에는 tabler car-suv 경로가 선택된다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [event({ kind: 'retire' })]);
+    const icon = host.querySelector('.feed-icon')!;
+    expect(icon.querySelectorAll('path').length).toBe(7);
+  });
+
+  it('generic 아이콘은 g.car, g.cold, class-badge 아래에 생기지 않는다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [event()]);
+    expect(host.querySelectorAll('g.car .feed-icon, g.cold .feed-icon, .class-badge .feed-icon').length).toBe(0);
+  });
+
+  it('아이콘 색은 EVENT_POLARITY_COLOR가 아니라 고정 청회색이다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ kind: 'error', status: 'error' })]);
+    const icon = host.querySelector('.feed-icon')!;
+    expect(icon.getAttribute('stroke')).toBe(EVENT_POLARITY_COLOR.neutral);
+  });
+
+  it('아이콘에 car_id나 이메일 같은 개인정보가 들어가지 않는다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ car_id: 'secret-account-uuid' })]);
+    const icon = host.querySelector('.feed-icon')!;
+    expect(icon.outerHTML).not.toContain('secret-account-uuid');
   });
 });

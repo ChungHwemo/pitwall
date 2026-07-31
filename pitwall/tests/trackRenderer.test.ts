@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
-import { pitBoxes } from '../src/track/layout';
+import { readFileSync } from 'node:fs';
+import { TrackRenderer, GLYPH_DIAMETER, F1_CAR_PATH } from '../src/render/trackRenderer';
+import { pitBoxes, positionAt } from '../src/track/layout';
 import { CIRCUITS } from '../src/track/circuitData';
 import { toTrack } from '../src/track/circuits';
 import { generateTrack } from '../src/track/generateTrack';
@@ -9,6 +10,8 @@ import type { HighlightType, TrackModelOptions } from '../src/track/trackModel';
 import { LANE_RENDER_CAP } from '../src/track/layout';
 import { MIN_SPACING } from '../src/track/spacing';
 import type { CarState, RaceState } from '../src/types';
+import { TRACK_COLOR, CLASS_STYLE, contrastRatio, BACKGROUND, EVENT_POLARITY_COLOR } from '../src/config/theme';
+import { CAR_CLASSES } from '../src/types';
 
 const T = 1_000_000;
 const track = generateTrack(2026);
@@ -374,7 +377,7 @@ describe('사건 차량 정지', () => {
     expect((svg.querySelector('g.car') as SVGGElement).style.transform).not.toBe(at0);
   });
 
-  it('에러와 한도의 표시가 서로 다르다', () => {
+  it('에러와 한도는 caution 색을 공유하고 모양으로 구분된다', () => {
     const r1 = new TrackRenderer(svg, track);
     r1.render(model([car('boom', { error_count: 1 })]), T);
     const errMark = (svg.querySelector('g.car .alert') as SVGElement).getAttribute('d');
@@ -388,8 +391,12 @@ describe('사건 차량 정지', () => {
     const limMark = (svg2.querySelector('g.car .alert') as SVGElement).getAttribute('d');
     const limColor = (svg2.querySelector('g.car .alert') as SVGElement).getAttribute('stroke');
 
+    // 모양은 여전히 다르다 — 이중 인코딩은 형태가 맡는다 (§6.3).
     expect(limMark).not.toBe(errMark);
-    expect(limColor).not.toBe(errColor);
+    // 색은 이제 이벤트 극성의 caution을 공유한다 (§4.3.1) — 따뜻한 노랑은 델타·갭 전용.
+    expect(limColor).toBe(errColor);
+    expect(errColor).toBe(EVENT_POLARITY_COLOR.caution);
+    expect(limColor).toBe(EVENT_POLARITY_COLOR.caution);
   });
 
   it('에러 난 차량에 경고 표시를 띄운다', () => {
@@ -612,5 +619,204 @@ describe('샘플 사이 움직임', () => {
       frames.push(xy());
     }
     expect(new Set(frames).size).toBeGreaterThan(frames.length - 2);
+  });
+});
+
+describe('트랙 색 토큰 (P0-2)', () => {
+  it('중심선 stroke가 TRACK_COLOR.centerline이다', () => {
+    new TrackRenderer(svg, track);
+    const path = svg.querySelector('path.track-centerline')!;
+    expect(path.getAttribute('stroke')).toBe(TRACK_COLOR.centerline);
+  });
+
+  it('피트레인 stroke가 TRACK_COLOR.pitLane이다', () => {
+    new TrackRenderer(svg, track);
+    const path = svg.querySelector('path.pit-lane')!;
+    expect(path.getAttribute('stroke')).toBe(TRACK_COLOR.pitLane);
+  });
+
+  it('centerline 대비가 배경 대비 2.5:1 이상이다', () => {
+    expect(contrastRatio(TRACK_COLOR.centerline, BACKGROUND)).toBeGreaterThanOrEqual(2.5);
+  });
+
+  it('렌더러 소스에 기존 하드코딩 색이 남지 않는다', () => {
+    // 정적 검사 grep과 같은 검사를 코드 레벨에서도 확인한다.
+    const src = readFileSync('src/render/trackRenderer.ts', 'utf-8');
+    expect(src).not.toMatch(/#2a323d/i);
+    expect(src).not.toMatch(/#1c222b/i);
+  });
+});
+
+describe('스타트/피니시 체커 스트립 (P0-2)', () => {
+  it('start-finish-marker가 하나 있다', () => {
+    new TrackRenderer(svg, track);
+    expect(svg.querySelectorAll('.start-finish-marker').length).toBe(1);
+  });
+
+  it('밝은 체커 칸이 4개다', () => {
+    new TrackRenderer(svg, track);
+    const marker = svg.querySelector('.start-finish-marker')!;
+    expect(marker.querySelectorAll('[data-cell="light"]').length).toBe(4);
+  });
+
+  it('스트립 중심이 track.points[0] 부근이다', () => {
+    new TrackRenderer(svg, track);
+    const marker = svg.querySelector('.start-finish-marker')!;
+    const base = marker.querySelector('[data-cell="base"]')!;
+    const d = base.getAttribute('d')!;
+    const coords = [...d.matchAll(/(-?[\d.]+)\s+(-?[\d.]+)/g)].map((m) => ({ x: +m[1]!, y: +m[2]! }));
+    const cx = coords.reduce((s, p) => s + p.x, 0) / coords.length;
+    const cy = coords.reduce((s, p) => s + p.y, 0) / coords.length;
+    const p0 = track.points[0]!;
+    expect(Math.hypot(cx - p0.x, cy - p0.y)).toBeLessThan(1);
+  });
+
+  it('start-finish-marker는 SVG transform 속성을 쓰지 않는다', () => {
+    new TrackRenderer(svg, track);
+    const marker = svg.querySelector('.start-finish-marker')!;
+    for (const el of marker.querySelectorAll('*')) {
+      expect(el.getAttribute('transform')).toBeNull();
+    }
+  });
+
+  it('스타트 표시에는 텍스트가 없다', () => {
+    new TrackRenderer(svg, track);
+    expect(svg.querySelectorAll('.start-finish-marker text').length).toBe(0);
+  });
+
+  it('클릭 핸들러나 차량 풀에 포함되지 않는다', () => {
+    new TrackRenderer(svg, track);
+    const marker = svg.querySelector('.start-finish-marker')!;
+    expect(marker.closest('g.cars')).toBeNull();
+  });
+});
+
+describe('섹터 경계 틱 (P0-2)', () => {
+  it('sector-marker가 두 개다', () => {
+    new TrackRenderer(svg, track);
+    expect(svg.querySelectorAll('.sector-marker').length).toBe(2);
+  });
+
+  it('색상이 TRACK_COLOR.sector이고 선 끝이 round다', () => {
+    new TrackRenderer(svg, track);
+    for (const marker of svg.querySelectorAll('.sector-marker')) {
+      expect(marker.getAttribute('stroke')).toBe(TRACK_COLOR.sector);
+      expect(marker.getAttribute('stroke-linecap')).toBe('round');
+      expect(marker.getAttribute('stroke-width')).toBe('2');
+    }
+  });
+
+  it('1/3과 2/3 진행률 위치에 대응한다', () => {
+    new TrackRenderer(svg, track);
+    const expected = [1 / 3, 2 / 3].map((p) => positionAt(track, p, 'P', 0));
+    const markers = [...svg.querySelectorAll('.sector-marker')];
+    for (const exp of expected) {
+      const near = markers.some((m) => {
+        const d = m.getAttribute('d')!;
+        const coords = [...d.matchAll(/(-?[\d.]+)\s+(-?[\d.]+)/g)].map((mm) => ({ x: +mm[1]!, y: +mm[2]! }));
+        const cx = coords.reduce((s, p) => s + p.x, 0) / coords.length;
+        const cy = coords.reduce((s, p) => s + p.y, 0) / coords.length;
+        return Math.hypot(cx - exp.x, cy - exp.y) < 1;
+      });
+      expect(near).toBe(true);
+    }
+  });
+
+  it('클릭 핸들러나 차량 풀에 포함되지 않으며 텍스트가 없다', () => {
+    new TrackRenderer(svg, track);
+    for (const marker of svg.querySelectorAll('.sector-marker')) {
+      expect(marker.closest('g.cars')).toBeNull();
+    }
+    expect(svg.querySelectorAll('.sector-marker text').length).toBe(0);
+  });
+});
+
+describe('F1 차량 아이콘 (P0-1)', () => {
+  it('hot 차량에 viewBox="0 0 512 512" 아이콘이 있다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    const icon = svg.querySelector('g.car svg.class-car-icon')!;
+    expect(icon.getAttribute('viewBox')).toBe('0 0 512 512');
+  });
+
+  it('cold 차량에도 같은 아이콘이 있다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a')]), T);
+    const icon = svg.querySelector('g.cold svg.class-car-icon')!;
+    expect(icon.getAttribute('viewBox')).toBe('0 0 512 512');
+  });
+
+  it('F1 경로의 고유 구간이 DOM에 있다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a')]), T);
+    expect(F1_CAR_PATH).toContain('M355.975 292.25');
+    const path = svg.querySelector('g.cold svg.class-car-icon path')!;
+    expect(path.getAttribute('d')).toContain('M355.975 292.25');
+  });
+
+  it('Skoll 저작자 표시 주석이 소스에 존재한다', () => {
+    const src = readFileSync('src/render/trackRenderer.ts', 'utf-8');
+    expect(src).toContain('Icon by Skoll, from game-icons.net, CC BY 3.0');
+  });
+
+  it('H/P/GT 차량마다 class-badge가 하나씩 있고 형태가 일치한다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([
+      car('h', { car_class: 'H' }),
+      car('p', { car_class: 'P' }),
+      car('g', { car_class: 'GT' }),
+    ]), T);
+    const groups = [...svg.querySelectorAll('g.cold')];
+    expect(groups.length).toBe(3);
+    for (const g of groups) {
+      expect(g.querySelectorAll('.class-badge').length).toBe(1);
+    }
+  });
+
+  it('배지는 aria-hidden이고 차량 본체·배지 모두 클래스 색상을 쓴다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('p', { car_class: 'P' })]), T);
+    const g = svg.querySelector('g.cold')!;
+    const badge = g.querySelector('.class-badge')!;
+    expect(badge.getAttribute('aria-hidden')).toBe('true');
+    expect(badge.getAttribute('stroke')).toBe(CLASS_STYLE.P.color);
+    const carIconPath = g.querySelector('svg.class-car-icon path')!;
+    expect(carIconPath.getAttribute('fill')).toBe(CLASS_STYLE.P.color);
+  });
+
+  it('모든 클래스의 배지 shape이 CLASS_STYLE과 일치한다', () => {
+    // 병렬 렌더는 순서 보장이 약하므로 클래스마다 새 SVG에서 하나씩 검증한다.
+    for (const cls of CAR_CLASSES) {
+      document.body.innerHTML = '';
+      const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      document.body.appendChild(svg2);
+      const r2 = new TrackRenderer(svg2, track);
+      r2.render(model([car(`solo-${cls}`, { car_class: cls })]), T);
+      const badge = svg2.querySelector('.class-badge')!;
+      const d = badge.getAttribute('d')!;
+      if (CLASS_STYLE[cls].shape === 'triangle') expect(d).toMatch(/Z$/);
+      if (CLASS_STYLE[cls].shape === 'circle') expect(d).toContain('A ');
+      if (CLASS_STYLE[cls].shape === 'square') expect(d.match(/L /g)?.length).toBe(3);
+    }
+  });
+
+  it('트랙 SVG 안에 차량 번호 텍스트가 없다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a', { car_number: 42 }), car('boom', { car_number: 7, error_count: 1 })]), T);
+    expect(svg.querySelectorAll('g.cars text').length).toBe(0);
+  });
+
+  it('hot 차량은 fuelRing과 alert을 여전히 갖는다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1 })]), T);
+    const g = svg.querySelector('g.car')!;
+    expect(g.querySelector('circle')).not.toBeNull();
+    expect(g.querySelector('.alert')).not.toBeNull();
+  });
+
+  it('차량 렌더 경로에 <image>, <img>, <use>가 없다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a'), car('boom', { error_count: 1 })]), T);
+    expect(svg.querySelectorAll('g.cars image, g.cars img, g.cars use').length).toBe(0);
   });
 });

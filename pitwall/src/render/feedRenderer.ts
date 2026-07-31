@@ -1,7 +1,9 @@
-import type { CarClass, CarEvent } from '../types';
-import { CLASS_STYLE } from '../config/theme';
+import type { CarClass, CarEvent, EventKind } from '../types';
+import { CLASS_STYLE, EVENT_POLARITY_COLOR } from '../config/theme';
 import { workOf, cachedOf } from '../state/reducer';
 import { setText } from './setText';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
  * 선택한 계정의 실시간 구동 내역.
@@ -21,6 +23,7 @@ export interface FeedTarget {
 
 interface Row {
   root: HTMLElement;
+  icon: SVGSVGElement;
   time: HTMLElement;
   model: HTMLElement;
   who: HTMLElement;
@@ -75,6 +78,97 @@ function rowKey(e: CarEvent): string {
   ].join('|');
 }
 
+/** 피드 행의 이벤트 극성. `CarEvent`에 없는 필드는 지어내지 않는다 (§4.3.2). */
+type Polarity = 'positive' | 'caution' | 'neutral';
+
+function polarityOf(e: CarEvent): Polarity {
+  if (e.status === 'error' || e.kind === 'error' || e.kind === 'limit_warn' || e.kind === 'retire') {
+    return 'caution';
+  }
+  return 'neutral';
+}
+
+type IconShape = { tag: 'path'; d: string } | { tag: 'circle'; cx: number; cy: number; r: number };
+type IconKey = 'general' | 'pit' | 'abnormal';
+
+/**
+ * 피드 행 첫 열의 generic 자동차 아이콘 (P1-1). 세 원본 SVG(`assets/f1/lucide/car.svg`,
+ * `assets/f1/tabler/car.svg`, `assets/f1/tabler/car-suv.svg`)에서 뗀 경로 문자열만
+ * 인라인한다 — 외부 이미지 태그나 href 참조는 쓰지 않는다.
+ */
+const FEED_ICON: Record<IconKey, { viewBox: string; shapes: IconShape[] }> = {
+  general: {
+    viewBox: '0 0 24 24',
+    shapes: [
+      { tag: 'path', d: 'M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2' },
+      { tag: 'circle', cx: 7, cy: 17, r: 2 },
+      { tag: 'path', d: 'M9 17h6' },
+      { tag: 'circle', cx: 17, cy: 17, r: 2 },
+    ],
+  },
+  pit: {
+    viewBox: '0 0 24 24',
+    shapes: [
+      { tag: 'path', d: 'M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' },
+      { tag: 'path', d: 'M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' },
+      { tag: 'path', d: 'M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5' },
+    ],
+  },
+  abnormal: {
+    viewBox: '0 0 24 24',
+    shapes: [
+      { tag: 'path', d: 'M5 17a2 2 0 1 0 4 0a2 2 0 0 0 -4 0' },
+      { tag: 'path', d: 'M16 17a2 2 0 1 0 4 0a2 2 0 0 0 -4 0' },
+      { tag: 'path', d: 'M5 9l2 -4h7.438a2 2 0 0 1 1.94 1.515l.622 2.485h3a2 2 0 0 1 2 2v3' },
+      { tag: 'path', d: 'M10 9v-4' },
+      { tag: 'path', d: 'M2 7v4' },
+      { tag: 'path', d: 'M22.001 14.001a4.992 4.992 0 0 0 -4.001 -2.001a4.992 4.992 0 0 0 -4 2h-3a4.998 4.998 0 0 0 -8.003 .003' },
+      { tag: 'path', d: 'M5 12v-3h13' },
+    ],
+  },
+};
+
+function iconKeyOf(kind: EventKind): IconKey {
+  if (kind === 'pit_in' || kind === 'pit_out') return 'pit';
+  if (kind === 'retire' || kind === 'error' || kind === 'limit_warn') return 'abnormal';
+  return 'general';
+}
+
+function createFeedIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'feed-icon');
+  svg.setAttribute('width', '12');
+  svg.setAttribute('height', '12');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', EVENT_POLARITY_COLOR.neutral);
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  return svg;
+}
+
+/** 아이콘 종류가 바뀔 때만 자식을 새로 그린다 — 매 프레임 다시 쓰지 않는다. */
+function paintFeedIcon(svg: SVGSVGElement, key: IconKey): void {
+  if (svg.getAttribute('data-icon') === key) return;
+  svg.setAttribute('data-icon', key);
+  const def = FEED_ICON[key];
+  svg.setAttribute('viewBox', def.viewBox);
+  svg.replaceChildren();
+  for (const shape of def.shapes) {
+    if (shape.tag === 'path') {
+      const el = document.createElementNS(SVG_NS, 'path');
+      el.setAttribute('d', shape.d);
+      svg.appendChild(el);
+    } else {
+      const el = document.createElementNS(SVG_NS, 'circle');
+      el.setAttribute('cx', String(shape.cx));
+      el.setAttribute('cy', String(shape.cy));
+      el.setAttribute('r', String(shape.r));
+      svg.appendChild(el);
+    }
+  }
+}
+
 export class FeedRenderer {
   private root: HTMLElement;
   private title: HTMLElement;
@@ -105,6 +199,7 @@ export class FeedRenderer {
       row.className = 'feed-row';
       row.style.display = 'none';
 
+      const icon = createFeedIcon();
       const time = document.createElement('span');
       time.className = 'feed-time';
       const model = document.createElement('span');
@@ -114,9 +209,9 @@ export class FeedRenderer {
       const size = document.createElement('span');
       size.className = 'feed-size';
 
-      row.append(time, model, who, size);
+      row.append(icon, time, model, who, size);
       this.root.appendChild(row);
-      this.rows.push({ root: row, time, model, who, size });
+      this.rows.push({ root: row, icon, time, model, who, size });
     }
 
     container.appendChild(this.root);
@@ -158,6 +253,9 @@ export class FeedRenderer {
       const e = entry.event;
       const status = e.status === 'error' ? 'error' : 'ok';
       if (row.root.getAttribute('data-status') !== status) row.root.setAttribute('data-status', status);
+      const polarity = polarityOf(e);
+      if (row.root.getAttribute('data-polarity') !== polarity) row.root.setAttribute('data-polarity', polarity);
+      paintFeedIcon(row.icon, iconKeyOf(e.kind));
 
       setText(row.time, clockOf(e.wall_ts ?? e.ts));
       setText(row.model, shortModel(e.model));

@@ -2,7 +2,7 @@ import { trackWidth, TRACK_STROKE } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
 import { positionAt, pitBoxes, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
 import { Projector } from './projection';
-import { CLASS_STYLE } from '../config/theme';
+import { CLASS_STYLE, TRACK_COLOR, BACKGROUND, EVENT_POLARITY_COLOR } from '../config/theme';
 import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
 import { HOT_CAP } from '../track/trackModel';
@@ -18,24 +18,46 @@ const GLYPH_SIZE = 5;
 export const TRACK_WIDTH = TRACK_STROKE;
 export const GLYPH_DIAMETER = GLYPH_SIZE * 2;
 
+/**
+ * F1 차량 실루엣 본체 경로. `assets/f1/game-icons/f1-car.svg`(Skoll, Game Icons,
+ * CC BY 3.0)의 흰색 본체 `d` 값만 뗀 것이다 — 원본의 검은 배경 사각형 경로는
+ * 쓰지 않는다. 클래스 색으로 칠할 수 없고 배경과 겹쳐 차량 실루엣을 흐리기 때문이다.
+ * viewBox는 원본과 같은 `0 0 512 512`.
+ */
+export const F1_CAR_PATH =
+  'M355.975 292.25a24.82 24.82 0 1 0 24.82-24.81 24.84 24.84 0 0 0-24.82 24.81zm-253-24.81a24.81 24.81 0 1 1-24.82 24.81 24.84 24.84 0 0 1 24.81-24.81zm-76.67-71.52h67.25l-13.61 49.28 92-50.28h57.36l1.26 34.68 32 14.76 11.74-14.44h15.62l3.16 16c137.56-13 192.61 29.17 192.61 29.17s-7.52 5-25.93 8.39c-3.88 3.31-3.66 14.44-3.66 14.44h24.2v16h-52v-27.48c-1.84.07-4.45.41-7.06.47a40.81 40.81 0 1 0-77.25 23h-204.24a40.81 40.81 0 1 0-77.61-17.67c0 1.24.06 2.46.17 3.67h-36z';
 
+/**
+ * CC BY 3.0 저작자 표시. game-icons.net 라이선스는 인라인 SVG 코드 바로 앞에
+ * HTML 주석으로 저작자를 남기도록 요구한다. 실제 DOM `Comment` 노드로 심어야
+ * 번들된 HTML에서도 지워지지 않는다 — 소스 주석은 빌드 시 사라진다.
+ */
+const SKOLL_CREDIT = ' Icon by Skoll, from game-icons.net, CC BY 3.0 ';
+
+/** F1 아이콘이 그룹 원점 기준 차지하는 자리 (user unit). */
+const CAR_ICON = { x: -9, y: -6, width: 18, height: 12 };
+/** 클래스 배지 반지름/반폭과 차량 아래 중앙 위치. */
+const BADGE_RADIUS = 2.5;
+const BADGE_Y = 8.5;
 
 /**
  * 멈춤 사유별 표시. 글자가 아니라 획으로 그린다 (§6.3: 트랙 위 텍스트 금지).
  *
  * 에러와 한도는 둘 다 "더 못 간다"지만 원인이 다르다 —
- * 에러는 호출이 실패한 것이고, 한도는 예산이 떨어진 것이다. 구분해서 보여준다.
+ * 에러는 호출이 실패한 것이고, 한도는 예산이 떨어진 것이다. 모양으로 구분한다.
+ * 색은 둘 다 이벤트 극성의 `caution`을 공유한다 (§4.3.1) — 따뜻한 노랑은
+ * 델타·갭 숫자 전용이라 여기 남을 수 없다.
  */
 const STOP_MARK: Record<string, { d: string; color: string }> = {
   // 느낌표 — 획 + 점
   error: {
     d: `M 0 ${-GLYPH_SIZE - 20} L 0 ${-GLYPH_SIZE - 9} M 0 ${-GLYPH_SIZE - 5} L 0 ${-GLYPH_SIZE - 4}`,
-    color: '#ff5c5c',
+    color: EVENT_POLARITY_COLOR.caution,
   },
   // 빈 게이지 — 가로 두 줄. 연료가 바닥났다는 뜻이다
   limit: {
     d: `M -7 ${-GLYPH_SIZE - 16} L 7 ${-GLYPH_SIZE - 16} M -7 ${-GLYPH_SIZE - 8} L 7 ${-GLYPH_SIZE - 8}`,
-    color: '#ffd24d',
+    color: EVENT_POLARITY_COLOR.caution,
   },
 };
 
@@ -54,7 +76,10 @@ const PROJECTION_CLAMP = 0.95;
 
 interface HotNode {
   group: SVGGElement;
-  body: SVGPathElement;
+  /** F1 차량 실루엣 본체 — hot/cold 공통. */
+  carIcon: SVGPathElement;
+  /** 클래스 배지 — 삼각형/원/사각형. */
+  badge: SVGPathElement;
   fuelRing: SVGCircleElement;
   /** 경고 표시. 글자가 아니라 도형이다 (§6.3: 트랙 위 텍스트 금지) */
   alert: SVGPathElement;
@@ -67,7 +92,8 @@ interface HotNode {
 
 interface ColdNode {
   group: SVGGElement;
-  body: SVGPathElement;
+  carIcon: SVGPathElement;
+  badge: SVGPathElement;
   /** 이 슬롯이 현재 맡은 차량. 바뀌면 모양·색을 다시 칠한다. */
   carId: string;
   carClass: CarClass | null;
@@ -76,6 +102,9 @@ interface ColdNode {
 /**
  * 글리프 경로. 오프셋은 path 데이터에 굽는다 —
  * SVG `transform` 속성을 쓰면 검수 게이트의 grep이 정적/동적을 구분하지 못한다.
+ *
+ * 차량 본체가 F1 실루엣으로 바뀐 뒤에도 삭제하지 않는다 — 클래스 배지가
+ * 여전히 이 함수로 삼각형/원/사각형을 그린다.
  */
 function glyphPath(shape: 'circle' | 'triangle' | 'square', s: number, dx = 0, dy = 0): string {
   switch (shape) {
@@ -86,6 +115,44 @@ function glyphPath(shape: 'circle' | 'triangle' | 'square', s: number, dx = 0, d
     case 'circle':
       return `M ${dx - s} ${dy} A ${s} ${s} 0 1 0 ${dx + s} ${dy} A ${s} ${s} 0 1 0 ${dx - s} ${dy} Z`;
   }
+}
+
+/**
+ * 차량 본체(F1 실루엣) + 클래스 배지를 그룹에 붙인다. hot·cold가 구조를 공유한다.
+ * 배지가 먼저, F1 아이콘이 다음이다 — 배지가 차량 실루엣을 가리지 않는 순서.
+ */
+function appendCarBody(group: SVGGElement): { badge: SVGPathElement; carIcon: SVGPathElement } {
+  const badge = document.createElementNS(SVG_NS, 'path');
+  badge.setAttribute('class', 'class-badge');
+  badge.setAttribute('aria-hidden', 'true');
+  badge.setAttribute('fill', BACKGROUND);
+  badge.setAttribute('stroke-width', '1.25');
+  group.appendChild(badge);
+
+  group.appendChild(document.createComment(SKOLL_CREDIT));
+
+  const iconSvg = document.createElementNS(SVG_NS, 'svg');
+  iconSvg.setAttribute('class', 'class-car-icon');
+  iconSvg.setAttribute('viewBox', '0 0 512 512');
+  iconSvg.setAttribute('x', String(CAR_ICON.x));
+  iconSvg.setAttribute('y', String(CAR_ICON.y));
+  iconSvg.setAttribute('width', String(CAR_ICON.width));
+  iconSvg.setAttribute('height', String(CAR_ICON.height));
+
+  const carIcon = document.createElementNS(SVG_NS, 'path');
+  carIcon.setAttribute('d', F1_CAR_PATH);
+  iconSvg.appendChild(carIcon);
+  group.appendChild(iconSvg);
+
+  return { badge, carIcon };
+}
+
+/** carClass가 바뀔 때만 배지·아이콘의 모양과 색을 다시 칠한다. */
+function paintCarClass(badge: SVGPathElement, carIcon: SVGPathElement, carClass: CarClass): void {
+  const style = CLASS_STYLE[carClass];
+  badge.setAttribute('d', glyphPath(style.shape, BADGE_RADIUS, 0, BADGE_Y));
+  badge.setAttribute('stroke', style.color);
+  carIcon.setAttribute('fill', style.color);
 }
 
 /**
@@ -107,6 +174,36 @@ function applyHeat(el: SVGGElement, heat: number, idle: boolean): void {
 function translate(el: SVGGElement, p: Point): void {
   el.style.transform = `translate(${p.x.toFixed(2)}px, ${p.y.toFixed(2)}px)`;
 }
+
+/** 단위 벡터. 길이 0이면 항등 벡터를 돌려준다 — 0으로 나누는 사고를 막는다. */
+function unit(dx: number, dy: number): Point {
+  const len = Math.hypot(dx, dy) || 1;
+  return { x: dx / len, y: dy / len };
+}
+
+/** 진행 방향을 90도 회전한 횡단 벡터. */
+function perpendicular(v: Point): Point {
+  return { x: -v.y, y: v.x };
+}
+
+/**
+ * 사각형 한 칸의 경로를 두 기저 벡터(along, trans)로 직접 굽는다.
+ * SVG `transform`을 쓰면 정적 검사 grep이 회전을 못 본다. 기저가 표준 x/y
+ * 단위 벡터면 축 정렬 사각형과 같은 결과를 낸다 — 피트 표지가 그 경우다.
+ */
+function vecRect(corner: Point, along: Point, trans: Point, alongLen: number, transLen: number): string {
+  const p1 = corner;
+  const p2 = { x: corner.x + trans.x * transLen, y: corner.y + trans.y * transLen };
+  const p3 = { x: p2.x + along.x * alongLen, y: p2.y + along.y * alongLen };
+  const p4 = { x: corner.x + along.x * alongLen, y: corner.y + along.y * alongLen };
+  return [p1, p2, p3, p4]
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(' ') + ' Z';
+}
+
+/** 표준 x/y 축 — 기존 축 정렬 사각형(피트 표지)이 쓰는 기저. */
+const AXIS_X: Point = { x: 1, y: 0 };
+const AXIS_Y: Point = { x: 0, y: 1 };
 
 /**
  * `TrackModel`을 SVG로 그린다. 무엇을 그릴지는 정하지 않는다 — 모델이 정한다.
@@ -145,6 +242,8 @@ export class TrackRenderer {
     // 위아래로 갈라 죽은 띠를 만든다 — 실측 4K에서 647px가 그렇게 죽어 있었다.
     this.container.style.aspectRatio = String(track.aspect);
     this.drawCenterline();
+    this.drawStartFinish();
+    this.drawSectorMarkers();
     this.carLayer = document.createElementNS(SVG_NS, 'g');
     this.carLayer.setAttribute('class', 'cars');
     this.container.appendChild(this.carLayer);
@@ -158,7 +257,7 @@ export class TrackRenderer {
     path.setAttribute('class', 'track-centerline');
     path.setAttribute('d', d);
     path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', '#2a323d');
+    path.setAttribute('stroke', TRACK_COLOR.centerline);
     path.setAttribute('stroke-width', String(TRACK_WIDTH));
     path.setAttribute('stroke-linejoin', 'round');
     this.container.appendChild(path);
@@ -178,7 +277,7 @@ export class TrackRenderer {
     path.setAttribute('d', pts
       .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' '));
     path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', '#1c222b');
+    path.setAttribute('stroke', TRACK_COLOR.pitLane);
     path.setAttribute('stroke-width', String(PIT_LANE_STROKE));
     path.setAttribute('stroke-linecap', 'round');
     this.container.appendChild(path);
@@ -192,6 +291,7 @@ export class TrackRenderer {
   /**
    * 체커기(체커드 플래그) 표지. 글자가 아니라 획으로 그린다 (§6.3: 트랙 위 텍스트 금지).
    * 중심을 (cx, cy)에 두고, 좌표는 path에 굽는다 — glyphPath와 같은 이유로 transform을 쓰지 않는다.
+   * `vecRect`를 표준 x/y 기저로 호출하므로 좌표·크기는 예전과 완전히 같다.
    */
   private drawPitFlag(cx: number, cy: number): void {
     const q = 4.5;
@@ -199,29 +299,113 @@ export class TrackRenderer {
     const rows = 2;
     const gx = cx - (cols * q) / 2 + 1;
     const gy = cy - (rows * q) / 2;
-    const rect = (x: number, y: number, w: number, h: number): string =>
-      `M ${x.toFixed(2)} ${y.toFixed(2)} L ${(x + w).toFixed(2)} ${y.toFixed(2)} ` +
-      `L ${(x + w).toFixed(2)} ${(y + h).toFixed(2)} L ${x.toFixed(2)} ${(y + h).toFixed(2)} Z`;
 
     // 깃대 + 천 바탕. 어두운 채움이라 밝은 칸이 대비로 뜬다.
     const base = document.createElementNS(SVG_NS, 'path');
     base.setAttribute('class', 'pit-label');
-    base.setAttribute('d', rect(gx - 3, gy - 3, 1.6, cols * q + 6) + ' ' + rect(gx, gy, cols * q, rows * q));
-    base.setAttribute('fill', '#11161d');
+    base.setAttribute('d',
+      vecRect({ x: gx - 3, y: gy - 3 }, AXIS_Y, AXIS_X, cols * q + 6, 1.6) + ' ' +
+      vecRect({ x: gx, y: gy }, AXIS_Y, AXIS_X, rows * q, cols * q));
+    base.setAttribute('fill', TRACK_COLOR.markerDark);
     this.container.appendChild(base);
 
     // 밝은 칸만 그린다 — (행+열)이 짝수인 칸. 나머지는 바탕이 비쳐 체커 무늬가 된다.
     let checker = '';
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        if ((r + c) % 2 === 0) checker += rect(gx + c * q, gy + r * q, q, q) + ' ';
+        if ((r + c) % 2 === 0) {
+          checker += vecRect({ x: gx + c * q, y: gy + r * q }, AXIS_Y, AXIS_X, q, q) + ' ';
+        }
       }
     }
     const light = document.createElementNS(SVG_NS, 'path');
     light.setAttribute('class', 'pit-label');
     light.setAttribute('d', checker.trim());
-    light.setAttribute('fill', '#e8edf3');
+    light.setAttribute('fill', TRACK_COLOR.markerLight);
     this.container.appendChild(light);
+  }
+
+  /**
+   * 스타트/피니시 체커 스트립. 진행률 0(`track.points[0]`) 위에 그린다.
+   * 진행 방향·횡단 방향 두 기저 벡터로 좌표를 직접 계산한다 — 코스가 그 지점에서
+   * 어느 쪽을 향하든 스트립이 중심선에 수직으로 걸린다.
+   */
+  private drawStartFinish(): void {
+    const n = this.track.points.length;
+    const p0 = this.track.points[0]!;
+    const prev = this.track.points[n - 1]!;
+    const next = this.track.points[1]!;
+    const along = unit(next.x - prev.x, next.y - prev.y);
+    const trans = perpendicular(along);
+
+    const alongHalf = 6;   // 진행 방향 전체 12의 절반
+    const transHalf = 8;   // 횡단 방향 전체 16의 절반
+    const cellAlong = 6;   // 칸 하나의 진행 방향 길이 (2행)
+    const cellTrans = 4;   // 칸 하나의 횡단 방향 길이 (4열)
+
+    const marker = document.createElementNS(SVG_NS, 'g');
+    marker.setAttribute('class', 'start-finish-marker');
+
+    const originCorner = (): Point => ({
+      x: p0.x - along.x * alongHalf - trans.x * transHalf,
+      y: p0.y - along.y * alongHalf - trans.y * transHalf,
+    });
+
+    const base = document.createElementNS(SVG_NS, 'path');
+    base.setAttribute('data-cell', 'base');
+    base.setAttribute('d', vecRect(originCorner(), along, trans, alongHalf * 2, transHalf * 2));
+    base.setAttribute('fill', TRACK_COLOR.markerDark);
+    marker.appendChild(base);
+
+    const rows = 2;
+    const cols = 4;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if ((r + c) % 2 !== 0) continue;
+        const corner = {
+          x: originCorner().x + along.x * (r * cellAlong) + trans.x * (c * cellTrans),
+          y: originCorner().y + along.y * (r * cellAlong) + trans.y * (c * cellTrans),
+        };
+        const cell = document.createElementNS(SVG_NS, 'path');
+        cell.setAttribute('data-cell', 'light');
+        cell.setAttribute('d', vecRect(corner, along, trans, cellAlong, cellTrans));
+        cell.setAttribute('fill', TRACK_COLOR.markerLight);
+        marker.appendChild(cell);
+      }
+    }
+
+    this.container.appendChild(marker);
+  }
+
+  /**
+   * 섹터 경계 틱. `Track.sectors`의 0이 아닌 두 경계(1/3, 2/3)에 짧은 수직 틱을
+   * 그린다 — 0 경계는 스타트/피니시 스트립이 이미 표시하므로 건너뛴다.
+   * `sectors`가 계약([0, 1/3, 2/3])과 다르면 아무것도 그리지 않는다.
+   */
+  private drawSectorMarkers(): void {
+    const [s0, s1, s2] = this.track.sectors;
+    if (s0 !== 0 || !(s1 > 0 && s1 < s2 && s2 < 1)) return;
+
+    const n = this.track.points.length;
+    for (const progress of [s1, s2]) {
+      const point = positionAt(this.track, progress, 'P', 0);
+      const idx = Math.floor(((progress % 1) + 1) % 1 * n) % n;
+      const prev = this.track.points[(idx - 1 + n) % n]!;
+      const next = this.track.points[(idx + 1) % n]!;
+      const along = unit(next.x - prev.x, next.y - prev.y);
+      const trans = perpendicular(along);
+
+      const tick = document.createElementNS(SVG_NS, 'path');
+      tick.setAttribute('class', 'sector-marker');
+      tick.setAttribute('d',
+        `M ${(point.x - trans.x * 6).toFixed(2)} ${(point.y - trans.y * 6).toFixed(2)} ` +
+        `L ${(point.x + trans.x * 6).toFixed(2)} ${(point.y + trans.y * 6).toFixed(2)}`);
+      tick.setAttribute('stroke', TRACK_COLOR.sector);
+      tick.setAttribute('stroke-width', '2');
+      tick.setAttribute('stroke-linecap', 'round');
+      tick.setAttribute('fill', 'none');
+      this.container.appendChild(tick);
+    }
   }
 
   private hotSlot(index: number): HotNode {
@@ -235,7 +419,8 @@ export class TrackRenderer {
       if (id) this.selectHandler?.(id);
     });
 
-    const body = document.createElementNS(SVG_NS, 'path');
+    const { badge, carIcon } = appendCarBody(group);
+
     const fuelRing = document.createElementNS(SVG_NS, 'circle');
     fuelRing.setAttribute('r', String(GLYPH_SIZE + 3));
     fuelRing.setAttribute('fill', 'none');
@@ -249,10 +434,10 @@ export class TrackRenderer {
     alert.setAttribute('stroke-linecap', 'round');
     alert.style.opacity = '0';
 
-    group.append(fuelRing, body, alert);
+    group.append(fuelRing, alert);
     this.carLayer.appendChild(group);
 
-    const node: HotNode = { group, body, fuelRing, alert, carId: '', carClass: null, reason: '' };
+    const node: HotNode = { group, carIcon, badge, fuelRing, alert, carId: '', carClass: null, reason: '' };
     this.hotPool[index] = node;
     return node;
   }
@@ -269,11 +454,10 @@ export class TrackRenderer {
       const id = this.coldPool[index]?.carId;
       if (id) this.selectHandler?.(id);
     });
-    const body = document.createElementNS(SVG_NS, 'path');
-    group.append(body);
+    const { badge, carIcon } = appendCarBody(group);
     this.carLayer.appendChild(group);
 
-    const node: ColdNode = { group, body, carId: '', carClass: null };
+    const node: ColdNode = { group, carIcon, badge, carId: '', carClass: null };
     this.coldPool[index] = node;
     return node;
   }
@@ -303,9 +487,7 @@ export class TrackRenderer {
 
       if (node.carId !== car.carId) {
         if (node.carClass !== car.carClass) {
-          const style = CLASS_STYLE[car.carClass];
-          node.body.setAttribute('d', glyphPath(style.shape, GLYPH_SIZE));
-          node.body.setAttribute('fill', style.color);
+          paintCarClass(node.badge, node.carIcon, car.carClass);
           node.carClass = car.carClass;
         }
         node.carId = car.carId;
@@ -357,10 +539,8 @@ export class TrackRenderer {
 
       if (node.carId !== car.carId) {
         if (node.carClass !== car.carClass) {
-          const style = CLASS_STYLE[car.carClass];
-          node.body.setAttribute('d', glyphPath(style.shape, GLYPH_SIZE));
-          node.body.setAttribute('fill', style.color);
-          node.fuelRing.setAttribute('stroke', style.color);
+          paintCarClass(node.badge, node.carIcon, car.carClass);
+          node.fuelRing.setAttribute('stroke', CLASS_STYLE[car.carClass].color);
           node.carClass = car.carClass;
         }
         node.carId = car.carId;
