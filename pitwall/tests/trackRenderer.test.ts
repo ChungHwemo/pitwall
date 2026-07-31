@@ -121,15 +121,12 @@ describe('TrackRenderer', () => {
     expect(svg.querySelectorAll('*').length).toBeLessThanOrEqual(800);
   });
 
-  // 의도 축소 2단계: 금지 대상은 **붐빌 때** 차량에 붙는 글자다. 30대에 이름표를
-  // 달면 글자가 겹쳐 글리프까지 못 읽는다. 두어 대뿐일 때는 반대로 라벨이 없으면
-  // 클릭해야만 누구인지 알 수 있어 앰비언트가 아니게 된다 — 밀도로 정한다.
-  it('붐빌 때는 차량에 글자를 붙이지 않는다', () => {
+  // 하드 룰: 트랙 위 텍스트 라벨 금지. 밀도와 무관하게 차량 글리프에는 글자를 붙이지 않는다.
+  it('차량 글리프에는 글자를 붙이지 않는다', () => {
     const r = new TrackRenderer(svg, track);
     const cars = Array.from({ length: 30 }, (_, i) => car(`car-${i}`));
     r.render(model(cars), T);
-    const shown = [...svg.querySelectorAll('g.cars text')].filter((n) => n.textContent !== '');
-    expect(shown).toEqual([]);
+    expect(svg.querySelectorAll('g.cars text').length).toBe(0);
   });
 
   it('노드를 재사용한다 — 반복 렌더에도 노드 수가 늘지 않는다', () => {
@@ -405,11 +402,11 @@ describe('사건 차량 정지', () => {
 
   it('경고 표시는 텍스트가 아니라 도형이다', () => {
     // 경고는 도형이다 (PRD §6.3). 느낌표를 글자로 그리지 않는다 —
-    // 카넘버 라벨은 경고가 아니므로 여기서 세지 않는다.
+    // 카넘버는 트랙 밖(카메라 카드)에서만 뜨므로 트랙 SVG 안에는 글자가 없다.
     const r = new TrackRenderer(svg, track);
     r.render(model([car('boom', { error_count: 1, car_number: 7 })]), T);
     const text = [...svg.querySelectorAll('g.cars text')].map((n) => n.textContent);
-    expect(text).toEqual(['7']);
+    expect(text).toEqual([]);
   });
 
   it('핀 고정에는 경고 표시를 띄우지 않는다', () => {
@@ -575,19 +572,16 @@ describe('피트 표지', () => {
 });
 
 describe('트랙 라벨', () => {
-  it('차가 몇 대 없으면 카넘버를 트랙에 쓴다 — 클릭해야 아는 화면은 앰비언트가 아니다', () => {
+  it('트랙 SVG 안에는 차량 텍스트가 없다 — 식별은 카메라 카드(#NNN)에서만 한다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('a', { car_number: 12 }), car('b', { car_number: 883 })]), T);
-    const labels = [...svg.querySelectorAll('g.cars text')]
-      .map((n) => n.textContent).filter((t) => t !== '');
-    expect(labels).toEqual(['12', '883']);
+    expect(svg.querySelectorAll('g.cars text').length).toBe(0);
   });
 
-  it('붐비면 라벨을 끈다 — 글자가 겹치면 글리프까지 못 읽는다', () => {
+  it('붐벼도 트랙에 차량 텍스트가 없다 — 밀도와 무관하게 글자를 쓰지 않는다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model(Array.from({ length: 30 }, (_, i) => car(`car-${i}`))), T);
-    const shown = [...svg.querySelectorAll('g.cars text')].filter((n) => n.textContent !== '');
-    expect(shown).toEqual([]);
+    expect(svg.querySelectorAll('g.cars text').length).toBe(0);
   });
 });
 
