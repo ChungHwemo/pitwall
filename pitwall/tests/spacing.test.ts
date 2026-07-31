@@ -52,3 +52,18 @@ describe('spreadProgress', () => {
     expect(Math.abs(b[1]! - a[1]!)).toBeCloseTo(0.01, 6);
   });
 });
+
+describe('결승선 경계', () => {
+  it('한 바퀴를 넘겨 감아 돌 때 앞차 위에 겹치지 않는다', () => {
+    // 0.9~0.99 에 몰린 무리. 밀다 보면 1을 넘어 0 근처로 감긴다.
+    const raw = Array.from({ length: 12 }, (_, i) => 0.90 + i * 0.008);
+    const out = spreadProgress(raw);
+    const sorted = [...out].sort((a, b) => a - b);
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(MIN_SPACING - 1e-9);
+    }
+    // 폐곡선이므로 마지막과 첫 번째 사이도 봐야 한다.
+    const wrapGap = 1 - sorted[sorted.length - 1]! + sorted[0]!;
+    expect(wrapGap).toBeGreaterThanOrEqual(MIN_SPACING - 1e-9);
+  });
+});

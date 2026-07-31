@@ -8,9 +8,9 @@ import { activityOf } from '../state/reducer';
  * 트랙 폭 102 안에서 세 레인이 겹치지 않게 벌린다.
  */
 export const LANE_OFFSETS: Record<CarClass, number> = {
-  H: 30,
+  H: 14,
   P: 0,
-  GT: -30,
+  GT: -14,
 };
 
 /**
@@ -19,22 +19,29 @@ export const LANE_OFFSETS: Record<CarClass, number> = {
  * 이게 없으면 앞뒤로만 스쳐 지나가 추월이 보이지 않는다.
  * 차량마다 고정된 값이라 같은 차는 늘 같은 라인을 탄다 — 실제 드라이버처럼.
  */
-export const LANE_JITTER = 11;
+/**
+ * 레인 안 좌우 흔들림.
+ *
+ * 진행률만으로는 같은 지점에 몰린 차를 못 벌린다 — 폭을 절반으로 줄인 뒤
+ * 지터 4로는 좌우 최대 8밖에 안 벌어져 글리프가 겹쳤다. 절반폭 25.5에서
+ * 레인 14 + 지터 7 + 글리프 반지름 5 = 26으로, 주행선을 벗어나지 않는 한계다.
+ */
+export const LANE_JITTER = 7;
 
 /** 트랙 스트로크 폭의 절반. 피트가 주행선 밖에 있는지 판정하는 기준이다. */
-export const TRACK_HALF_WIDTH = 51;
+export const TRACK_HALF_WIDTH = 25.5;
 
 /** 글리프 지름. 피트 박스 간격의 하한이다. */
-export const GLYPH_DIAMETER = 14;
+export const GLYPH_DIAMETER = 10;
 
 /**
  * 피트 레인은 주행선을 벗어난 자리다. 실제 서킷처럼 **안쪽**으로 뺀다 —
  * 바깥으로 빼면 좌표계를 벗어나 화면 밖에 서는 코너가 생긴다. 인필드는 비어 있다.
  */
-export const PIT_LANE_OFFSET = -(TRACK_HALF_WIDTH + 44);
+export const PIT_LANE_OFFSET = -(TRACK_HALF_WIDTH + 30);
 
 /** 피트 박스 사이 간격 (진행률). 글리프가 겹치지 않을 만큼. */
-const PIT_BOX_GAP = 0.011;
+const PIT_BOX_GAP = 0.008;
 
 /**
  * 정지한 차가 서는 자리.

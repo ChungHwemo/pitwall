@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateTrack, validateTrack, trackWidth } from '../src/track/generateTrack';
+import { generateTrack, validateTrack, trackWidth, DEFAULT_SHAPE } from '../src/track/generateTrack';
 
 describe('generateTrack', () => {
   it('같은 시드는 같은 트랙을 만든다', () => {
@@ -90,10 +90,54 @@ describe('가로 비율', () => {
   });
 
   it('비율을 안 주면 예전과 같은 정사각 코스다', () => {
-    expect(generateTrack(7)).toEqual(generateTrack(7, { resolution: 240, lobes: 3, aspect: 1 }));
+    expect(generateTrack(7)).toEqual(generateTrack(7, { ...DEFAULT_SHAPE, aspect: 1 }));
   });
 
   it('늘어난 코스도 검사를 통과한다', () => {
     expect(validateTrack(generateTrack(7, { resolution: 240, lobes: 3, aspect: 1.6 }))).toEqual([]);
+  });
+});
+
+describe('코스 길이와 자기간섭', () => {
+  const perim = (t: ReturnType<typeof generateTrack>) => t.points.reduce(
+    (s, _, i) => s + Math.hypot(
+      t.points[(i + 1) % t.points.length]!.x - t.points[i]!.x,
+      t.points[(i + 1) % t.points.length]!.y - t.points[i]!.y), 0);
+
+  it('예전보다 긴 코스를 만든다 — 한 바퀴가 짧으면 움직임이 안 읽힌다', () => {
+    // 화면이 쓰는 가로 비율에서 잰다 — 정사각 코스는 원래 더 짧다.
+    expect(perim(generateTrack(7, { ...DEFAULT_SHAPE, aspect: 1.5 }))).toBeGreaterThan(3200);
+  });
+
+  it('코스가 자기 자신과 겹치지 않는다 — 리본이 붙으면 어느 쪽이 주행선인지 모른다', () => {
+    // 호로 충분히 떨어진 두 점은 트랙 폭보다 멀어야 한다.
+    for (const seed of [7, 11, 2026]) {
+      const t = generateTrack(seed, { ...DEFAULT_SHAPE, aspect: 1.5 });
+      expect(validateTrack(t)).toEqual([]);
+    }
+  });
+
+  it('겹치는 코스는 검사에서 걸러진다', () => {
+    // 억지로 두 지점을 붙여 놓으면 잡아내야 한다.
+    const t = generateTrack(7);
+    const half = Math.floor(t.points.length / 2);
+    t.points[half] = { ...t.points[0]! };
+    expect(validateTrack(t)).toContain('course touches itself');
+  });
+})
+
+describe('호 길이 균일', () => {
+  it('점 간격이 고르다 — 안 그러면 좁은 코너에서 차가 뭉치고 속도가 들쭉날쭉하다', () => {
+    const t = generateTrack(2026, { ...DEFAULT_SHAPE, aspect: 1.5 });
+    const seg: number[] = [];
+    for (let i = 0; i < t.points.length; i++) {
+      const a = t.points[i]!;
+      const b = t.points[(i + 1) % t.points.length]!;
+      seg.push(Math.hypot(b.x - a.x, b.y - a.y));
+    }
+    const avg = seg.reduce((s, v) => s + v, 0) / seg.length;
+    // 가장 짧은 구간이 평균의 절반 밑으로 내려가면 그 자리에서 진행률이 압축된다.
+    expect(Math.min(...seg)).toBeGreaterThan(avg * 0.6);
+    expect(Math.max(...seg)).toBeLessThan(avg * 1.6);
   });
 });

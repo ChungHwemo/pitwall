@@ -30,12 +30,14 @@ function setLabel(node: { label: SVGTextElement }, text: string, on: boolean): v
   const want = on ? text : '';
   if (node.label.textContent !== want) node.label.textContent = want;
 }
-const GLYPH_SIZE = 7;
+/** 글리프 반지름. 트랙 폭을 절반으로 줄이며 같이 줄였다 — 51폭에 지름 14는 리본의 27%다. */
+const GLYPH_SIZE = 5;
 /**
  * 트랙 폭. 레인 3개 + 각 레인의 추월 여유가 이 안에 들어가야 한다.
  * 34였을 때는 바깥 레인 차량이 트랙 밖으로 나갔다.
  */
-export const TRACK_WIDTH = 102;
+export /** 주행선 폭. 절반으로 줄이면서 레인 오프셋과 피트도 같이 줄었다. */
+const TRACK_WIDTH = 51;
 export const GLYPH_DIAMETER = GLYPH_SIZE * 2;
 
 
@@ -183,7 +185,7 @@ export class TrackRenderer {
       .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' '));
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', '#1c222b');
-    path.setAttribute('stroke-width', '26');
+    path.setAttribute('stroke-width', '15');
     path.setAttribute('stroke-linecap', 'round');
     this.container.appendChild(path);
 
@@ -264,10 +266,9 @@ export class TrackRenderer {
     const labelled = model.cold.length + model.hot.length <= LABEL_MAX_CARS;
     this.renderCold(model.cold, labelled, now);
     this.renderHot(model.hot, labelled, now);
-    // 화면을 떠난 차의 투영 상태는 버린다.
-    this.projector.retain(new Set([
-      ...model.cold.map((c) => c.carId), ...model.hot.map((c) => c.carId),
-    ]));
+    // 오래 보이지 않은 차만 버린다. 유휴로 잠깐 빠진 차는 자리를 지켜야
+    // 돌아올 때 이어 달린다.
+    this.projector.sweep(now);
   }
 
   private markSelection(group: SVGGElement, carId: string): void {

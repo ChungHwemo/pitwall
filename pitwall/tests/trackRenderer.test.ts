@@ -508,3 +508,25 @@ describe('트랙 상자', () => {
     expect(svg.style.aspectRatio.replace(/\s*\/\s*1$/, '')).toBe(String(track.aspect));
   });
 });
+
+describe('샘플 사이 움직임', () => {
+  it('이벤트가 없는 프레임에도 위치가 바뀐다 — 안 그러면 정지 화면이다', () => {
+    const r = new TrackRenderer(svg, track);
+    const xy = () => {
+      const g = svg.querySelector('g.car, g.cold') as SVGGElement;
+      return g.style.transform;
+    };
+
+    // 두 번의 샘플로 속도를 잡는다.
+    r.render(model([car('a', { distance: 0 })]), 1_000);
+    r.render(model([car('a', { distance: 10_000 })]), 2_000);
+
+    // 이후 같은 상태로 프레임만 흐른다.
+    const frames: string[] = [];
+    for (let t = 2_016; t < 2_200; t += 16) {
+      r.render(model([car('a', { distance: 10_000 })]), t);
+      frames.push(xy());
+    }
+    expect(new Set(frames).size).toBeGreaterThan(frames.length - 2);
+  });
+});
