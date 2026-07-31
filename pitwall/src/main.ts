@@ -7,13 +7,7 @@ import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs, formatWallClock, l
 import type { ActivitySample } from './state/clock';
 import { paceOf, formatPace } from './state/pace';
 import { demoClock } from './state/demoClock';
-import { generateTrack, validateTrack } from './track/generateTrack';
-
-/**
- * 트랙 영역의 가로:세로. 두 번째 모니터는 가로로 길고, 정사각 코스를 그리면
- * 오른쪽이 통째로 빈다 — 실측 1600×1000 화면에서 약 400px이 죽었다.
- */
-const TRACK_ASPECT = 1.5;
+import { pickCircuit } from './track/circuits';
 import { buildTrackModel, type TrackModel } from './track/trackModel';
 import { Director } from './director/director';
 import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
@@ -103,14 +97,16 @@ export class PitwallApp {
     this.settings = opts.settings ?? DEFAULT_SETTINGS;
     this.director = new Director(this.settings.cameraSlots);
 
-    // 트랙은 유효성 검사를 통과할 때까지 시드를 밀어가며 재생성한다 (PRD §15).
-    let seed = opts.seed;
-    const shape = { resolution: 240, lobes: 3, aspect: TRACK_ASPECT };
-    let track = generateTrack(seed, shape);
-    for (let attempts = 0; validateTrack(track).length > 0 && attempts < 50; attempts++) {
-      seed += 1;
-      track = generateTrack(seed, shape);
-    }
+    /*
+     * 코스는 실제 서킷에서 고른다.
+     *
+     * 지어낸 코스는 매 실행 다른 모양이 나오는 대신 아무 모양도 아니었다 —
+     * 곁눈질로 읽히는 건 "어제와 다르다"뿐이다. 실제 서킷은 형상 자체가 기억에
+     * 걸리고, 좌표계 비율도 코스가 정한다(예전에는 1.5로 못박아 두고 생성기가
+     * 거기 맞춰 늘어났다). 심은 서킷이 없으면 예전 생성기로 돈다.
+     */
+    const seed = opts.seed;
+    const track = pickCircuit(seed);
 
     const shell = document.createElement('div');
     shell.className = 'pitwall';
@@ -126,8 +122,18 @@ export class PitwallApp {
     // 돈과 속도가 첫 줄이다 — 감사 F2·F3. 비교 대상들이 전부 여기서 시작한다.
     this.hudPace = document.createElement('div');
     this.hudPace.className = 'hud-item hud-pace';
-    hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary);
-    this.hudSlot = hud;
+    /*
+     * 데이터셋 칸은 설정보다 **앞**이다.
+     *
+     * 상단 바는 줄바꿈을 막고 넘치면 자른다. 자를 때 `.settings`만 줄어들 수 있고
+     * 나머지는 안 줄어드니, 설정이 0폭이 된 다음에는 **맨 뒤부터** 화면 밖으로
+     * 밀린다. 데이터셋 칸을 마지막에 붙이면 `지어낸 데이터` 배지가 첫 희생자가
+     * 된다 — 숨기면 안 되는 사실이 조작판보다 먼저 사라지는 순서였다.
+     */
+    const datasetSlot = document.createElement('div');
+    datasetSlot.className = 'dataset-slot';
+    hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary, datasetSlot);
+    this.hudSlot = datasetSlot;
 
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'track');

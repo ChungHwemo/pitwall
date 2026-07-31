@@ -13,6 +13,7 @@
 npm test                      # 547개
 npm run dev                   # 웹 (시뮬레이터)
 npm run fetch:limits          # 벤더 한도 갱신 → fixtures/limits.json
+npm run import:circuits       # 실제 F1 서킷 형상 → src/track/circuitData.ts
 npm run import:real           # 로컬 로그 → fixtures/events.real.jsonl
 npm run make:demo:all         # 더미 3벌 생성 (계정 4 / 14 / 40)
 npm run build:real            # 데이터셋 전부 심은 단일 HTML
@@ -124,11 +125,19 @@ Swift LogTail (2초 폴링)          WebView
 
 ### 트랙
 
-- 좌표계 가로비 1.5, 코스 둘레 약 3,900 (5로브)
-- 주행선 폭 51, 레인 ±14, 지터 ±7, 글리프 반지름 5
-- **자기간섭 검사** — 리본이 자기와 붙는 코스는 시드를 버린다
+- **실제 서킷 형상** — `bacinger/f1-circuits` (MIT, 원본 OpenStreetMap ODbL) 40개를
+  `npm run import:circuits`로 심는다. 등거리 원통도법으로 편 뒤 **가로세로에 같은 배율**을
+  써서 모양을 안 바꾼다. 좌표계 가로비는 코스 bbox가 정한다 (예전에는 1.5 고정)
+- **폭이 없다** — 코스는 선 한 줄(굵기 10)이고 차는 그 위의 점이다. 레이싱 게임
+  미니맵 방식. 폭 51짜리 리본이던 시절에는 레인 ±14·지터 ±7·글리프가 전부 그 안에
+  들어가야 했고, 그 조건이 실제 서킷을 대부분 탈락시켰다. 지금은 레인 ±11, 지터 ±5,
+  글리프 반지름 5이고 셋 다 선 밖으로 나가도 된다
+- **자기간섭은 거부 사유가 아니다** — 스즈카는 다리로 자기를 넘고 시가지 코스는 같은
+  도로를 두 방향으로 쓴다. 선으로 그리면 읽힌다. 자기간섭 검사는 **지어낸 코스에만**
+  남는다 (`validateTrack` = `validateShape` + 자기간섭)
 - **호 길이 등간격** — 진행률 0.5가 코스 절반을 뜻한다
-- **매 실행 새 코스** (`?seed=`로 고정 가능)
+- **시드로 서킷을 고른다** — 생성이 아니라 고르기다 (`?seed=`로 고정 가능).
+  안 심었으면 예전 생성기로 돈다
 - 정지 차량은 **인필드 피트**로. 에러(빨강 느낌표) vs 한도(호박색 게이지) 구분
 - 9대 미만이면 카넘버 라벨
 - 유휴 차량은 **남되 흐리게** — 지우면 트랙이 대부분 빈다
@@ -194,6 +203,7 @@ pitwall/
     browser.ts          브라우저 배선 (rAF·데이터셋 선택)
     state/              clock · pace · savings · reducer · summary · ringBuffer
     track/              generateTrack · layout · spacing · trackModel
+                        circuits · circuitShape · circuitData (실제 서킷)
     render/             towerRenderer · modelPanel · trackRenderer · projection
                         spark · feedRenderer · radioRenderer · summaryRenderer
                         datasetPicker · legend · settingsPanel · hudRenderer
@@ -201,7 +211,7 @@ pitwall/
                         claudeCodeImport · agentLogs
     radio/ director/ config/ util/
   scripts/              importClaudeCode · fetchLimits · makeDemo · liveCheck
-                        bundleSingleFile · dumpEvents
+                        bundleSingleFile · dumpEvents · importCircuits
   app/                  main.swift · PitwallApp.swift · LogTail.swift · build.sh
   tests/                41개 파일 547개
 docs/

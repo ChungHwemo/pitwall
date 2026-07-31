@@ -106,8 +106,22 @@ export function generateTrack(seed: number, opts: TrackOptions = DEFAULT_SHAPE):
   };
 }
 
-/** 렌더러의 스트로크 폭과 같은 값. 코스가 자기와 이만큼은 떨어져 있어야 한다. */
-export const TRACK_STROKE = 51;
+/**
+ * 코스 선의 굵기. **폭이 아니라 선이다.**
+ *
+ * 예전에는 51이었다 — 레인 셋(±14)과 지터(±7)와 글리프(반지름 5)가 전부 그 안에
+ * 들어가야 했고, 그래서 리본이 자기와 51 안으로 가까워지는 코스는 통째로 버렸다.
+ * 그 조건이 실제 서킷을 대부분 탈락시킨다. 모나코·스즈카·인디애나폴리스는 실제로
+ * 자기와 붙거나 교차한다.
+ *
+ * 레이싱 게임 미니맵과 중계 트랙맵은 폭을 안 그린다. 선 한 줄을 긋고 차를 점으로
+ * 얹는다 — 점이 선보다 커도 읽히고, 선이 교차해도 읽힌다. 폭을 없애면 형상만
+ * 남고, 그게 실제 서킷을 쓰는 목적이다.
+ *
+ * 좌표계 세로가 1000이므로 10은 1%다. 이 값 하나가 반폭·피트 오프셋·렌더 스트로크의
+ * 출처다 — 예전에는 51이 세 파일에 각각 박혀 있었다.
+ */
+export const TRACK_STROKE = 10;
 
 /** 호로 이만큼 이상 떨어진 점끼리만 본다. 헤어핀의 진입·탈출은 원래 가깝다. */
 const CLEARANCE_ARC = 26;
@@ -132,7 +146,7 @@ function selfClearance(points: Point[]): number {
  * 진행률 0.5는 "코스의 절반을 달렸다"여야 한다. 인덱스 기준이면 그 말이
  * 코너에서 깨진다.
  */
-function resampleByArcLength(points: Point[], count: number): Point[] {
+export function resampleByArcLength(points: Point[], count: number): Point[] {
   const n = points.length;
   const cum: number[] = [0];
   for (let i = 0; i < n; i++) {
@@ -156,7 +170,14 @@ function resampleByArcLength(points: Point[], count: number): Point[] {
   return out;
 }
 
-export function validateTrack(track: Track): string[] {
+/**
+ * 코스가 좌표계·피트·섹터 규칙을 지키는지. **자기간섭은 안 본다.**
+ *
+ * 실제 서킷은 자기와 교차한다 — 스즈카는 다리로 넘고, 시가지 코스는 같은 도로를
+ * 두 방향으로 쓴다. 선 한 줄로 그리는 화면에서는 그게 읽히므로 거부할 이유가 없다.
+ * 지어낸 코스에만 자기간섭 검사를 얹는다 (`validateTrack`).
+ */
+export function validateShape(track: Track): string[] {
   const problems: string[] = [];
 
   if (track.points.length < MIN_POINTS) problems.push('too few points');
@@ -168,10 +189,6 @@ export function validateTrack(track: Track): string[] {
   if (outOfBounds) problems.push('point out of bounds');
 
   if (track.pitEntry === track.pitExit) problems.push('pit entry equals exit');
-
-  // 리본이 자기 자신에 붙으면 어느 쪽이 주행선인지 알 수 없다. 호로 충분히
-  // 떨어진 두 점은 트랙 폭보다 멀어야 한다 — 헤어핀 자체는 걸리지 않게 창을 둔다.
-  if (selfClearance(track.points) < TRACK_STROKE) problems.push('course touches itself');
 
   if (track.pitEntry < 0 || track.pitEntry >= track.points.length) {
     problems.push('pit entry index out of range');
@@ -185,5 +202,17 @@ export function validateTrack(track: Track): string[] {
     problems.push('sectors not monotonic in range');
   }
 
+  return problems;
+}
+
+/**
+ * 지어낸 코스용 검사. 형상 규칙에 **자기간섭**을 얹는다.
+ *
+ * 생성기가 자기와 붙는 곡선을 뱉는 것은 실제 서킷이 교차하는 것과 다른 사건이다 —
+ * 전자는 시드를 하나 더 밀면 되는 결함이고, 후자는 고칠 수 없는 사실이다.
+ */
+export function validateTrack(track: Track): string[] {
+  const problems = validateShape(track);
+  if (selfClearance(track.points) < TRACK_STROKE) problems.push('course touches itself');
   return problems;
 }

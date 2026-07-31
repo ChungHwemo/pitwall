@@ -1,6 +1,6 @@
-import { trackWidth } from '../track/generateTrack';
+import { trackWidth, TRACK_STROKE } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
-import { positionAt, pitBoxAt, pitLanePoints } from '../track/layout';
+import { positionAt, pitBoxAt, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
 import { Projector } from './projection';
 import { CLASS_STYLE } from '../config/theme';
 import type { CarClass } from '../types';
@@ -30,14 +30,13 @@ function setLabel(node: { label: SVGTextElement }, text: string, on: boolean): v
   const want = on ? text : '';
   if (node.label.textContent !== want) node.label.textContent = want;
 }
-/** 글리프 반지름. 트랙 폭을 절반으로 줄이며 같이 줄였다 — 51폭에 지름 14는 리본의 27%다. */
+/** 글리프 반지름. 선보다 점이 커야 미니맵처럼 읽힌다. */
 const GLYPH_SIZE = 5;
 /**
- * 트랙 폭. 레인 3개 + 각 레인의 추월 여유가 이 안에 들어가야 한다.
- * 34였을 때는 바깥 레인 차량이 트랙 밖으로 나갔다.
+ * 코스 선의 굵기. **한 곳에서만 정한다** — 예전에는 51이 이 파일과 `layout.ts`와
+ * `generateTrack.ts`에 각각 박혀 있었고, 하나만 고치면 나머지가 조용히 어긋났다.
  */
-export /** 주행선 폭. 절반으로 줄이면서 레인 오프셋과 피트도 같이 줄었다. */
-const TRACK_WIDTH = 51;
+export const TRACK_WIDTH = TRACK_STROKE;
 export const GLYPH_DIAMETER = GLYPH_SIZE * 2;
 
 
@@ -201,7 +200,7 @@ export class TrackRenderer {
       .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' '));
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', '#1c222b');
-    path.setAttribute('stroke-width', '15');
+    path.setAttribute('stroke-width', String(PIT_LANE_STROKE));
     path.setAttribute('stroke-linecap', 'round');
     this.container.appendChild(path);
 

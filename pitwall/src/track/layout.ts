@@ -1,3 +1,4 @@
+import { TRACK_STROKE } from './generateTrack';
 import type { Point, Track } from './generateTrack';
 import type { CarClass, CarState } from '../types';
 import { CAR_CLASSES } from '../types';
@@ -5,12 +6,16 @@ import { activityOf } from '../state/reducer';
 
 /**
  * 클래스별 레인 중심 (중심선 기준 오프셋).
- * 트랙 폭 102 안에서 세 레인이 겹치지 않게 벌린다.
+ *
+ * **선 안에 들어갈 필요가 없다.** 예전에는 폭 51짜리 리본 안에 세 레인이 들어가야
+ * 해서 ±14가 상한이었다. 이제 코스는 선 한 줄이고 차는 그 위에 얹힌 점이다 —
+ * 미니맵에서 점이 선 양옆에 걸치는 것과 같다. 오프셋은 겹침을 막는 값이지
+ * 포장 도로의 폭이 아니다.
  */
 export const LANE_OFFSETS: Record<CarClass, number> = {
-  H: 14,
+  H: 11,
   P: 0,
-  GT: -14,
+  GT: -11,
 };
 
 /**
@@ -22,14 +27,13 @@ export const LANE_OFFSETS: Record<CarClass, number> = {
 /**
  * 레인 안 좌우 흔들림.
  *
- * 진행률만으로는 같은 지점에 몰린 차를 못 벌린다 — 폭을 절반으로 줄인 뒤
- * 지터 4로는 좌우 최대 8밖에 안 벌어져 글리프가 겹쳤다. 절반폭 25.5에서
- * 레인 14 + 지터 7 + 글리프 반지름 5 = 26으로, 주행선을 벗어나지 않는 한계다.
+ * 진행률만으로는 같은 지점에 몰린 차를 못 벌린다. 레인 간격 11에서 지터 5면
+ * 이웃 레인과 최소 1은 벌어지고, 글리프 반지름 5를 얹어도 서로 물리지 않는다.
  */
-export const LANE_JITTER = 7;
+export const LANE_JITTER = 5;
 
-/** 트랙 스트로크 폭의 절반. 피트가 주행선 밖에 있는지 판정하는 기준이다. */
-export const TRACK_HALF_WIDTH = 25.5;
+/** 코스 선의 절반. 피트가 선 밖에 있는지 판정하는 기준이다. */
+export const TRACK_HALF_WIDTH = TRACK_STROKE / 2;
 
 /** 글리프 지름. 피트 박스 간격의 하한이다. */
 export const GLYPH_DIAMETER = 10;
@@ -37,8 +41,14 @@ export const GLYPH_DIAMETER = 10;
 /**
  * 피트 레인은 주행선을 벗어난 자리다. 실제 서킷처럼 **안쪽**으로 뺀다 —
  * 바깥으로 빼면 좌표계를 벗어나 화면 밖에 서는 코너가 생긴다. 인필드는 비어 있다.
+ *
+ * 선이 얇아졌다고 피트를 선 옆에 붙이면 달리는 점들과 섞인다. 기준은 선의 폭이
+ * 아니라 **차가 실제로 차지하는 범위**다 — 레인 11 + 지터 5 + 글리프 반지름 5.
  */
-export const PIT_LANE_OFFSET = -(TRACK_HALF_WIDTH + 30);
+export const PIT_LANE_OFFSET = -(LANE_OFFSETS.H + LANE_JITTER + GLYPH_DIAMETER / 2 + 14);
+
+/** 피트 레인 선의 굵기. 주행선보다 얇아야 어느 쪽이 코스인지 안 헷갈린다. */
+export const PIT_LANE_STROKE = TRACK_STROKE * 0.8;
 
 /** 피트 박스 사이 간격 (진행률). 글리프가 겹치지 않을 만큼. */
 const PIT_BOX_GAP = 0.008;
