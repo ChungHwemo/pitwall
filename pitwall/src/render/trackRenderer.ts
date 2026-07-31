@@ -145,6 +145,9 @@ export class TrackRenderer {
     // 좌표계는 코스가 정한다. 코스가 옆으로 퍼지면 viewBox도 같이 퍼진다 —
     // 안 그러면 늘린 코스가 잘리거나 다시 여백이 생긴다.
     this.container.setAttribute('viewBox', `0 0 ${trackWidth(track.aspect)} 1000`);
+    // 상자 비율도 코스가 정한다. CSS가 정하면 preserveAspectRatio가 남는 폭을
+    // 위아래로 갈라 죽은 띠를 만든다 — 실측 4K에서 647px가 그렇게 죽어 있었다.
+    this.container.style.aspectRatio = String(track.aspect);
     this.drawCenterline();
     this.carLayer = document.createElementNS(SVG_NS, 'g');
     this.carLayer.setAttribute('class', 'cars');

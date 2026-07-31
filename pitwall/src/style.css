@@ -1,173 +1,200 @@
-:root { color-scheme: dark; }
+/*
+ * 화면 단위 하나.
+ *
+ * 실측: 1280×800에서 3840×2160까지 카넘버는 30px, 모델명 14px, 무전 13px로
+ * **완전히 고정**이었다. 타워 열만 613 → 1861px로 늘고 글자는 그대로라, 4K에서는
+ * 1861px 칸에 14px 글자가 떠 있고 아래로 2056px가 비었다. 스케일 시스템이 없었다.
+ *
+ * 두 축을 다 본다. vw만 보면 2560×1080처럼 낮고 넓은 창에서 타워 줄이 밖으로
+ * 나가고, vh만 보면 세로로 긴 창에서 글자가 칸을 넘는다. 100vw/90과 100vh/56.25는
+ * 1440×900(앱 창 기본값)에서 둘 다 16px이 되는 같은 앵커의 두 축이고, `min()`은
+ * 앵커를 유지한 채 더 좁은 축이 이기게 한다.
+ *
+ * `--pw-zoom`은 시야거리 노브다. CSS는 시야거리를 잴 수 없다. 책상 앞이면 0.85,
+ * 방 건너면 1.3. clamp 바깥에서 곱해 상한을 의도적으로 넘길 수 있게 둔다.
+ *
+ * **SVG 안에는 rem을 쓰지 않는다.** `svg.track` 안의 길이는 CSS px가 아니라
+ * user unit이고 viewBox가 이미 한 번 스케일한다 — rem을 넣으면 두 번 곱해진다.
+ * `.pit-label`·`.car-label`·stroke-width가 px로 남아 있는 이유다.
+ */
+:root {
+  color-scheme: dark;
+  --pw-zoom: 1;
+  font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34px));
+  /* 경계선. 해상도가 아니라 시야거리 문제라 Retina에서 얇아지면 안 된다. */
+  --hair: max(1px, 0.0625rem);
+}
 
 body {
   margin: 0;
   background: #0e1116;
   color: #e6edf3;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  -webkit-font-smoothing: antialiased;
 }
 
 /*
  * 척추는 타워다.
  *
  * 참고한 f1-telemetry의 라이브 화면도, 모터스포츠 매니저도, 방송 화면도 전부
- * 왼쪽에 줄 세운 표를 두고 트랙맵은 곁에 작게 붙인다. 지도는 "어디쯤"만 말하고
- * 숫자는 못 말한다 — 곁눈질로 읽히는 건 표다. 이 화면은 반대로 만들어져 있었다.
+ * 왼쪽에 줄 세운 표를 두고 트랙맵은 곁에 붙인다. 지도는 "어디쯤"만 말하고
+ * 숫자는 못 말한다 — 곁눈질로 읽히는 건 표다.
+ *
+ * 행 정의가 뒤집혀 있었다. tower가 `auto`, models가 `1fr`이라 남는 세로를 전부
+ * 모델 판이 받는데 `.model-row`의 `max-height`가 그걸 잠갔다 — 실측 4K 2056px
+ * 구멍의 출처가 정확히 그 두 줄이다. 타워가 `minmax(0, 1fr)`을 갖는다.
+ * `minmax(0, ·)`의 0은 계정이 늘어도 그리드가 뷰포트를 넘지 못하게 막는다.
  */
 .pitwall {
   display: grid;
-  grid-template-columns: minmax(420px, 1fr) 1.05fr;
-  grid-template-rows: 48px auto 1fr 88px;
-  grid-template-areas: "hud hud" "tower detail" "models detail" "radio radio";
+  grid-template-columns: minmax(28rem, 1fr) 1.05fr;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "hud hud" "tower detail" "radio radio";
   height: 100vh;
-  gap: 8px;
-  padding: 8px;
+  gap: 0.5rem;
+  padding: 0.5rem;
   box-sizing: border-box;
 }
 
-.tower-slot { grid-area: tower; overflow: hidden; }
-/* 줄이 세로를 나눠 갖는다. 계정 두 대에 작은 줄 두 개와 거대한 공백은 낭비다. */
-.tower { display: flex; flex-direction: column; overflow: hidden; }
+/* ── 타이밍 타워 ─────────────────────────────────────────────── */
 
+.tower-slot {
+  grid-area: tower; overflow: hidden; min-height: 0;
+  display: flex; flex-direction: column;
+}
+/* 줄이 먼저 자리를 갖고, 남는 세로를 모델 판이 이어받는다. */
+.tower-slot > .tower { flex: 0 1 auto; min-height: 0; }
+.tower { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+/*
+ * `flex: 1 1 auto` + `height` + `overflow: hidden`.
+ *
+ * `min-height`는 줄어들 줄 모른다 — 계정이 늘면 줄이 서로를 밀어내고 아래 것이
+ * 소리 없이 잘린다. flex-basis를 height로 주고 shrink를 켜면 필요할 때 줄어든다.
+ *
+ * 상태 배지를 모델명과 같은 줄로 옮겼다. 3단 스택이 예전 104px 최소 높이의
+ * 원인이었고, 2단이면 1280×800에 열 줄이 들어간다. 배지는 곁눈질 신호라
+ * 모델명 옆이 원래 자리이기도 하다.
+ */
 .tower-row {
-  flex: 0 0 auto;
-  min-height: 104px;
+  flex: 1 1 auto;
+  height: 3.1rem;
+  max-height: 6rem;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: 6px 58px 1fr 158px 158px;
+  grid-template-columns: 0.4rem 4rem minmax(0, 1fr) 5rem 10.4rem 11.6rem;
   grid-template-areas:
-    "bar num model  limit money"
-    "bar num spark  limit money"
-    "bar num state  limit money";
+    "bar num model state limit money"
+    "bar num spark spark limit money";
   align-items: center;
-  column-gap: 10px;
-  padding: 8px 10px 8px 0;
-  border-bottom: 1px solid #1c222b;
+  column-gap: 0.6rem;
+  padding: 0.4rem 0.65rem 0.4rem 0;
+  border-bottom: var(--hair) solid #1c222b;
   cursor: pointer;
 }
 .tower-row:hover { background: rgba(255, 255, 255, 0.04); }
 .tower-row[data-selected="true"] { background: rgba(77, 195, 255, 0.10); }
 
-.tower-bar { grid-area: bar; height: 30px; border-radius: 2px; }
-.tower-number { grid-area: num; font-size: 30px; font-weight: 700; text-align: right; }
-.tower-model { grid-area: model; font-size: 14px; color: #e6edf3; align-self: end; }
+/*
+ * 계정이 많아지면 한 줄로 접는다. 모델명과 속도가 먼저 사라지는 이유는
+ * 그 둘이 선택했을 때 오른쪽 패널에 그대로 나오기 때문이다 — 한도와 돈은 안 나온다.
+ */
+.tower[data-dense="true"] .tower-row {
+  height: 1.9rem;
+  grid-template-columns: 0.4rem 3rem minmax(0, 1fr) 5rem 10.4rem 11.6rem;
+  grid-template-areas: "bar num spark state limit money";
+}
+.tower[data-dense="true"] .tower-model,
+.tower[data-dense="true"] .tower-rate { display: none; }
+
+.tower-bar { grid-area: bar; height: 62%; border-radius: 0.13rem; align-self: center; }
+.tower-number { grid-area: num; font-size: 1.875rem; font-weight: 700; text-align: right; }
+.tower-model {
+  grid-area: model; font-size: 0.95rem; color: #e6edf3; align-self: end;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* 최근 30분 소진. 숫자보다 먼저 도착하는 신호다. */
 .tower-spark {
-  grid-area: spark; font-size: 15px; line-height: 1.1; color: #4dc3ff;
-  letter-spacing: 1px; white-space: pre; align-self: center;
+  grid-area: spark; font-size: 0.95rem; line-height: 1.1; color: #4dc3ff;
+  letter-spacing: 0.06em; white-space: pre; align-self: start; overflow: hidden;
 }
 .tower-row[data-state="limit"] .tower-spark { color: #ffd24d; }
 .tower-row[data-state="error"] .tower-spark { color: #ff5c5c; }
 .tower-row[data-state="idle"] .tower-spark { color: #3b4655; }
 .tower-state {
-  grid-area: state; font-size: 10px; letter-spacing: 0.14em;
-  color: #6b7c91; align-self: start;
+  grid-area: state; font-size: 0.7rem; letter-spacing: 0.14em;
+  color: #6b7c91; align-self: end; text-align: right;
 }
 .tower-row[data-state="error"] .tower-state { color: #ff5c5c; }
 .tower-row[data-state="limit"] .tower-state { color: #ffd24d; }
 /* 멈춘 차는 줄 자체를 죽인다 — 굴러가는 줄과 한눈에 갈라져야 한다. */
 .tower-row[data-state="error"], .tower-row[data-state="limit"] { opacity: 0.62; }
 
-.tower-limit { grid-area: limit; }
-.tower-limit-track { height: 7px; background: #1c222b; border-radius: 4px; overflow: hidden; }
-.tower-limit-fill { height: 100%; background: #4dc3ff; border-radius: 4px; }
+.tower-limit { grid-area: limit; align-self: center; }
+.tower-limit-track { height: 0.45rem; background: #1c222b; border-radius: 0.28rem; overflow: hidden; }
+.tower-limit-fill { height: 100%; background: #4dc3ff; border-radius: 0.28rem; }
 /* 게이지 색이 곧 급한 정도다. 숫자를 읽기 전에 색이 먼저 도착한다. */
 .tower-row[data-state="limit"] .tower-limit-fill { background: #ffd24d; }
-.tower-limit-text { font-size: 11px; color: #9fb3c8; margin-top: 4px; white-space: nowrap; }
-
-.tower-money { grid-area: money; text-align: right; }
-.tower-cost { font-size: 16px; font-weight: 700; }
-.tower-rate { font-size: 10px; color: #6b7c91; margin-top: 2px; white-space: nowrap; }
-
-.hud { grid-area: hud; display: flex; align-items: center; gap: 24px; padding: 0 12px; }
-.hud-item { font-size: 15px; letter-spacing: 0.04em; }
-
-svg.track { grid-area: track; width: 100%; height: 100%; }
-
-.cams { grid-area: cams; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
-.cams .cam-card { flex: 0 0 auto; }
-.cam-card {
-  flex: 1; border: 1px solid #2a323d; border-radius: 6px;
-  padding: 10px; cursor: pointer; transition: border-color 120ms;
-}
-/*
- * 빈 카드는 자리를 차지하지 않는다. 노드는 남겨 두고(재사용 풀) 레이아웃에서만
- * 뺀다 — 차를 하나 고르면 나머지 카드가 빈 상자 세 개로 남아 화면 절반을 먹었다.
- */
-.cam-card[data-empty="true"] { display: none; }
-.cam-card:hover[data-empty="false"] { border-color: #4dc3ff; }
-.cam-number { font-size: 26px; font-weight: 700; }
-.cam-class { font-size: 11px; letter-spacing: 0.12em; }
-.cam-stats { font-size: 12px; color: #9fb3c8; margin-top: 6px; }
-
-.radio { grid-area: radio; border-top: 1px solid #2a323d; padding: 8px 12px; overflow: hidden; }
-.radio-line { font-size: 13px; line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* 설정 패널 — 상단 바 오른쪽 끝 */
-.settings { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 12px; }
-.settings-field, .settings-group { display: flex; align-items: center; gap: 6px; }
-.settings-label { color: #9fb3c8; letter-spacing: 0.06em; }
-.settings select {
-  background: #161b22; color: #e6edf3; border: 1px solid #2a323d;
-  border-radius: 4px; padding: 2px 6px; font: inherit;
-}
-.settings-check { display: flex; align-items: center; gap: 3px; color: #9fb3c8; cursor: pointer; }
-.settings-check input { accent-color: #4dc3ff; }
-
-/* 하루 요약 카드 — 체커기 이후 */
-.summary {
-  grid-area: track; align-self: center; justify-self: center;
-  background: #161b22ee; border: 1px solid #2a323d; border-radius: 10px;
-  padding: 22px 28px; min-width: 460px; backdrop-filter: blur(6px);
-}
-.summary[data-open="false"] { display: none; }
-.summary-title {
-  font-size: 13px; letter-spacing: 0.16em; color: #ffd24d; margin-bottom: 16px;
-}
-.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 28px; }
-.summary-key { font-size: 11px; color: #9fb3c8; letter-spacing: 0.08em; }
-.summary-value { font-size: 19px; font-weight: 700; margin-top: 3px; }
-
-/* ── 선택한 계정의 구동 내역 ────────────────────────────────────── */
-.feed { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-.feed-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
-.feed-number { font-size: 26px; font-weight: 700; }
-.feed-class { font-size: 11px; letter-spacing: 0.12em; }
-.feed-empty { font-size: 12px; color: #9fb3c8; line-height: 1.6; }
-.feed-row {
-  display: grid; grid-template-columns: 58px 74px 1fr auto;
-  gap: 8px; font-size: 11px; color: #9fb3c8;
-  padding: 3px 0; border-bottom: 1px solid #1c222b;
-  white-space: nowrap; overflow: hidden;
-}
-.feed-time { color: #6b7c91; }
-.feed-model { color: #e6edf3; }
-.feed-who { overflow: hidden; text-overflow: ellipsis; }
-.feed-size { color: #6b7c91; }
-.feed-row[data-status="error"] .feed-who { color: #ff5c5c; }
-
-/* 선택된 차량은 트랙에서도 구분된다 */
-svg.track [data-selected="true"] path { stroke: #e6edf3; stroke-width: 2.5; paint-order: stroke; }
-svg.track g.cold, svg.track g.car { cursor: pointer; }
-
-/* 피트 — 멈춘 차가 서는 자리. 주행선보다 어둡게 두어 트랙과 구분한다. */
-.pit-label {
-  fill: #55636f; font-size: 30px; letter-spacing: 0.22em;
-  font-family: ui-monospace, SFMono-Regular, monospace; text-anchor: middle;
+.tower-limit-text {
+  font-size: 0.7rem; color: #9fb3c8; margin-top: 0.25rem; white-space: nowrap;
 }
 
-/* 차량 라벨 — 몇 대 없을 때만 켠다. 붐비면 렌더러가 비운다. */
-.car-label {
-  fill: #9fb3c8; font-size: 17px; text-anchor: middle;
-  font-family: ui-monospace, SFMono-Regular, monospace; pointer-events: none;
-}
+.tower-money { grid-area: money; text-align: right; align-self: center; }
+.tower-cost { font-size: 1.05rem; font-weight: 700; }
+.tower-rate { font-size: 0.7rem; color: #6b7c91; margin-top: 0.12rem; white-space: nowrap; }
 
 /* 접힌 계정. 조용히 사라지면 안 된다. */
 .tower-overflow {
-  flex: 0 0 auto; padding: 8px 10px; font-size: 12px;
-  color: #6b7c91; border-top: 1px solid #1c222b;
+  flex: 0 0 auto; padding: 0.5rem 0.6rem; font-size: 0.7rem;
+  color: #6b7c91; border-top: var(--hair) solid #1c222b;
 }
 
-/* 오른쪽은 선택한 계정 전용 + 축소한 트랙. */
+.tower-total {
+  flex: 0 0 auto; padding: 0.6rem 0.6rem 0.12rem;
+  border-top: var(--hair) solid #1c222b; font-size: 0.75rem; color: #9fb3c8;
+  letter-spacing: 0.03em;
+}
+
+/* ── 상단 바 ─────────────────────────────────────────────────── */
+
+/*
+ * 한 줄이다. 글자가 커지면서 항목이 두 줄로 흘러 시계가 두 칸을 차지했다 —
+ * 상단 바가 접히면 그 아래 전부가 밀린다. 넘치면 줄바꿈이 아니라 잘린다.
+ */
+.hud {
+  grid-area: hud; display: flex; align-items: center; flex-wrap: nowrap;
+  gap: 1.1rem; padding: 0.25rem 0.75rem; min-height: 2.1rem; overflow: hidden;
+}
+.hud-item {
+  font-size: 1.05rem; letter-spacing: 0.04em;
+  white-space: nowrap; flex: 0 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/*
+ * 사실은 안 줄인다. 좁아지면 설정이 먼저 잘린다 — 시각·비용·페이즈는 화면의
+ * 내용이고 설정은 조작판이다.
+ */
+.hud-item { flex-shrink: 0; }
+
+.settings {
+  margin-left: auto; display: flex; align-items: center; flex-wrap: nowrap;
+  gap: 0.7rem; font-size: 0.72rem; min-width: 0; overflow: hidden;
+  flex: 0 1 auto;
+}
+.settings-field, .settings-group {
+  display: flex; align-items: center; gap: 0.3rem; white-space: nowrap;
+}
+.settings-label, .settings-check { white-space: nowrap; }
+.settings-label { color: #9fb3c8; letter-spacing: 0.06em; }
+.settings select {
+  background: #161b22; color: #e6edf3; border: var(--hair) solid #2a323d;
+  border-radius: 0.25rem; padding: 0.12rem 0.38rem; font: inherit;
+}
+.settings-check { display: flex; align-items: center; gap: 0.2rem; color: #9fb3c8; cursor: pointer; }
+.settings-check input { accent-color: #4dc3ff; }
+
+/* ── 오른쪽: 트랙 + 선택한 계정 ───────────────────────────────── */
+
 /*
  * 트랙은 선택과 무관하게 자기 자리를 지킨다.
  *
@@ -176,39 +203,116 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
  * 내역은 그 위에 겹쳐 띄운다.
  */
 .detail { grid-area: detail; position: relative; overflow: hidden; }
-svg.track { position: absolute; inset: 0; width: 100%; height: 100%; }
+/*
+ * 상자가 코스 비율을 따른다. `width/height: 100%`로 두면 SVG가 상자를 다 차지한
+ * 뒤 `preserveAspectRatio`가 남는 폭을 위아래로 갈라 죽은 띠를 만든다 —
+ * 실측 4K에서 647px가 그렇게 죽어 있었다. 비율은 `trackRenderer`가 코스에서 심는다.
+ */
+svg.track {
+  /* 아래에 붙인다. 가운데 두면 위쪽 절반이 내역 판에 가려 글자와 코스가 겹친다. */
+  position: absolute; inset: auto 0 0 0; margin: 0 auto;
+  width: auto; height: auto; max-width: 100%; max-height: 100%;
+}
+svg.track [data-selected="true"] path { stroke: #e6edf3; stroke-width: 2.5; paint-order: stroke; }
+svg.track g.cold, svg.track g.car { cursor: pointer; }
+
 .cams {
   position: absolute; inset: 0 0 auto 0; max-height: 58%;
   display: flex; flex-direction: column; overflow: hidden;
-  background: linear-gradient(#0e1116 82%, rgba(14, 17, 22, 0));
-  padding-bottom: 18px; pointer-events: none;
+  /* 판이다. 반투명이면 코스 위에 글자가 겹쳐 둘 다 안 읽힌다. */
+  background: #0e1116;
+  border-bottom: var(--hair) solid #1c222b;
+  padding-bottom: 0.5rem; pointer-events: none;
 }
 .cams > * { pointer-events: auto; }
-
-.tower-total {
-  flex: 0 0 auto; padding: 10px 10px 2px;
-  border-top: 1px solid #1c222b; font-size: 12px; color: #9fb3c8;
-  letter-spacing: 0.03em;
-}
-
 /* 고른 계정이 없으면 안내 한 줄만 남기고 지도를 가리지 않는다. */
-.detail[data-selected="false"] .cams { max-height: 34px; background: none; padding-bottom: 0; }
-
-/* 모델별 오늘 — 타워가 계정을 말하고 여기가 모델을 말한다. */
-.models-slot { grid-area: models; overflow: hidden; }
-.models-slot { display: flex; }
-.models { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; flex: 1; }
-.models-head {
-  font-size: 10px; letter-spacing: 0.18em; color: #6b7c91; padding: 0 0 6px;
+.detail[data-selected="false"] .cams {
+  max-height: 2.1rem; background: none; border-bottom: 0; padding-bottom: 0;
 }
-/* 모델 판이 타워 아래 남은 세로를 채운다. 빈칸보다 사실이 낫다. */
+/* 가릴 판이 없으면 코스를 가운데로 — 아래에 붙여 둘 이유가 사라진다. */
+.detail[data-selected="false"] svg.track { inset: 0; margin: auto; }
+
+.feed { display: flex; flex-direction: column; gap: 0.12rem; overflow: hidden; }
+.feed-head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.5rem; }
+.feed-number { font-size: 1.6rem; font-weight: 700; }
+.feed-class { font-size: 0.7rem; letter-spacing: 0.12em; }
+.feed-empty { font-size: 0.8rem; color: #9fb3c8; line-height: 1.5; }
+.feed-row {
+  display: grid; grid-template-columns: 4rem 5rem 1fr auto;
+  gap: 0.5rem; font-size: 0.75rem; color: #9fb3c8;
+  padding: 0.18rem 0; border-bottom: var(--hair) solid #1c222b;
+  white-space: nowrap; overflow: hidden;
+}
+.feed-time { color: #6b7c91; }
+.feed-model { color: #e6edf3; }
+.feed-who { overflow: hidden; text-overflow: ellipsis; }
+.feed-size { color: #6b7c91; }
+.feed-row[data-status="error"] .feed-who { color: #ff5c5c; }
+
+/* ── 모델별 오늘 — 타워가 계정을 말하고 여기가 모델을 말한다 ──── */
+
+/*
+ * 모델 판은 타워와 같은 열이다. 별도 그리드 행으로 두면 타워가 받은 1fr 안에
+ * 줄 두 개만 들어차고 그 아래가 통째로 빈다 — 실측 4K에서 그 구멍이 2056px였다.
+ * 같은 열에 이어 붙이면 남는 세로를 모델 판이 이어받는다.
+ */
+.models-slot { overflow: hidden; min-height: 0; display: flex; flex: 1 1 auto; }
+.models { display: flex; flex-direction: column; gap: 0.12rem; padding-top: 0.4rem; flex: 1; }
+/* 한글에 트래킹을 주면 음절 블록 응집이 깨져 판독이 떨어진다. */
+.models-head {
+  font-size: 0.7rem; letter-spacing: 0.04em; color: #6b7c91; padding: 0 0 0.35rem;
+}
 .model-row {
-  flex: 0 1 auto; min-height: 26px; max-height: 46px;
-  display: grid; grid-template-columns: 148px 1fr 190px;
-  align-items: center; column-gap: 12px; font-size: 13px;
+  flex: 0 0 auto; height: 1.7rem; overflow: hidden;
+  display: grid; grid-template-columns: 8rem 1fr 11.5rem;
+  align-items: center; column-gap: 0.75rem; font-size: 0.85rem;
 }
 .model-name { color: #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.model-track { height: 6px; background: #1c222b; border-radius: 3px; overflow: hidden; }
-.model-fill { height: 100%; background: #3d6d8c; border-radius: 3px; }
+.model-track { height: 0.4rem; background: #1c222b; border-radius: 0.25rem; overflow: hidden; }
+.model-fill { height: 100%; background: #3d6d8c; border-radius: 0.25rem; }
 .model-stat { text-align: right; color: #9fb3c8; white-space: nowrap; }
-.model-rest { font-size: 11px; color: #6b7c91; padding-top: 4px; margin-top: auto; }
+.model-rest { font-size: 0.7rem; color: #6b7c91; padding-top: 0.25rem; margin-top: auto; }
+
+/* ── 무전 ────────────────────────────────────────────────────── */
+
+.radio {
+  grid-area: radio; border-top: var(--hair) solid #2a323d;
+  padding: 0.5rem 0.75rem; overflow: hidden;
+}
+.radio-line {
+  font-size: 0.9rem; line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── 하루 요약 카드 — 체커기 이후 ─────────────────────────────── */
+
+/*
+ * `grid-area: track`을 가리키고 있었는데 그런 영역은 이 그리드에 없다 —
+ * `data-open="true"`가 되는 순간 암묵 행이 생겨 레이아웃 전체가 밀린다.
+ * 화면 위에 띄우는 카드이므로 흐름에서 빼는 게 맞다.
+ */
+.summary {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: #161b22ee; border: var(--hair) solid #2a323d; border-radius: 0.6rem;
+  padding: 1.4rem 1.75rem; min-width: 28rem; backdrop-filter: blur(6px);
+}
+.summary[data-open="false"] { display: none; }
+.summary-title {
+  font-size: 0.85rem; letter-spacing: 0.06em; color: #ffd24d; margin-bottom: 1rem;
+}
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 1.75rem; }
+.summary-key { font-size: 0.7rem; color: #9fb3c8; letter-spacing: 0.08em; }
+.summary-value { font-size: 1.2rem; font-weight: 700; margin-top: 0.18rem; }
+
+/* ── SVG 안 (user unit — rem 금지) ───────────────────────────── */
+
+/* 피트 — 멈춘 차가 서는 자리. 주행선보다 어둡게 두어 트랙과 구분한다. */
+.pit-label {
+  fill: #55636f; font-size: 30px; letter-spacing: 0.22em;
+  font-family: ui-monospace, SFMono-Regular, monospace; text-anchor: middle;
+}
+/* 차량 라벨 — 몇 대 없을 때만 켠다. 붐비면 렌더러가 비운다. */
+.car-label {
+  fill: #9fb3c8; font-size: 17px; text-anchor: middle;
+  font-family: ui-monospace, SFMono-Regular, monospace; pointer-events: none;
+}

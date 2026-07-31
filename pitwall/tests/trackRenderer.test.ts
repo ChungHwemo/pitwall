@@ -500,3 +500,11 @@ describe('트랙 라벨', () => {
     expect(shown).toEqual([]);
   });
 });
+
+describe('트랙 상자', () => {
+  it('종횡비를 코스에서 가져온다 — CSS가 정하면 레터박스가 생긴다', () => {
+    new TrackRenderer(svg, track);
+    // jsdom은 `1` 을 `1 / 1` 로 정규화한다. 값이 코스에서 왔는지만 본다.
+    expect(svg.style.aspectRatio.replace(/\s*\/\s*1$/, '')).toBe(String(track.aspect));
+  });
+});

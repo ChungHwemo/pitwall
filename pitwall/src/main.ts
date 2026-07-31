@@ -35,7 +35,7 @@ import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RADIO_LINES = 3;
 /** 타워 줄 수. 계정이 더 많으면 남는 줄은 접힌 것으로 표시해야 한다 (미구현). */
-const TOWER_ROWS = 10;
+const TOWER_ROWS = 16;
 /** 모델 판 줄 수. 넘치면 "그 외 N종"으로 접는다. */
 const MODEL_ROWS = 6;
 /** 속도를 재는 레이스 창. 타워 스파크라인과 같은 길이다. */
@@ -146,7 +146,7 @@ export class PitwallApp {
     const radio = document.createElement('div');
     radio.className = 'radio';
 
-    shell.append(hud, tower, models, detail, radio);
+    shell.append(hud, tower, detail, radio);
     root.appendChild(shell);
 
     this.summaryRenderer = new SummaryRenderer(shell);
@@ -155,6 +155,9 @@ export class PitwallApp {
 
     this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
     this.modelPanel = new ModelPanel(models, MODEL_ROWS);
+    // 모델 판은 타워 **아래**다. 타워 렌더러가 자기 노드를 붙인 뒤에 이어 붙여야
+    // 순서가 맞는다 — 먼저 붙이면 모델 판이 위로 올라간다.
+    tower.appendChild(models);
     this.trackRenderer = new TrackRenderer(svg, track);
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed);

@@ -163,3 +163,18 @@ describe('타워 발치 — 조직 합계', () => {
     expect(foot).toContain('$425.13');
   });
 });
+
+describe('타워 — 밀집 모드', () => {
+  it('계정이 많으면 줄을 접는다고 표시한다', () => {
+    const r = new TowerRenderer(host, 16);
+    const many = Array.from({ length: 12 }, (_, i) => car(`c${i}`, { car_number: i + 1 }));
+    r.render(state(many), T, T, null, () => []);
+    expect(host.querySelector('.tower')!.getAttribute('data-dense')).toBe('true');
+  });
+
+  it('몇 대 없으면 밀집이 아니다', () => {
+    const r = new TowerRenderer(host, 16);
+    r.render(state([car('a')]), T, T, null, () => []);
+    expect(host.querySelector('.tower')!.getAttribute('data-dense')).toBe('false');
+  });
+});

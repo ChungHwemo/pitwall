@@ -84,6 +84,9 @@ const STATE_LABEL: Record<RowState, string> = {
   run: 'RUN',
 };
 
+/** 이보다 많으면 줄을 한 단으로 접는다. 2단 줄로는 화면에 다 안 들어간다. */
+const DENSE_FROM = 10;
+
 /**
  * 스파크라인이 되돌아보는 **레이스 시간**과 칸 수.
  *
@@ -94,6 +97,7 @@ const SPARK_WINDOW_MS = 1_800_000;
 const SPARK_BUCKETS = 18;
 
 export class TowerRenderer {
+  private root: HTMLElement;
   private rows: TowerRow[] = [];
   private overflow: HTMLElement;
   private total: HTMLElement;
@@ -102,6 +106,7 @@ export class TowerRenderer {
   constructor(container: HTMLElement, maxRows: number) {
     const root = document.createElement('div');
     root.className = 'tower';
+    this.root = root;
 
     // 줄을 미리 만들어 둔다. 계정이 오갈 때마다 DOM을 짓고 부수면 노드가 요동친다.
     for (let i = 0; i < maxRows; i++) {
@@ -256,6 +261,12 @@ export class TowerRenderer {
         row.root.setAttribute('data-selected', picked);
       }
     });
+
+    // 계정이 많으면 줄을 한 단으로 접는다. 그래야 잘리지 않고 다 들어간다.
+    const dense = cars.length > DENSE_FROM ? 'true' : 'false';
+    if (this.root.getAttribute('data-dense') !== dense) {
+      this.root.setAttribute('data-dense', dense);
+    }
 
     const hidden = foldedOut;
     if (hidden.length === 0) {
