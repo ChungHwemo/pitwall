@@ -134,6 +134,29 @@ describe('설명과 노출', () => {
     expect(host.textContent).toContain('DEMO');
   });
 
+  /*
+   * 접혀 있어야 한다. 펼쳐 두면 상단 바가 넘칠 때 `overflow: hidden`이 컨트롤
+   * 한가운데를 잘라, 켜졌는지 알 수 없는 체크박스가 남는다.
+   */
+  it('기본은 접힘이고 버튼으로 연다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    const shell = host.querySelector('.settings')!;
+    expect(shell.getAttribute('data-open')).toBe('false');
+    (host.querySelector('.settings-toggle') as HTMLElement).click();
+    expect(shell.getAttribute('data-open')).toBe('true');
+    (host.querySelector('.settings-toggle') as HTMLElement).click();
+    expect(shell.getAttribute('data-open')).toBe('false');
+  });
+
+  it('기록 재생 중에도 접힌 채로 나온다 — 항목만 줄어든다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: false });
+    expect(host.querySelector('.settings')!.getAttribute('data-open')).toBe('false');
+    expect(host.querySelector('.settings-toggle')).not.toBeNull();
+    expect(host.querySelector('.settings-body')).not.toBeNull();
+  });
+
   it('모든 조작에 설명이 붙는다 — 이름만으로는 뭘 하는지 모른다', () => {
     const host = document.createElement('div');
     new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });

@@ -9,6 +9,12 @@ import type { HighlightType } from '../track/trackModel';
  * **하한이 걸린 값은 노출하지 않는다.** 슬라이더를 보여주고 런타임이 되돌리는 것은
  * 안 보여주는 것보다 나쁘다 — 사용자는 자기가 바꾼 값이 먹었다고 믿게 된다 (PRD §7.0).
  * 여기 있는 항목은 전부 자유롭게 조정 가능한 것들이다.
+ *
+ * **접힌다.** 예전에는 조작판이 상단 바에 펼쳐져 있었고, 넘치면 `overflow: hidden`이
+ * 잘랐다. 자르는 단위가 항목이 아니라 픽셀이라 실측 1440×900에서 `한도` 체크박스가
+ * 파란 조각만 남고 라벨이 사라졌다 — 켜졌는지 꺼졌는지 알 수 없는 컨트롤은
+ * 없는 것보다 나쁘다. 범례가 쓰는 방식을 그대로 쓴다: 버튼 하나로 접고, 열면
+ * 화면에 고정한 판으로 띄운다. 상시 노출 화면에서 조작판이 늘 떠 있을 이유도 없다.
  */
 const PRESETS: PresetName[] = ['busy', 'sparse', 'chaos', 'real'];
 const SPEEDS: PitwallSettings['speed'][] = [1, 60, 600];
@@ -44,8 +50,21 @@ export class SettingsPanel {
   ) {
     this.settings = initial;
 
+    const shell = document.createElement('div');
+    shell.className = 'settings hud-item';
+    shell.setAttribute('data-open', 'false');
+
+    const toggle = document.createElement('button');
+    toggle.className = 'settings-toggle';
+    toggle.type = 'button';
+    toggle.textContent = '설정';
+    toggle.title = '배속·하이라이트 같은 조작판';
+    toggle.addEventListener('click', () => {
+      shell.setAttribute('data-open', shell.getAttribute('data-open') === 'true' ? 'false' : 'true');
+    });
+
     const root = document.createElement('div');
-    root.className = 'settings';
+    root.className = 'settings-body';
 
     // 프리셋은 시뮬레이터 전용이다. 기록을 재생 중일 때 띄워두면 아무 효과가
     // 없는 조작판이 되어, 눌러도 안 바뀌는 것을 고장으로 읽게 된다.
@@ -93,7 +112,8 @@ export class SettingsPanel {
     // DEMO 시계도 시뮬레이터 전용이다. 기록 재생과 실시간에는 진짜 시계가 있어
     // 이 체크박스가 아무것도 바꾸지 않는다 — 눌러도 반응이 없으면 고장으로 읽힌다.
     if (!opts.simulated) {
-      container.appendChild(root);
+      shell.append(toggle, root);
+      container.appendChild(shell);
       return;
     }
 
@@ -113,7 +133,8 @@ export class SettingsPanel {
     demo.append(demoBox, demoText);
     root.appendChild(demo);
 
-    container.appendChild(root);
+    shell.append(toggle, root);
+    container.appendChild(shell);
   }
 
   private select(

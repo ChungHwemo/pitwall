@@ -246,28 +246,40 @@ body {
  */
 .hud-pace { font-size: 1.35rem; font-weight: 700; }
 
-/* 범례 — 기본은 접힘. 상시 노출 화면에서 늘 떠 있으면 그 자체가 방해다. */
-.legend { position: relative; flex-shrink: 0; }
-.legend-toggle {
+/*
+ * 범례와 조작판 — 둘 다 기본은 접힘.
+ *
+ * 상시 노출 화면에서 늘 떠 있으면 그 자체가 방해다. 조작판은 원래 상단 바에
+ * 펼쳐져 있었는데, 넘칠 때 `overflow: hidden`이 **항목이 아니라 픽셀 단위로**
+ * 잘라서 실측 1440×900에서 `한도` 체크박스가 파란 조각만 남았다. 반쯤 잘린
+ * 컨트롤은 상태를 못 읽으니 없는 것보다 나쁘다. 범례가 이미 쓰던 방식으로 합친다.
+ */
+.legend, .settings { position: relative; flex-shrink: 0; }
+.legend-toggle, .settings-toggle {
   background: #161b22; color: #9fb3c8; border: var(--hair) solid #2a323d;
   border-radius: 0.25rem; padding: 0.1rem 0.45rem; font: inherit; font-size: 0.75rem;
   cursor: pointer;
 }
-.legend-toggle:hover { color: #e6edf3; border-color: #4dc3ff; }
-.legend[data-open="false"] .legend-body { display: none; }
+.legend-toggle:hover, .settings-toggle:hover { color: #e6edf3; border-color: #4dc3ff; }
+.legend[data-open="false"] .legend-body,
+.settings[data-open="false"] .settings-body { display: none; }
 /*
  * 화면에 고정한다. 상단 바가 줄바꿈을 막으려고 넘침을 자르는데, 그 안에
  * 절대 위치로 띄우면 같이 잘린다 — 열어도 아무것도 안 보였다.
  */
-.legend-body {
+.legend-body, .settings-body {
   position: fixed; right: 0.6rem; top: 3rem; z-index: 20;
-  margin: 0; padding: 0.7rem 0.9rem; width: 26rem;
-  display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem;
+  margin: 0; padding: 0.7rem 0.9rem;
   background: #161b22f2; border: var(--hair) solid #2a323d; border-radius: 0.4rem;
   font-size: 0.72rem; line-height: 1.45; backdrop-filter: blur(6px);
 }
+.legend-body {
+  width: 26rem; display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem;
+}
 .legend-body dt { color: #e6edf3; white-space: nowrap; }
 .legend-body dd { margin: 0; color: #9fb3c8; }
+/* 세로로 쌓는다. 가로로 두면 접은 이유(폭이 모자람)를 판 안에서 반복한다. */
+.settings-body { display: flex; flex-direction: column; gap: 0.55rem; }
 
 /*
  * 무엇을 보고 있는가 — 실시간인지, 실기록인지, 지어낸 것인지.
@@ -287,13 +299,10 @@ body {
   border: var(--hair) solid #ffd24d; border-radius: 0.2rem; padding: 0.04rem 0.28rem;
 }
 
-.settings {
-  margin-left: auto; display: flex; align-items: center; flex-wrap: nowrap;
-  gap: 0.7rem; font-size: 0.72rem; min-width: 0; overflow: hidden;
-  flex: 0 1 auto;
-}
+/* 오른쪽 끝으로 민다. 자르지 않는다 — 버튼 하나라 자를 것이 없다. */
+.settings { margin-left: auto; }
 .settings-field, .settings-group {
-  display: flex; align-items: center; gap: 0.3rem; white-space: nowrap;
+  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
 }
 .settings-label, .settings-check { white-space: nowrap; }
 .settings-label { color: #9fb3c8; letter-spacing: 0.06em; }
