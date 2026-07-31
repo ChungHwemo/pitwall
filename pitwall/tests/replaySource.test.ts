@@ -82,8 +82,8 @@ describe('ReplaySource', () => {
 
   it('setSpeed가 배속을 바꾼다', () => {
     const src = new ReplaySource([event()], 1);
-    src.setSpeed(600);
-    expect(src.speed).toBe(600);
+     src.setSpeed(100);
+     expect(src.speed).toBe(100);
   });
 });
 

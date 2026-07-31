@@ -22,10 +22,10 @@ describe('앱 경로의 움직임', () => {
     const base = Date.parse('2026-07-30T10:00:00+09:00');
     const events = Array.from({ length: 10 }, (_, i) => event(base + i * 2_000));
 
-    const app = new PitwallApp(root, {
-      seed: 5, preset: 'sparse', speed: 60,
-      source: new ReplaySource(events, 60),
-    });
+     const app = new PitwallApp(root, {
+       seed: 5, preset: 'sparse', speed: 30,
+       source: new ReplaySource(events, 30),
+     });
     app.start();
 
     const xy = () => {

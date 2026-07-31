@@ -111,11 +111,11 @@ describe('상단 바가 넘칠 때 무엇이 먼저 사라지는가', () => {
     localStorage.clear();
   });
 
-  it('데이터셋 칸이 설정보다 앞에 온다', () => {
-    // 상단 바는 nowrap + overflow hidden이다. `.settings`만 줄어들 수 있으므로
-    // 그 뒤에 붙은 것이 화면 밖으로 먼저 밀린다 — 지어낸 데이터라는 사실이
-    // 조작판보다 먼저 사라지면 안 된다.
-    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 1 });
+   it('데이터셋 칸이 설정보다 앞에 온다', () => {
+     // 상단 바는 nowrap + overflow hidden이다. `.settings`만 줄어들 수 있으므로
+     // 그 뒤에 붙은 것이 화면 밖으로 먼저 밀린다 — 지어낸 데이터라는 사실이
+     // 조작판보다 먼저 사라지면 안 된다.
+     const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
     app.mountDatasetPicker((host) => { new DatasetPicker(host, SETS, 'demo', () => {}); });
 
     const hud = root.querySelector('.hud')!;
@@ -124,8 +124,8 @@ describe('상단 바가 넘칠 때 무엇이 먼저 사라지는가', () => {
     expect(order).toEqual(['dataset', 'settings']);
   });
 
-  it('지어낸 데이터 배지가 상단 바 안에 실제로 붙는다', () => {
-    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 1 });
+   it('지어낸 데이터 배지가 상단 바 안에 실제로 붙는다', () => {
+     const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
     app.mountDatasetPicker((host) => { new DatasetPicker(host, SETS, 'demo', () => {}); });
     expect(root.querySelector('.hud .dataset-warn')?.textContent).toBe('지어낸 데이터');
   });
@@ -143,8 +143,8 @@ describe('마우스 없이 계정을 고를 수 있다', () => {
    * 트랙 글리프도 클릭 전용이라, 타워 줄이 막히면 이 화면의 유일한 조작에
    * 키보드로 도달할 방법이 없다.
    */
-  it('타워 줄이 버튼 역할과 탭 순서를 갖는다', () => {
-    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 1 });
+   it('타워 줄이 버튼 역할과 탭 순서를 갖는다', () => {
+     new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
     const rows = [...root.querySelectorAll('.tower-row')];
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
@@ -158,7 +158,7 @@ describe('마우스 없이 계정을 고를 수 있다', () => {
   it('Enter와 Space가 클릭과 같은 일을 한다', () => {
     // 시뮬레이터가 이벤트를 확실히 뱉게 한다 — integration.test.ts와 같은 방법.
     vi.spyOn(Math, 'random').mockReturnValue(0.0001);
-    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 600 });
+     const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 100 });
     app.start();
     for (let i = 1; i <= 40; i++) app.frame(i * 100);
 
@@ -175,8 +175,8 @@ describe('마우스 없이 계정을 고를 수 있다', () => {
     expect(row!.getAttribute('data-selected')).toBe('false');
   });
 
-  it('Space는 기본 동작(스크롤)을 막는다 — 상시 화면이 튀면 그게 고장이다', () => {
-    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 1 });
+   it('Space는 기본 동작(스크롤)을 막는다 — 상시 화면이 튀면 그게 고장이다', () => {
+     new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
     const row = root.querySelector('.tower-row')!;
     const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
     row.dispatchEvent(event);
@@ -227,8 +227,8 @@ describe('망가진 저장 설정이 화면을 죽이지 않는다', () => {
     expect(typeof out.motion).toBe('boolean');
   });
 
-  it('멀쩡한 값은 그대로 통과한다', () => {
-    expect(resolveSettings({}, { speed: 600, demoClock: false }, {}).speed).toBe(600);
+   it('멀쩡한 값은 그대로 통과한다', () => {
+     expect(resolveSettings({}, { speed: 100, demoClock: false }, {}).speed).toBe(100);
     expect(resolveSettings({}, { demoClock: false }, {}).demoClock).toBe(false);
   });
 });

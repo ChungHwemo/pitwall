@@ -14,19 +14,19 @@ describe('resolveSettings', () => {
   });
 
   it('조직 기본값이 내장 기본값을 덮는다', () => {
-    expect(resolveSettings({ speed: 60 }, {}, {}).speed).toBe(60);
+    expect(resolveSettings({ speed: 30 }, {}, {}).speed).toBe(30);
   });
 
   it('사용자 로컬이 조직 기본값을 덮는다', () => {
-    expect(resolveSettings({ speed: 60 }, { speed: 600 }, {}).speed).toBe(600);
+    expect(resolveSettings({ speed: 30 }, { speed: 100 }, {}).speed).toBe(100);
   });
 
   it('세션 설정이 가장 강하다', () => {
-    expect(resolveSettings({ speed: 60 }, { speed: 600 }, { speed: 1 }).speed).toBe(1);
+    expect(resolveSettings({ speed: 30 }, { speed: 100 }, { speed: 20 }).speed).toBe(20);
   });
 
   it('부분 설정은 나머지를 덮지 않는다', () => {
-    expect(resolveSettings({}, { speed: 600 }, {}).workday).toEqual(DEFAULT_SETTINGS.workday);
+    expect(resolveSettings({}, { speed: 100 }, {}).workday).toEqual(DEFAULT_SETTINGS.workday);
   });
 });
 
@@ -84,10 +84,10 @@ describe('조직 기본값', () => {
 });
 
 describe('로컬 저장', () => {
-  it('저장한 값을 되읽는다', () => {
-    saveLocalSettings({ speed: 60 });
-    expect(loadLocalSettings().speed).toBe(60);
-  });
+   it('저장한 값을 되읽는다', () => {
+     saveLocalSettings({ speed: 30 });
+     expect(loadLocalSettings().speed).toBe(30);
+   });
 
   it('깨진 JSON이면 빈 객체다', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, '{{{');
@@ -98,13 +98,13 @@ describe('로컬 저장', () => {
     expect(loadLocalSettings()).toEqual({});
   });
 
-  it('설정을 서버로 보내지 않는다', () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    saveLocalSettings({ speed: 60 });
-    loadLocalSettings();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
+   it('설정을 서버로 보내지 않는다', () => {
+     const fetchSpy = vi.fn();
+     vi.stubGlobal('fetch', fetchSpy);
+     saveLocalSettings({ speed: 30 });
+     loadLocalSettings();
+     expect(fetchSpy).not.toHaveBeenCalled();
+   });
 });
 
 describe('프리셋 노출', () => {

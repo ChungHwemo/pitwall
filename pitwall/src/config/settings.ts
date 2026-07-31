@@ -6,7 +6,7 @@ import type { HighlightType } from '../track/trackModel';
 export interface PitwallSettings {
   workday: WorkdayConfig;
   preset: PresetName;
-  speed: 1 | 60 | 600;
+  speed: 20 | 30 | 100;
   tyreMode: 'off' | 'rolling_budget' | 'proxy_budget';
   /** 개별 추적할 이벤트 유형. 비워도 클러스터·밀도는 그대로 보인다. */
   highlightTypes: HighlightType[];
@@ -34,7 +34,7 @@ export interface PitwallSettings {
 export const DEFAULT_SETTINGS: PitwallSettings = {
   workday: DEFAULT_WORKDAY,
   preset: 'busy',
-  speed: 1,
+  speed: 30,
   tyreMode: 'off',
   highlightTypes: ['error', 'limit'],
   demoClock: true,

@@ -17,7 +17,7 @@ import type { HighlightType } from '../track/trackModel';
  * 화면에 고정한 판으로 띄운다. 상시 노출 화면에서 조작판이 늘 떠 있을 이유도 없다.
  */
 const PRESETS: PresetName[] = ['busy', 'sparse', 'chaos', 'real'];
-const SPEEDS: PitwallSettings['speed'][] = [1, 60, 600];
+const SPEEDS: PitwallSettings['speed'][] = [20, 30, 100];
 const HIGHLIGHTS: HighlightType[] = ['error', 'limit'];
 const HIGHLIGHT_LABEL: Record<HighlightType, string> = { error: '에러', limit: '한도' };
 
@@ -30,7 +30,7 @@ const HIGHLIGHT_LABEL: Record<HighlightType, string> = { error: '에러', limit:
  */
 const HELP = {
   preset: '시뮬레이터가 만들어낼 이벤트의 밀도. 기록을 재생 중일 때는 나오지 않는다.',
-  speed: '재생 속도. 1× = 실제 시간, 600× = 하루가 몇 분에 지나간다.',
+  speed: '재생 속도. 20× = 72분에 하루, 30× = 48분에 하루, 100× = 14.4분에 하루.',
   highlight: '어떤 사건을 개별 추적할지. 끄면 그 사건이 나도 차를 세우지 않는다.',
   error: '호출이 실패한 차를 피트로 보낸다.',
   limit: '한도 창이 바닥난 차를 피트로 보낸다.',

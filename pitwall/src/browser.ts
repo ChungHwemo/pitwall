@@ -27,11 +27,11 @@ if (mount) {
     const local = loadLocalSettings();
     const settings = resolveSettings(await loadOrgSettings(), local, {});
 
-    // 첫 실행이고 데모 시계면 배속을 올려 띄운다. 실제 조직 속도(1×)로 열면
-    // 처음 1분간 트랙이 비어 보여서 고장난 것처럼 읽힌다.
-    // 사용자가 설정을 한 번이라도 건드리면 그 값이 이긴다.
-    const firstRun = Object.keys(local).length === 0;
-    if (firstRun && settings.demoClock) settings.speed = 60;
+     // 첫 실행이고 데모 시계면 배속을 올려 띄운다. 실제 조직 속도(30×)로 열면
+     // 처음 1분간 트랙이 비어 보여서 고장난 것처럼 읽힌다.
+     // 사용자가 설정을 한 번이라도 건드리면 그 값이 이긴다.
+     const firstRun = Object.keys(local).length === 0;
+     if (firstRun && settings.demoClock) settings.speed = 30;
 
     /*
      * 코스는 열 때마다 새로 깔린다.
@@ -120,8 +120,8 @@ if (mount) {
       if (typeof __PITWALL_LIMITS__ !== 'undefined' && __PITWALL_LIMITS__) {
         live.setLimits(__PITWALL_LIMITS__);
       }
-      // 실시간에는 배속도 데모 시계도 없다. 지금이 지금이다.
-      app.useSource(live, { speed: 1, demoClock: false });
+       // 실시간에는 배속도 데모 시계도 없다. 지금이 지금이다.
+       app.useSource(live, { speed: 20, demoClock: false });
     };
     win.pitwallIngest = (vendor, lines) => { live.ingest(vendor, lines); };
 

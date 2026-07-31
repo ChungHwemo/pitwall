@@ -6,7 +6,7 @@ import {
 import type { SessionSnapshot } from '../src/session/sessionStore';
 
 function snap(id: string, startedAt: number): SessionSnapshot {
-  return { id, seed: 2026, preset: 'busy', speed: 1, startedAt };
+  return { id, seed: 2026, preset: 'busy', speed: 20, startedAt };
 }
 
 beforeEach(() => localStorage.clear());
@@ -36,21 +36,21 @@ describe('sessionStore', () => {
     expect(list[0]!.id).toBe(`s${MAX_SESSIONS + 3}`);
   });
 
-  it('같은 id를 다시 저장하면 갱신하고 중복을 만들지 않는다', () => {
-    saveSession(snap('s1', 1000));
-    saveSession({ ...snap('s1', 5000), speed: 600 });
-    const list = listSessions();
-    expect(list).toHaveLength(1);
-    expect(list[0]!.speed).toBe(600);
-  });
+   it('같은 id를 다시 저장하면 갱신하고 중복을 만들지 않는다', () => {
+     saveSession(snap('s1', 1000));
+     saveSession({ ...snap('s1', 5000), speed: 100 });
+     const list = listSessions();
+     expect(list).toHaveLength(1);
+     expect(list[0]!.speed).toBe(100);
+   });
 
-  it('시드와 프리셋을 그대로 복원한다', () => {
-    saveSession({ id: 'x', seed: 987, preset: 'chaos', speed: 60, startedAt: 1 });
-    const s = latestSession()!;
-    expect(s.seed).toBe(987);
-    expect(s.preset).toBe('chaos');
-    expect(s.speed).toBe(60);
-  });
+   it('시드와 프리셋을 그대로 복원한다', () => {
+     saveSession({ id: 'x', seed: 987, preset: 'chaos', speed: 30, startedAt: 1 });
+     const s = latestSession()!;
+     expect(s.seed).toBe(987);
+     expect(s.preset).toBe('chaos');
+     expect(s.speed).toBe(30);
+   });
 
   it('빈 저장소의 latestSession은 null이다', () => {
     expect(latestSession()).toBeNull();

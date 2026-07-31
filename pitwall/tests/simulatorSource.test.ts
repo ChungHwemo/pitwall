@@ -192,8 +192,8 @@ describe('SimulatorSource', () => {
   });
 
   it('setSpeed가 배속을 바꾼다', () => {
-    const sim = new SimulatorSource(PRESETS.busy, 1);
-    sim.setSpeed(600);
-    expect(sim.speed).toBe(600);
+     const sim = new SimulatorSource(PRESETS.busy, 1);
+     sim.setSpeed(100);
+     expect(sim.speed).toBe(100);
   });
 });
