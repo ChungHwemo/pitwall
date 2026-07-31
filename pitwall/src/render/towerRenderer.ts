@@ -92,7 +92,7 @@ const STATE_LABEL: Record<RowState, string> = {
 const ERROR_FRESH_MS = 300_000;
 
 /** 이보다 많으면 줄을 한 단으로 접는다. 2단 줄로는 화면에 다 안 들어간다. */
-const DENSE_FROM = 10;
+export const DENSE_FROM = 10;
 
 /**
  * 스파크라인이 되돌아보는 **레이스 시간**과 칸 수.

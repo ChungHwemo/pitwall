@@ -260,6 +260,16 @@ const chosen = (requestedDay && perDay.has(requestedDay)
 if (requestedDay && !perDay.has(requestedDay)) {
   console.log(`${requestedDay}에는 기록이 없다. 대신 ${chosen[0]}을 쓴다.`);
 }
+/*
+ * 어떤 날이 있는지 찍는다. 날짜를 인자로 받으면서 고를 수 있는 날을 안 알려주면
+ * 그 인자는 아는 사람만 쓰는 기능이다. 계정 수로 줄 세운다 — 총량이 많은 날보다
+ * 여러 계정이 같이 돈 날이 화면의 더 많은 경로를 밟는다.
+ */
+console.log('날짜별 (계정 · 건수):');
+for (const [day, list] of ranked.slice(0, 8)) {
+  console.log(`  ${day}  계정 ${balance(list)[0]} · ${list.length.toLocaleString('ko-KR')}건`
+    + (day === chosen[0] ? '  ← 고름' : ''));
+}
 const [busiestDay, dayEvents] = chosen;
 
 /**
@@ -291,7 +301,15 @@ for (const e of dayEvents) {
   e.fuel_pct = Math.max(0, 100 - (total / dailyBudgetUsd) * 100);
 }
 
-const out = resolve(import.meta.dirname, '../fixtures/events.real.jsonl');
+/*
+ * 출력 이름. 기본은 `real`이라 예전과 같다.
+ *
+ * 하루만 담는 규칙은 그대로 두되(레이스 한 판 = 하루), 검증용으로 **다른 날**을
+ * 따로 뽑아 나란히 둘 수 있어야 한다 — 오늘 이 기기에서 실제로 돈 계정은 둘뿐이라
+ * 밀집 모드도 피트도 오늘 기록으로는 밟히지 않는다.
+ */
+const outLabel = process.argv[5] ?? 'real';
+const out = resolve(import.meta.dirname, `../fixtures/events.${outLabel}.jsonl`);
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, dayEvents.map((e) => JSON.stringify(e)).join('\n') + '\n');
 
@@ -306,7 +324,12 @@ for (const e of dayEvents) {
   tokens += e.tokens.prompt + e.tokens.completion;
 }
 
-console.log(`${busiestDay}${busiestDay === today ? " (오늘)" : " (오늘 기록이 없어 대체)"} ${dayEvents.length}건 → ${out}`);
+// 왜 그 날인지 정확히 말한다. 요청해서 고른 날을 "오늘 기록이 없어 대체"라고
+// 찍으면 로그가 거짓을 말한다.
+const why = busiestDay === requestedDay ? ' (요청)'
+  : busiestDay === today ? ' (오늘)'
+    : ' (오늘 기록이 없어 대체)';
+console.log(`${busiestDay}${why} ${dayEvents.length}건 → ${out}`);
 console.log(`전체 ${events.length}건 중 ${perDay.size}일치에서 골랐다`);
 console.log(`파일 ${files.length}개 · 차량(계정) ${byCar.size}대 · 토큰 ${tokens.toLocaleString('ko-KR')} · 비용 $${cost.toFixed(2)}`);
 console.log('모델:', [...byModel.entries()].sort((a, b) => b[1] - a[1])
