@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
 import { pitBoxes } from '../src/track/layout';
+import { CIRCUITS } from '../src/track/circuitData';
+import { toTrack } from '../src/track/circuits';
 import { generateTrack } from '../src/track/generateTrack';
 import { buildTrackModel, HOT_CAP } from '../src/track/trackModel';
 import type { HighlightType, TrackModelOptions } from '../src/track/trackModel';
@@ -465,6 +467,13 @@ describe('트랙에서 차 선택', () => {
 });
 
 describe('피트', () => {
+  /*
+   * 지어낸 코스가 아니라 **가장 나빴던 실제 서킷**으로 잰다. 진행률 고정 간격
+   * 시절 이웃 간격이 1.9까지 내려갔던 코스다 (지름 10). 통과하는 코스로 재면
+   * 검사가 아무것도 안 막는다.
+   */
+  const worst = toTrack(CIRCUITS.find((c) => c.id === 'mc-1929')!, 1);
+
   it('멈춘 차는 주행선이 아니라 피트에 선다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('stopped', { tyre_pct: 2, distance: 0 })]), T);
@@ -483,6 +492,58 @@ describe('피트', () => {
     ]), T);
     const spots = [...svg.querySelectorAll('g.car')].map((g) => (g as SVGGElement).style.transform);
     expect(new Set(spots).size).toBe(2);
+  });
+
+  /*
+   * 재생으로는 이 상태를 못 만든다. 더미 3벌을 헤드리스로 끝까지 돌려도 동시에
+   * 선 차가 최대 4대였다 — 그런데 관측된 고장은 9대에서 났다. 그래서 상태를
+   * 직접 세워 **렌더러를 통과시켜** 잰다. `pitBoxes` 단위 검사와 다른 점은
+   * 자리를 세는 쪽(`renderHot`)까지 같이 걸린다는 것이다.
+   *
+   * 12대는 `HOT_CAP`이다 — 피트에 설 수 있는 최대.
+   */
+  it('한도로 12대가 한꺼번에 서도 글리프가 겹치지 않는다', () => {
+    const r = new TrackRenderer(svg, worst);
+    const stopped = Array.from({ length: HOT_CAP }, (_, i) =>
+      car(`c${i}`, { car_number: 100 + i, tyre_pct: 2, distance: i * 1000 }));
+    r.render(model(stopped), T);
+
+    const spots = visiblePositions();
+    expect(spots).toHaveLength(HOT_CAP);
+    for (let i = 1; i < spots.length; i++) {
+      const gap = Math.hypot(spots[i]!.x - spots[i - 1]!.x, spots[i]!.y - spots[i - 1]!.y);
+      expect(gap, `slot ${i}`).toBeGreaterThanOrEqual(GLYPH_DIAMETER);
+    }
+  });
+
+  /** 에러와 한도가 섞여도 같은 줄에 순서대로 선다 — 사유가 자리를 바꾸지 않는다. */
+  it('에러와 한도가 섞여도 겹치지 않는다', () => {
+    const r = new TrackRenderer(svg, worst);
+    const stopped = Array.from({ length: HOT_CAP }, (_, i) =>
+      car(`c${i}`, i % 2 === 0 ? { tyre_pct: 2 } : { error_count: 1 }));
+    r.render(model(stopped), T);
+
+    const spots = visiblePositions();
+    expect(spots).toHaveLength(HOT_CAP);
+    for (let i = 1; i < spots.length; i++) {
+      const gap = Math.hypot(spots[i]!.x - spots[i - 1]!.x, spots[i]!.y - spots[i - 1]!.y);
+      expect(gap, `slot ${i}`).toBeGreaterThanOrEqual(GLYPH_DIAMETER);
+    }
+  });
+
+  /** 선 밖에 뜬 차는 정지가 아니라 코스 이탈로 읽힌다. 그려진 레인이 전부를 덮어야 한다. */
+  it('12대 전부가 그려진 피트 레인 위에 있다', () => {
+    const r = new TrackRenderer(svg, worst);
+    r.render(model(Array.from({ length: HOT_CAP }, (_, i) =>
+      car(`c${i}`, { tyre_pct: 2 }))), T);
+
+    const d = svg.querySelector('path.pit-lane')!.getAttribute('d')!;
+    const lane = [...d.matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)]
+      .map((m) => ({ x: +m[1]!, y: +m[2]! }));
+    for (const spot of visiblePositions()) {
+      const near = Math.min(...lane.map((p) => Math.hypot(p.x - spot.x, p.y - spot.y)));
+      expect(near, `(${spot.x}, ${spot.y})`).toBeLessThan(1);
+    }
   });
 });
 
