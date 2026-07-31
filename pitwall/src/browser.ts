@@ -7,7 +7,7 @@ import { workOf } from './state/reducer';
 import { ReplaySource } from './source/ReplaySource';
 import { LiveSource } from './source/LiveSource';
 import type { LiveAccounts, LiveVendor, VendorLimitSnapshot } from './source/LiveSource';
-import { DATASET_KEY, type Dataset } from './config/datasets';
+import { DATASET_KEY, LIVE_ID, type Dataset } from './config/datasets';
 import { DatasetPicker } from './render/datasetPicker';
 
 /**
@@ -33,16 +33,35 @@ if (mount) {
     const firstRun = Object.keys(local).length === 0;
     if (firstRun && settings.demoClock) settings.speed = 60;
 
-    // 이어하기: 직전 세션의 시드를 복원하면 같은 코스가 다시 깔린다.
-    // 이벤트는 복원되지 않는다 — 시드는 트랙 전용이다 (PRD SIM-5).
-    const resumed = latestSession();
-    const seed = resumed?.seed ?? Math.floor(Math.random() * 1_000_000);
+    /*
+     * 코스는 열 때마다 새로 깔린다.
+     *
+     * 직전 세션의 시드를 복원하고 있었다 — 이어하기로 넣은 것인데, 실제로는
+     * 며칠을 켜도 같은 코스만 나왔다. 이어붙일 이벤트도 없으므로 복원할 이유가
+     * 없다. `?seed=` 로 고정할 수 있게만 남긴다 (버그 재현용).
+     */
+    const pinned = new URLSearchParams(location.search).get('seed');
+    const seed = pinned !== null && pinned !== ''
+      ? Number(pinned)
+      : Math.floor(Math.random() * 1_000_000);
 
-    const datasets = typeof __PITWALL_DATASETS__ === 'undefined' ? [] : (__PITWALL_DATASETS__ ?? []);
-    // 마지막에 고른 것을 기억한다. 없으면 실기록부터.
+    const embedded = typeof __PITWALL_DATASETS__ === 'undefined' ? [] : (__PITWALL_DATASETS__ ?? []);
+    /*
+     * 실시간도 고르는 항목의 하나다.
+     *
+     * 예전에는 껍데기가 뜨면 무조건 실시간으로 갈아탔다. 그래서 데이터셋을 골라도
+     * 새로고침 직후 껍데기가 다시 덮어써서 **아무것도 안 바뀌는 것처럼** 보였다 —
+     * 고른 것이 화면에 안 나오는 게 가장 나쁜 종류의 고장이다.
+     */
+    const datasets: Dataset[] = [
+      { id: LIVE_ID, label: '실시간', synthetic: false, events: [] },
+      ...embedded,
+    ];
     const wanted = localStorage.getItem(DATASET_KEY);
-    const chosen = datasets.find((d) => d.id === wanted) ?? datasets[0];
-    const recorded = chosen?.events ?? [];
+    // 저장된 선택이 없으면 실시간(껍데기가 있을 때만 뜬다), 아니면 첫 기록.
+    const chosen = datasets.find((d) => d.id === wanted) ?? datasets[1] ?? datasets[0];
+    const wantsLive = chosen?.id === LIVE_ID;
+    const recorded = wantsLive ? [] : (chosen?.events ?? []);
 
     // 근무창은 기록이 정한다. 09:00-18:00을 고집하면 실측 기준 하루 작업의
     // 61.4%가 창 밖으로 밀려나 화면에 아예 오지 않는다.
@@ -86,6 +105,8 @@ if (mount) {
 
     win.pitwallLive = (accounts) => {
       if (liveOn) return;
+      // 사용자가 기록을 골랐으면 껍데기가 덮지 않는다.
+      if (!wantsLive) return;
       liveOn = true;
       live.configure(accounts);
       // Claude 한도는 로그에 없다 — 빌드에 심은 스냅샷을 쓴다. 나이는 화면이 밝힌다.

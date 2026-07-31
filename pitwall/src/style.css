@@ -180,6 +180,22 @@ body {
  */
 .hud-item { flex-shrink: 0; }
 
+/*
+ * 무엇을 보고 있는가 — 실시간인지, 실기록인지, 지어낸 것인지.
+ * 숨기면 안 되는 사실이라 고르는 곳과 밝히는 곳을 같은 자리에 둔다.
+ */
+.dataset { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+.dataset-name { font-size: 0.8rem; }
+.dataset-select {
+  background: #161b22; color: #e6edf3; border: var(--hair) solid #2a323d;
+  border-radius: 0.25rem; padding: 0.1rem 0.35rem; font: inherit; font-size: 0.8rem;
+}
+.dataset[data-synthetic="true"] .dataset-select { border-color: #ffd24d; color: #ffd24d; }
+.dataset-warn {
+  font-size: 0.66rem; letter-spacing: 0.06em; color: #ffd24d; white-space: nowrap;
+  border: var(--hair) solid #ffd24d; border-radius: 0.2rem; padding: 0.04rem 0.28rem;
+}
+
 .settings {
   margin-left: auto; display: flex; align-items: center; flex-wrap: nowrap;
   gap: 0.7rem; font-size: 0.72rem; min-width: 0; overflow: hidden;

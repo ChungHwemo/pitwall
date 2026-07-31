@@ -17,3 +17,11 @@ export interface Dataset {
 
 /** 마지막으로 고른 데이터셋. 다시 열 때 그대로 뜬다. */
 export const DATASET_KEY = 'pitwall.dataset';
+
+/**
+ * 실시간을 가리키는 id.
+ *
+ * 네이티브 껍데기가 있을 때만 실제로 동작한다. 브라우저에서 고르면 아무 이벤트도
+ * 안 들어오는데, 그건 고장이 아니라 그 환경에 로그를 읽을 수단이 없다는 뜻이다.
+ */
+export const LIVE_ID = 'live';

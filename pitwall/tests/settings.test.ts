@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { SettingsPanel } from '../src/render/settingsPanel';
 import {
   resolveSettings, clampSettings, loadLocalSettings, saveLocalSettings, loadOrgSettings,
   DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY,
@@ -103,5 +104,19 @@ describe('로컬 저장', () => {
     saveLocalSettings({ speed: 60 });
     loadLocalSettings();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('프리셋 노출', () => {
+  it('기록을 재생 중이면 프리셋 칸을 감춘다 — 아무 효과가 없는 조작판이다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: false });
+    expect(host.textContent).not.toContain('프리셋');
+  });
+
+  it('시뮬레이터일 때는 보여준다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    expect(host.textContent).toContain('프리셋');
   });
 });

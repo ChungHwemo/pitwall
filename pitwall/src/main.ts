@@ -154,7 +154,8 @@ export class PitwallApp {
 
     this.summaryRenderer = new SummaryRenderer(shell);
     this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
-    new SettingsPanel(hud, this.settings, (next) => this.applySettings(next));
+    new SettingsPanel(hud, this.settings, (next) => this.applySettings(next),
+      { simulated: opts.source === undefined });
 
     this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
     this.modelPanel = new ModelPanel(models, MODEL_ROWS);

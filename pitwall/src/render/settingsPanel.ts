@@ -22,15 +22,21 @@ export class SettingsPanel {
     container: HTMLElement,
     initial: PitwallSettings,
     private onChange: (settings: PitwallSettings) => void,
+    /** 시뮬레이터로 돌고 있는가. 기록 재생이면 프리셋 칸이 의미가 없다 */
+    opts: { simulated: boolean } = { simulated: true },
   ) {
     this.settings = initial;
 
     const root = document.createElement('div');
     root.className = 'settings';
 
-    root.appendChild(this.select('preset', '프리셋', PRESETS, initial.preset, (v) => {
-      this.settings = { ...this.settings, preset: v as PresetName };
-    }));
+    // 프리셋은 시뮬레이터 전용이다. 기록을 재생 중일 때 띄워두면 아무 효과가
+    // 없는 조작판이 되어, 눌러도 안 바뀌는 것을 고장으로 읽게 된다.
+    if (opts.simulated) {
+      root.appendChild(this.select('preset', '프리셋', PRESETS, initial.preset, (v) => {
+        this.settings = { ...this.settings, preset: v as PresetName };
+      }));
+    }
 
     root.appendChild(this.select('speed', '배속', SPEEDS.map(String), String(initial.speed), (v) => {
       this.settings = { ...this.settings, speed: Number(v) as PitwallSettings['speed'] };
