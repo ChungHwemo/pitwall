@@ -25,12 +25,17 @@ export interface CarEvent {
   model: string;
   kind: EventKind;
   session_id?: string;
-  /** 어떤 에이전트가 돌렸는가 (general-purpose 등). 도구 메타데이터이지 개인정보가 아니다 */
-  agent?: string;
-  /** 어떤 스킬을 쓰고 있었는가 */
+  /**
+   * 어떤 스킬을 쓰고 있었는가. 스킬 id는 도구 메타데이터이지 개인정보가 아니다.
+   *
+   * **에이전트 필드는 없다.** 파서가 읽던 `attributionAgent`는 실제 로그 37,814행에
+   * 존재하지 않는 키였고(항상 `undefined`), 실재하는 대응물 `agentName`은 값이
+   * `외장하드 파일 분류 및 백업 분석` 같은 자연어 작업 제목이다 — 화면에 올리면
+   * PRIV(이름·작업 내용 미노출)를 정면으로 어긴다. 고쳐서 살리는 것이 오답이라
+   * 지웠다. `sidechain`도 같이 지웠다 — `isSidechain`은 27,889행 중 `true`가 0건이다.
+   * 되살릴 일이 생기면 여기 한 줄과 `claudeCodeImport`의 한 줄이면 된다.
+   */
   skill?: string;
-  /** 서브에이전트 호출인가 */
-  sidechain?: boolean;
   tokens: {
     prompt: number;
     completion: number;
@@ -113,6 +118,13 @@ export interface CarState {
   last_error_ts?: number;
   cache_hits: number;
   call_count: number;
+  /**
+   * 마지막으로 관측된 스킬. **지금 그 스킬을 쓰는 중이라고 주장하지 않는다** —
+   * 귀속이 붙는 호출이 실측 6.7%뿐이라 "붙지 않음"은 "스킬을 안 씀"이 아니다.
+   * 무전이 스킬이 바뀌는 순간만 말하는 재료이고, 값을 이어받는 이유는 귀속이
+   * 띄엄띄엄 붙을 때 같은 줄을 반복하지 않기 위해서다.
+   */
+  skill?: string;
 }
 
 export type RacePhase =

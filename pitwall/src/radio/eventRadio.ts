@@ -69,6 +69,18 @@ export function stateRadio(prev: CarState | undefined, next: CarState): RadioMes
     return { ...base, severity: 'warn', text: `문제 발생 — 누적 ${next.error_count}건` };
   }
 
+  /*
+   * 스킬 진입. 급한 것들 다음에 둔다 — 한도·에러가 걸린 순간에 스킬 줄이 먼저
+   * 나가면 무전이 우선순위를 거꾸로 말한다.
+   *
+   * **진입만 알리고 종료는 안 알린다.** 귀속이 붙는 호출은 실측 6.7%뿐이라
+   * "다음 호출에 스킬이 없다"는 스킬이 끝났다는 뜻이 아니다. 없는 사실을
+   * 무전으로 만들지 않는다.
+   */
+  if (next.skill && next.skill !== prev.skill) {
+    return { ...base, severity: 'info', text: `스킬 — ${next.skill}` };
+  }
+
   return null;
 }
 

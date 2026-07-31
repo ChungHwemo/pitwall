@@ -356,10 +356,20 @@ export class PitwallApp {
       + (this.live ? ' · LIVE' : '')
       + (!this.live && !replayed && this.settings.demoClock ? ' · DEMO' : ''));
 
+    /*
+     * 연봉이 없으면 칸 자체를 안 그린다.
+     *
+     * `💰 연봉 미설정`이 상단 바의 프라임 자리를 영구 점유하고 있었다. 값이 없는
+     * 기능이 자리를 차지하면 그만큼 오른쪽이 밀리고, 실측 1440×900에서 조작판의
+     * `한도` 체크박스가 그 밀림으로 반쯤 잘렸다. 설정하는 곳은 설정 판이다.
+     */
     const salary = loadSalaryConfig();
-    setText(this.hudSalary, salary
-      ? `💰 ${Math.round(earnedSoFar(salary, this.settings.workday, wall)).toLocaleString('ko-KR')}원`
-      : '💰 연봉 미설정');
+    const wanted = salary ? '' : 'none';
+    if (this.hudSalary.style.display !== wanted) this.hudSalary.style.display = wanted;
+    if (salary) {
+      setText(this.hudSalary,
+        `💰 ${Math.round(earnedSoFar(salary, this.settings.workday, wall)).toLocaleString('ko-KR')}원`);
+    }
   }
 
   /**

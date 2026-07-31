@@ -6,7 +6,7 @@ const CLAUDE_LINE = JSON.stringify({
   timestamp: '2026-07-30T21:00:00.000Z',
   sessionId: 's1',
   message: { model: 'claude-opus-5', usage: { input_tokens: 1_000, output_tokens: 200, cache_read_input_tokens: 800 } },
-  attributionAgent: 'general-purpose',
+  attributionSkill: 'superpowers:test-driven-development',
 });
 const CODEX_CTX = JSON.stringify({
   timestamp: '2026-07-30T21:00:01.000Z',
@@ -35,7 +35,7 @@ describe('LiveSource', () => {
     const out = collect(src);
     expect(out).toHaveLength(1);
     expect(out[0]!.model).toBe('claude-opus-5');
-    expect(out[0]!.agent).toBe('general-purpose');
+    expect(out[0]!.skill).toBe('superpowers:test-driven-development');
   });
 
   it('계정 uuid는 해시로만 나간다 — 원문이 이벤트에 남으면 안 된다', () => {

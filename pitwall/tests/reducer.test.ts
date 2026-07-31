@@ -225,4 +225,18 @@ describe('캐시 절약', () => {
       model: 'claude-opus-5', tokens: big, cache_hit: true,
     })) * 2, 9);
   });
+
+  /*
+   * 귀속이 붙는 호출은 실측 6.7%뿐이다. 안 붙은 호출이 스킬을 지우면 무전이
+   * 같은 스킬을 몇 분마다 새로 알린다 — 상태는 이어받고, 바뀔 때만 말한다.
+   */
+  it('귀속 없는 호출은 스킬을 지우지 않는다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ skill: 'doctor' }));
+    s = applyEvent(s, makeEvent({ ts: T0 + 1_000 }));
+    expect(s.cars.get('car-a')!.skill).toBe('doctor');
+
+    s = applyEvent(s, makeEvent({ ts: T0 + 2_000, skill: 'commit' }));
+    expect(s.cars.get('car-a')!.skill).toBe('commit');
+  });
 });

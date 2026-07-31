@@ -124,10 +124,25 @@ body {
 /*
  * 계정이 많아지면 한 줄로 접는다. 모델명과 속도가 먼저 사라지는 이유는
  * 그 둘이 선택했을 때 오른쪽 패널에 그대로 나오기 때문이다 — 한도와 돈은 안 나온다.
+ *
+ * **카넘버 칸은 3rem이면 모자란다.** 카넘버는 `hash % 999 + 1`이라 약 90%가
+ * 세 자리이고, `.tower-number`는 1.875rem·weight 700·등폭이다. 등폭 자간이
+ * 0.6em이므로 세 자리는 `3 × 0.6 × 1.875 = 3.375rem`이다 (실측: root 14.4533px에서
+ * `"540"`의 글리프 폭 48.9px = 3.383rem). 3rem 칸에서는 0.38rem이 넘치고
+ * `.tower-row > * { overflow: hidden }`이 잘라, `233`이 `23`으로 읽혔다.
+ * 계정이 10대를 넘을 때만, 즉 볼 이유가 가장 큰 때만 깨졌다.
+ *
+ * 3.6rem이면 0.22rem 남는다. 뺏기는 쪽은 같은 줄의 `1fr`(스파크라인)이고,
+ * 스파크라인은 18칸 × 0.95rem × 0.66 = 11.3rem이 필요한데 1440×900 기준
+ * 그 칸이 13.2rem이라 뺏기고도 들어간다. 글자를 줄이지 않은 이유는 카넘버가
+ * 이 줄에서 계정을 가리키는 유일한 표식이기 때문이다.
+ *
+ * jsdom은 레이아웃을 계산하지 않아 이 종류를 테스트가 못 잡는다. 픽셀 확인은
+ * `npm run shot`이다.
  */
 .tower[data-dense="true"] .tower-row {
   height: 1.9rem;
-  grid-template-columns: 0.4rem 3rem minmax(0, 1fr) 5rem 10.4rem 11.6rem;
+  grid-template-columns: 0.4rem 3.6rem minmax(0, 1fr) 5rem 10.4rem 11.6rem;
   grid-template-areas: "bar num spark state limit money";
 }
 .tower[data-dense="true"] .tower-model,
@@ -218,6 +233,18 @@ body {
  * 내용이고 설정은 조작판이다.
  */
 .hud-item { flex-shrink: 0; }
+
+/*
+ * 상단 바에서 한 덩어리만 크다.
+ *
+ * 여덟 칸이 전부 1.05rem이면 곁눈질에 아무것도 먼저 도착하지 않는다.
+ * 키우는 것은 `formatPace`가 만드는 한 칸 — `$총액 · $/시간 · tok/분`이다.
+ * PRD G1이 3초 안에 답하라 하는 "지금 바쁜가/한가한가"에 답하는 숫자가 여기 있고,
+ * 셋이 한 문자열이라 나누려면 요소를 쪼개야 한다. 쪼개서 하나만 키우면 나머지 둘이
+ * 옆에 작게 남아 오히려 시선이 갈라진다 — 덩어리 하나를 통째로 키운다.
+ * 사고 여부는 여기가 아니라 타워 줄의 색이 말한다.
+ */
+.hud-pace { font-size: 1.35rem; font-weight: 700; }
 
 /* 범례 — 기본은 접힘. 상시 노출 화면에서 늘 떠 있으면 그 자체가 방해다. */
 .legend { position: relative; flex-shrink: 0; }

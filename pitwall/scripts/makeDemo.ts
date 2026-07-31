@@ -151,8 +151,10 @@ for (const account of accounts) {
       limit_window_minutes: account.window,
       limit_resets_at: account.resets,
       limit_observed_at: Math.round(at),
-      agent: rng.range(0, 1) < 0.4 ? 'general-purpose' : undefined,
-      skill: rng.range(0, 1) < 0.25 ? 'superpowers:test-driven-development' : undefined,
+      // 실측 비율이다 — 2026-07-31 로컬 로그 9,739건 중 스킬 귀속이 붙은 것이
+      // 1,003건(작업 토큰 기준 6.7%). 0.25는 실측의 4배라 더미가 화면에
+      // "스킬을 대부분 안다"고 말하게 만들었다.
+      skill: rng.range(0, 1) < 0.067 ? 'superpowers:test-driven-development' : undefined,
     });
   }
 }

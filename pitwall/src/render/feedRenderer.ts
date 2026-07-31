@@ -71,7 +71,7 @@ function collapse(sorted: CarEvent[]): Entry[] {
 function rowKey(e: CarEvent): string {
   return [
     clockOf(e.wall_ts ?? e.ts), e.model, e.status, e.error_code ?? '',
-    e.agent ?? '', e.skill ?? '', workOf(e), cachedOf(e),
+    e.skill ?? '', workOf(e), cachedOf(e),
   ].join('|');
 }
 
@@ -124,7 +124,14 @@ export class FeedRenderer {
 
   render(target: FeedTarget | null, events: CarEvent[]): void {
     if (!target) {
-      setText(this.title, '—');
+      /*
+       * 고른 차가 없을 때 제목을 비운다.
+       *
+       * `—`를 1.6rem으로 찍고 있었는데, 선택이 없으면 `.cams`가 2.1rem으로 접혀서
+       * 그 한 글자가 높이를 다 먹고 **안내문이 잘려 안 보였다**. 화면에는 지도 옆에
+       * 뜻 모를 대시 하나만 떠 있었다 — 안내하려고 남긴 자리가 안내를 가렸다.
+       */
+      setText(this.title, '');
       setText(this.klass, '');
       setText(this.empty, '트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다');
       for (const row of this.rows) row.root.style.display = 'none';
@@ -154,10 +161,11 @@ export class FeedRenderer {
 
       setText(row.time, clockOf(e.wall_ts ?? e.ts));
       setText(row.model, shortModel(e.model));
-      // 무엇이 돌렸는지 — 에이전트·스킬이 이 화면의 목적이다.
+      // 무엇을 쓰고 있었는지. 귀속이 붙는 호출은 실측 6.7%뿐이라 나머지는 `—`다 —
+      // 빈칸을 지어내지 않는다.
       setText(row.who, e.status === 'error'
         ? (e.error_code ?? 'error')
-        : [e.agent, e.skill].filter(Boolean).join(' · ') || '—');
+        : e.skill || '—');
       const size = `${compact(workOf(e))} · ${compact(cachedOf(e))}`;
       setText(row.size, entry.count > 1 ? `${size} ×${entry.count}` : size);
     });

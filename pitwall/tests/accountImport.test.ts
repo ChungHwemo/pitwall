@@ -40,24 +40,27 @@ describe('차량 = 계정', () => {
   });
 });
 
-describe('에이전트 귀속', () => {
-  it('어떤 에이전트가 돌렸는지 담는다', () => {
-    expect(toCarEvent(line())!.agent).toBe('general-purpose');
-  });
-
-  it('스킬도 담는다', () => {
+/*
+ * 예전에 `에이전트 귀속`이라는 이름으로 `agent`·`sidechain`을 검사하던 자리다.
+ * 둘 다 계약에서 지웠기 때문에 검사도 같이 지운다 — 통과시키려고 지우는 것이
+ * 아니라 검사 대상이 없어졌다. 근거: `attributionAgent`는 실제 로그 37,814행에
+ * 없는 키였고, `isSidechain`은 27,889행 중 `true`가 0건이었다. 상세는
+ * `types.ts`의 `skill` 주석.
+ *
+ * 남은 것은 실재하는 축 하나뿐이다.
+ */
+describe('스킬 귀속', () => {
+  it('어떤 스킬을 쓰고 있었는지 담는다', () => {
     expect(toCarEvent(line())!.skill).toBe('superpowers:test-driven-development');
   });
 
   it('귀속 정보가 없으면 비운다 — 지어내지 않는다', () => {
-    const e = toCarEvent(line({ attributionAgent: undefined, attributionSkill: undefined }))!;
-    expect(e.agent).toBeUndefined();
-    expect(e.skill).toBeUndefined();
+    expect(toCarEvent(line({ attributionSkill: undefined }))!.skill).toBeUndefined();
   });
 
-  it('서브에이전트 여부를 담는다', () => {
-    expect(toCarEvent(line({ isSidechain: true }))!.sidechain).toBe(true);
-    expect(toCarEvent(line())!.sidechain).toBeUndefined();
+  it('없는 키를 읽지 않는다 — 에이전트 이름은 계약에 없다', () => {
+    const e = toCarEvent(line({ agentName: '외장하드 파일 분류 및 백업 분석' }))!;
+    expect(JSON.stringify(e)).not.toContain('외장하드');
   });
 });
 

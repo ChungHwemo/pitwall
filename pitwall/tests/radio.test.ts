@@ -175,4 +175,29 @@ describe('stateRadio', () => {
   it('처음 등장한 차는 사건이 아니다', () => {
     expect(stateRadio(undefined, carAt({}))).toBeNull();
   });
+
+  it('스킬에 들어가면 알린다 — 무슨 스킬을 쓰는 중인지가 이 줄의 목적이다', () => {
+    const msg = stateRadio(carAt({}), carAt({ skill: 'insane-search:insane-search' }));
+    expect(msg?.text).toBe('스킬 — insane-search:insane-search');
+    expect(msg?.severity).toBe('info');
+  });
+
+  it('같은 스킬이 이어지면 침묵한다', () => {
+    const on = { skill: 'insane-search:insane-search' };
+    expect(stateRadio(carAt(on), carAt({ ...on, call_count: 2 }))).toBeNull();
+  });
+
+  /*
+   * 귀속이 붙는 호출은 실측 6.7%뿐이라 "다음 호출에 스킬이 없다"는 스킬이
+   * 끝났다는 뜻이 아니다. 리듀서가 값을 이어받으므로 여기까지 오지도 않지만,
+   * 와도 없는 사실을 무전으로 만들지 않는다.
+   */
+  it('스킬이 사라져도 종료를 알리지 않는다 — 없는 사실이다', () => {
+    expect(stateRadio(carAt({ skill: 'doctor' }), carAt({ skill: undefined }))).toBeNull();
+  });
+
+  it('한도가 급하면 스킬보다 한도가 먼저다', () => {
+    const msg = stateRadio(carAt({ tyre_pct: 40 }), carAt({ tyre_pct: 2, skill: 'doctor' }));
+    expect(msg?.text).toContain('BOX BOX');
+  });
 });

@@ -10,7 +10,7 @@ function event(over: Partial<CarEvent> = {}): CarEvent {
     model: 'claude-sonnet-5', kind: 'call',
     tokens: { prompt: 120_000, completion: 300, cache_read: 118_000 },
     cache_hit: true, cost_usd: 0.01, latency_ms: 0, status: 'ok', fuel_pct: 90,
-    agent: 'general-purpose', skill: 'superpowers:test-driven-development',
+    skill: 'superpowers:test-driven-development',
     ...over,
   };
 }
@@ -44,11 +44,17 @@ describe('FeedRenderer', () => {
     expect(rows[0]!.textContent).toContain('opus');
   });
 
-  it('어떤 에이전트·스킬이 돌았는지 보여준다', () => {
+  it('어떤 스킬을 쓰고 있었는지 보여준다', () => {
     const r = new FeedRenderer(host, 6);
     r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' }, [event()]);
-    expect(host.textContent).toContain('general-purpose');
     expect(host.textContent).toContain('test-driven-development');
+  });
+
+  it('귀속이 없는 호출은 —로 둔다 — 실측 93%가 여기다', () => {
+    const r = new FeedRenderer(host, 6);
+    r.render({ carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ skill: undefined })]);
+    expect(host.textContent).toContain('—');
   });
 
   it('작업량과 캐시 재전송을 나눠 쓴다', () => {
@@ -101,7 +107,7 @@ describe('FeedRenderer', () => {
 describe('같은 순간에 몰린 호출', () => {
   it('구분이 안 되는 연속 호출은 한 줄로 접고 횟수를 붙인다', () => {
     const same = (i: number): CarEvent => ({
-      ...event(), ts: 1_000, model: 'claude-fable-5', agent: 'superpowers',
+      ...event(), ts: 1_000, model: 'claude-fable-5',
       tokens: { prompt: 5_000, completion: 100, cache_read: 4_000 }, session_id: `s${i}`,
     });
     const r = new FeedRenderer(host, 8);

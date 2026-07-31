@@ -86,9 +86,9 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
     model,
     kind: failed ? 'error' : 'call',
     session_id: typeof row.sessionId === 'string' ? row.sessionId : undefined,
-    agent: typeof row.attributionAgent === 'string' ? row.attributionAgent : undefined,
+    // 실측 37,814행에서 귀속 필드는 `attributionSkill`(999행)뿐이다. 예전에 읽던
+    // `attributionAgent`는 존재하지 않는 키였다 — 상세는 `types.ts`의 `skill` 주석.
     skill: typeof row.attributionSkill === 'string' ? row.attributionSkill : undefined,
-    sidechain: row.isSidechain === true ? true : undefined,
     tokens: { prompt, completion, cache_read: usage.cache_read_input_tokens ?? 0 },
     cache_hit: cacheHit,
     // 단가를 모르면 0이다. 지어내지 않는다.

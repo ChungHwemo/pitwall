@@ -54,6 +54,7 @@ function initialCar(event: CarEvent): CarState {
     call_count: 0,
     work_per_min: 0,
     saved_usd: 0,
+    skill: event.skill,
   };
 }
 
@@ -84,6 +85,9 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
     saved_usd: prev.saved_usd + cacheSavingOf(event),
     cache_hits: prev.cache_hits + (event.cache_hit ? 1 : 0),
     call_count: prev.call_count + 1,
+    // 귀속이 없는 호출은 스킬을 지우지 않는다 — 6.7%만 붙으므로 지우면 무전이
+    // 같은 스킬을 몇 분마다 새로 알린다.
+    skill: event.skill ?? prev.skill,
     activity: retired ? 'retired' : event.kind === 'pit_in' ? 'pit' : 'running',
   };
 

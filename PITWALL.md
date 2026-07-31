@@ -1,6 +1,6 @@
 # PITWALL — 현재 상태 전부
 
-2026-07-31 기준 · 테스트 547개 통과 · tsc 클린 · 런타임 의존성 0
+2026-07-31 기준 · 테스트 584개 통과 · tsc 클린 · 런타임 의존성 0
 
 조직의 LLM 사용을 내구 레이스로 그리는 상시 노출 화면. 대시보드가 아니라
 두 번째 모니터에 띄워 두고 **곁눈질로 읽는** 물건이다.
@@ -10,7 +10,7 @@
 ## 1. 실행
 
 ```bash
-npm test                      # 547개
+npm test                      # 584개
 npm run dev                   # 웹 (시뮬레이터)
 npm run fetch:limits          # 벤더 한도 갱신 → fixtures/limits.json
 npm run import:circuits       # 실제 F1 서킷 형상 → src/track/circuitData.ts
@@ -19,6 +19,7 @@ npm run make:demo:all         # 더미 3벌 생성 (계정 4 / 14 / 40)
 npm run build:real            # 데이터셋 전부 심은 단일 HTML
 npm run build:app:real        # macOS 앱
 npm run live:check            # 실시간 경로를 실계정 로그로 검증
+npm run shot                  # 화면을 헤드리스 Chrome으로 찍는다 (jsdom이 못 보는 잘림 확인)
 open dist/PITWALL.app         # ⌘T 항상 위 · ⌘F 전체 화면
 ```
 
@@ -104,7 +105,7 @@ Swift LogTail (2초 폴링)          WebView
 │                                     $19.0/시간 · 4.9k tok/분
 ├ 합계 ─ 계정 2 · 451콜 · 캐시 99% · $61.49 · $3265.41 아낌
 ├ 모델별 오늘 ─ claude-opus-5 ████ 417콜 · 949.3k · $61.17
-└ 무전 ─ 상태 변화만
+└ 무전 ─ 상태 변화만 (모델 교체 · 한도 · 에러 · **스킬 진입**)
                         (우) 트랙 + 선택한 계정의 호출 피드
 ```
 
@@ -176,6 +177,8 @@ font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34p
 - `~/.claude.json`의 `emailAddress`는 **읽지도 않는다**
 - OAuth 토큰은 키체인에서 읽어 **헤더로만**. 출력·파일 어디에도 안 남는다
 - `CarEvent`에 프롬프트·응답 본문 필드가 **없다** (스키마 수준)
+- 에이전트 이름도 **없다** — 로그의 `agentName`은 값이 자연어 작업 제목이라 계약에서 뺐다.
+  남은 귀속 축은 스킬 id 하나뿐이고 그건 도구 메타데이터다
 - 화면에 이름 없음, **순위·리더보드 UI 없음**
 - k-익명성 하한 10 (완화 방향으로 못 연다)
 
@@ -190,6 +193,13 @@ font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34p
 가져온 것: 속도→발열 매핑(시그모이드), 유휴를 트랙에 남기기, 캐시를 금액으로.
 거부한 것: 공개 순위표(`tokens.ci`), 효율 점수(`spent` — 낭비 판정 근거 없음),
 프록시 래핑(실행 경로에 끼어듦), PromQL 대시보드(질의를 짜야 읽힘).
+
+**2차 (에이전트·스킬 축, 같은 날).** 도구 7개를 더 봤고 **채택 0건**이다 —
+훅 수집(`Claude-Code-Agent-Monitor`)·예산 중단(`claude-swarm`)은 실행 경로 안이라
+프록시와 같은 선에서 기각, 계층 타임라인(`agent-prism`)·스크럽 리플레이(`agent-replay`)는
+드릴다운 디버거라 앰비언트가 아니다. 대신 우리 화면을 헤드리스로 직접 찍어
+P0 하나(카넘버 잘림)를 포함한 고장 다섯을 잡았다 —
+`docs/superpowers/specs/2026-07-31-uiux-prd.md`.
 
 ---
 
@@ -213,7 +223,7 @@ pitwall/
   scripts/              importClaudeCode · fetchLimits · makeDemo · liveCheck
                         bundleSingleFile · dumpEvents · importCircuits
   app/                  main.swift · PitwallApp.swift · LogTail.swift · build.sh
-  tests/                41개 파일 547개
+  tests/                43개 파일 584개
 docs/
   superpowers/specs/    PRD · MVP 결정 · 악마의 변호인 감사
   reference/            f1-telemetry 분해 · 사용량 시각화 벤치마크
@@ -265,7 +275,8 @@ REVIEW.md               다른 작성자 의견
 - SwiftUI 위젯 vs 상시 창
 
 ### 벤치마크 잔여
-- 툴 콜 단위 귀속 — 프록시 필요, v1 범위 밖
+- 툴 콜 단위 귀속 — **프록시는 필요 없었다** (로그의 `attributionMcpTool`). 막는 것은 커버리지
+  2.3%다. 스킬도 6.7%뿐이라 판을 세우면 화면이 그걸 전부인 것처럼 말한다 — 무전 한 줄까지만 한다
 - 프로젝트 단위 분해 — `cwd`가 PRIV와 충돌
 
 ### 서버
