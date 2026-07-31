@@ -104,6 +104,25 @@ describe('고정점에 갇히지 않는다', () => {
     const distinct = new Set(tail.map((v) => v.toFixed(6)));
     expect(distinct.size).toBe(tail.length);
   });
+
+  // 회귀 고정 (REVIEW #2): 앵커가 잠깐 멈춘 사이 차가 고정점에 얼어붙어 "스팟에서
+  // 스팟으로" 튄다. 전방투영(velocity*dt)과 정지 앵커로의 보간(LERP)이 앵커보다
+  // velocity*dt/LERP 앞선 지점에서 정확히 상쇄돼 멈춘다. 위 테스트는 30프레임만 봐서
+  // 이 정지(≈80프레임 뒤)를 놓친다 — 속도와 lead 여유가 있으면 계속 미끄러져야 한다.
+  it('앵커가 유지돼도 속도가 있으면 lead 한계까지 계속 미끄러진다 — 고정점에서 얼지 않는다', () => {
+    const p = new Projector();
+    p.step('a', 0.00, 1_000);
+    p.step('a', 0.02, 2_000);          // 전방 속도 0.02/초 확보, lead 한계 0.03
+    let atFrame40 = 0;
+    let atFrame80 = 0;
+    for (let f = 0, t = 2_016; f < 120; f++, t += 16) {
+      const v = p.step('a', 0.02, t);
+      if (f === 40) atFrame40 = v;
+      if (f === 80) atFrame80 = v;
+    }
+    // 고정점에 갇히면 이 구간은 사실상 정지(≈0.0001). 전방투영이 살아 있으면 눈에 띄게 나아간다.
+    expect(atFrame80 - atFrame40).toBeGreaterThan(0.005);
+  });
 });
 
 describe('잠깐 사라진 차', () => {

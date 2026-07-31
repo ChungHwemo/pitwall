@@ -117,8 +117,12 @@ export class Projector {
 
     // 1. 속도로 민다 — 샘플이 없어도 여기서 계속 간다.
     let next = car.visual + car.velocity * dt;
-    // 2. 앵커 쪽으로 당긴다.
-    next += shortest(next, target) * LERP;
+    // 2. 앵커 쪽으로 당긴다 — 정지한 앵커가 아니라 속도로 전방투영한 위치로. 원본
+    //    앵커로 당기면 전방투영과 보간이 앵커보다 velocity*dt/LERP 앞선 지점에서
+    //    상쇄돼 고정점에 갇힌다 (이벤트 사이 정지 → "스팟에서 스팟으로" 튐).
+    //    앞서기는 아래 lead 한계가 계속 막으므로 데이터를 지어내지 않는다.
+    const projected = target + car.velocity * (now - car.anchorAt);
+    next += shortest(next, projected) * LERP;
 
     // 3. 앵커보다 너무 앞서면 세운다 — 한계는 직전 한 걸음이다.
     const limit = Math.max(MAX_LEAD, car.lastStep);
