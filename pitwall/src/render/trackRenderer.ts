@@ -1,10 +1,11 @@
 import { trackWidth, TRACK_STROKE } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
-import { positionAt, pitBoxAt, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
+import { positionAt, pitBoxes, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
 import { Projector } from './projection';
 import { CLASS_STYLE } from '../config/theme';
 import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
+import { HOT_CAP } from '../track/trackModel';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -193,7 +194,9 @@ export class TrackRenderer {
    * 설 자리가 그려져 있어야 정지가 사고가 아니라 피트인으로 보인다.
    */
   private drawPitLane(): void {
-    const pts = pitLanePoints(this.track);
+    // 피트에 설 수 있는 최대만큼 그린다. 8칸 고정이던 시절에는 9번째 차부터
+    // 선 밖에 떠 있었고, 그러면 정지가 아니라 코스 이탈로 읽힌다.
+    const pts = pitLanePoints(this.track, HOT_CAP);
     const path = document.createElementNS(SVG_NS, 'path');
     path.setAttribute('class', 'pit-lane');
     path.setAttribute('d', pts
@@ -328,7 +331,11 @@ export class TrackRenderer {
    */
 
   private renderHot(hot: HotCar[], labelled: boolean, now: number): void {
-    // 피트 박스 번호. 멈춘 차만 센다.
+    /*
+     * 세울 자리를 먼저 만든다. 간격이 진행률이 아니라 **앞 박스와의 실제 거리**로
+     * 정해지므로, 자리 하나를 따로 계산할 수 없고 몇 대가 서는지 알아야 한다.
+     */
+    const boxes = pitBoxes(this.track, hot.filter((c) => STOPPED.has(c.reason)).length);
     let pitSlot = 0;
 
     hot.forEach((car, i) => {
@@ -366,7 +373,8 @@ export class TrackRenderer {
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);
-        translate(node.group, pitBoxAt(this.track, pitSlot, hot.length));
+        // 자리가 모자라면 마지막 칸에 겹쳐 세운다 — 트랙 위에 두는 것보다 낫다.
+        translate(node.group, boxes[pitSlot] ?? boxes[boxes.length - 1]!);
         pitSlot += 1;
       } else {
         const next = this.projector.step(car.carId, car.progress, now);

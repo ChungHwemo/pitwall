@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
-import { pitBoxAt } from '../src/track/layout';
+import { pitBoxes } from '../src/track/layout';
 import { generateTrack } from '../src/track/generateTrack';
 import { buildTrackModel, HOT_CAP } from '../src/track/trackModel';
 import type { HighlightType, TrackModelOptions } from '../src/track/trackModel';
@@ -471,7 +471,7 @@ describe('피트', () => {
     const g = svg.querySelector('g.car') as SVGGElement;
     const at = g.style.transform;
 
-    const box = pitBoxAt(track, 0, 1);
+    const box = pitBoxes(track, 1)[0]!;
     expect(at).toBe(`translate(${box.x.toFixed(2)}px, ${box.y.toFixed(2)}px)`);
   });
 

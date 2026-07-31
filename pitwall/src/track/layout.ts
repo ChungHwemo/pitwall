@@ -50,8 +50,31 @@ export const PIT_LANE_OFFSET = -(LANE_OFFSETS.H + LANE_JITTER + GLYPH_DIAMETER /
 /** 피트 레인 선의 굵기. 주행선보다 얇아야 어느 쪽이 코스인지 안 헷갈린다. */
 export const PIT_LANE_STROKE = TRACK_STROKE * 0.8;
 
-/** 피트 박스 사이 간격 (진행률). 글리프가 겹치지 않을 만큼. */
-const PIT_BOX_GAP = 0.008;
+/**
+ * 피트 박스 사이 최소 거리 — **화면 거리**이지 진행률이 아니다.
+ *
+ * 예전에는 진행률 0.008 고정이었다. 진행률은 **중심선** 기준인데 피트 박스는
+ * `PIT_LANE_OFFSET`만큼 안쪽으로 밀어서 그린다. 안쪽으로 민 곡선은 중심선보다
+ * 짧으므로, 코너에서는 같은 진행률 간격이 화면에서 압축된다 — 코스가 얼마나
+ * 꺾이느냐에 따라 압축률이 달라진다.
+ *
+ * 실측(40개 서킷, 정지 9대): 8개 서킷에서 이웃 간격이 글리프 지름 10 아래로
+ * 내려갔다. 최악은 `mc-1929` 1.9 · `us-1956` 2.2 · `hu-1986` 2.3. 간격이
+ * `22,24,20,22,24,13,6,3`처럼 **뒤로 갈수록 무너지는데**, 피트 진입점이
+ * 가장 덜 꺾이는 구간의 *한가운데*(`flattestStretch`)라 박스가 그 구간을 벗어나
+ * 코너로 들어가기 때문이다. 화면에서는 정지 차량 9대가 한 덩어리가 되어
+ * 한도(노랑)와 에러(빨강)를 구분할 수도, 셀 수도 없었다.
+ *
+ * **기준은 글리프가 아니라 정지 표식이다.** 표식(느낌표·빈 게이지)은 글리프 위에
+ * 그려져 중심에서 위로 25(`GLYPH_SIZE + 20`)까지 뻗고 글리프는 아래로 5 내려간다.
+ * 레인이 세로로 서면 한 대의 표식이 앞 차의 몸통을 덮으므로 필요한 것은 지름 10이
+ * 아니라 **30**이다. 실제로 1.4배(14)로 잡았을 때 글리프는 떨어졌는데 노란 게이지가
+ * 여전히 위 차에 얹혔다 — 표식이 겹치면 한도와 에러를 나눈 의미가 사라진다.
+ *
+ * 실측(서킷 40개 + 생성 시드 300개, 정지 12대): 30에서도 전부 자리를 찾고
+ * 레인 길이는 최대 529다 (좌표계 세로 1000).
+ */
+const PIT_BOX_SPACING = GLYPH_DIAMETER * 3;
 
 /**
  * 정지한 차가 서는 자리.
@@ -60,24 +83,46 @@ const PIT_BOX_GAP = 0.008;
  * 거짓이 된다 — 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인 것처럼 보인다.
  * 실제 경기와 같이 피트로 들여보낸다.
  *
- * 박스는 피트 진입점부터 순서대로 늘어선다. 자리 번호는 호출자가 정한다.
+ * 박스는 피트 진입점부터 순서대로 늘어선다. 진행률을 일정하게 더하는 대신
+ * **피트 레인을 실제로 걸어가며** 직전 박스에서 `PIT_BOX_SPACING`만큼 떨어진
+ * 지점에 세운다. 그래서 코너에서는 자연히 더 멀리 간다.
  */
-export function pitBoxAt(track: Track, slot: number, _slots: number): Point {
-  return positionAt(track, pitProgressAt(track, slot), 'P', 0, PIT_LANE_OFFSET);
-}
-
-/** 피트 레인이 차지하는 진행률 구간. 레인을 그릴 때와 세울 때가 같은 식을 쓴다. */
-export function pitProgressAt(track: Track, slot: number): number {
-  return track.pitEntry / track.points.length + slot * PIT_BOX_GAP;
-}
-
-/** 피트 레인 폴리라인. 차만 안쪽에 떠 있으면 트랙을 벗어난 것으로 읽힌다. */
-export function pitLanePoints(track: Track, boxes = 8): Point[] {
+export function pitBoxes(track: Track, slots: number): Point[] {
   const out: Point[] = [];
-  for (let i = -1; i <= boxes; i++) {
-    out.push(positionAt(track, pitProgressAt(track, i), 'P', 0, PIT_LANE_OFFSET));
+  if (slots <= 0) return out;
+
+  const n = track.points.length;
+  const step = 1 / n;                       // 폴리라인 한 마디
+  let progress = track.pitEntry / n;
+  out.push(pitPointAt(track, progress));
+
+  // 한 바퀴가 상한이다. 실측(서킷 40개 + 생성 시드 300개, 12대)에서는
+  // 한 바퀴를 다 쓰기 전에 전부 자리를 찾았다.
+  for (let k = 0; k < n && out.length < slots; k++) {
+    progress += step;
+    const here = pitPointAt(track, progress);
+    const last = out[out.length - 1]!;
+    if (Math.hypot(here.x - last.x, here.y - last.y) >= PIT_BOX_SPACING) out.push(here);
   }
   return out;
+}
+
+function pitPointAt(track: Track, progress: number): Point {
+  return positionAt(track, progress, 'P', 0, PIT_LANE_OFFSET);
+}
+
+/**
+ * 피트 레인 폴리라인.
+ *
+ * 세우는 곳과 그리는 곳이 **같은 함수**를 쓴다. 예전에는 레인을 8칸으로 고정해
+ * 그려서 9번째 차부터는 선 밖에 떠 있었다 — 차만 안쪽에 떠 있으면 트랙을
+ * 벗어난 것으로 읽힌다. 진입 직전 한 마디를 앞에 붙여 선이 코스에서 갈라져
+ * 나오는 것처럼 보이게 한다.
+ */
+export function pitLanePoints(track: Track, boxes = 8): Point[] {
+  const spots = pitBoxes(track, Math.max(2, boxes));
+  const lead = pitPointAt(track, track.pitEntry / track.points.length - 1 / track.points.length);
+  return [lead, ...spots];
 }
 
 /** 한 레인에 그릴 수 있는 최대 차량 수 (PRD §6.4) */

@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   positionAt, assignLanes, LANE_OFFSETS, LANE_RENDER_CAP,
-  pitBoxAt, TRACK_HALF_WIDTH, GLYPH_DIAMETER,
+  pitBoxes, TRACK_HALF_WIDTH, GLYPH_DIAMETER,
 } from '../src/track/layout';
+import { CIRCUITS } from '../src/track/circuitData';
+import { toTrack } from '../src/track/circuits';
 import { generateTrack } from '../src/track/generateTrack';
 import type { CarState, CarClass } from '../src/types';
 
@@ -105,7 +107,7 @@ describe('피트', () => {
 
   it('피트 박스는 트랙 바깥에 놓인다 — 정지한 차가 주행선을 막지 않는다', () => {
     const onTrack = positionAt(track, track.pitEntry / track.points.length, 'P', 0);
-    const inPit = pitBoxAt(track, 0, 1);
+    const inPit = pitBoxes(track, 1)[0]!;
     const centre = track.points[track.pitEntry]!;
     const dOn = Math.hypot(onTrack.x - centre.x, onTrack.y - centre.y);
     const dPit = Math.hypot(inPit.x - centre.x, inPit.y - centre.y);
@@ -113,15 +115,44 @@ describe('피트', () => {
   });
 
   it('여러 대가 서면 서로 다른 박스를 쓴다', () => {
-    const a = pitBoxAt(track, 0, 3);
-    const b = pitBoxAt(track, 1, 3);
-    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(GLYPH_DIAMETER);
+    const [a, b] = pitBoxes(track, 3);
+    expect(Math.hypot(a!.x - b!.x, a!.y - b!.y)).toBeGreaterThan(GLYPH_DIAMETER);
   });
 
   it('박스는 피트 구간 안에 머문다', () => {
-    for (let i = 0; i < 8; i++) {
-      const p = pitBoxAt(track, i, 8);
+    for (const p of pitBoxes(track, 8)) {
       expect(Number.isFinite(p.x) && Number.isFinite(p.y)).toBe(true);
+    }
+  });
+
+  /*
+   * 이 화면에서 정지 사유(한도 노랑 / 에러 빨강)를 나누는 것은 다른 도구가 안 하는
+   * 일인데, 글리프가 겹치면 그 구분이 그대로 죽는다. 실제로 죽어 있었다 —
+   * 40개 서킷 중 8개에서 정지 9대의 이웃 간격이 지름 10 아래로 내려갔고,
+   * `mc-1929`는 1.9였다. 원인은 간격을 **중심선 진행률**로 잡고 그리기는
+   * 안쪽으로 민 곡선에 한 것이다. 코너에서 안쪽 곡선이 짧아 간격이 압축된다.
+   *
+   * 피트에 설 수 있는 최대는 `HOT_CAP`(12)이다.
+   */
+  it('실제 서킷 40개 전부에서 정지 12대가 겹치지 않는다', () => {
+    for (const circuit of CIRCUITS) {
+      const spots = pitBoxes(toTrack(circuit, 1), 12);
+      expect(spots, circuit.id).toHaveLength(12);
+      for (let i = 1; i < spots.length; i++) {
+        const gap = Math.hypot(spots[i]!.x - spots[i - 1]!.x, spots[i]!.y - spots[i - 1]!.y);
+        expect(gap, `${circuit.id} slot ${i}`).toBeGreaterThanOrEqual(GLYPH_DIAMETER);
+      }
+    }
+  });
+
+  it('지어낸 코스에서도 같다 — 피트 진입점이 무작위다', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const spots = pitBoxes(generateTrack(seed), 12);
+      expect(spots, `seed ${seed}`).toHaveLength(12);
+      for (let i = 1; i < spots.length; i++) {
+        const gap = Math.hypot(spots[i]!.x - spots[i - 1]!.x, spots[i]!.y - spots[i - 1]!.y);
+        expect(gap, `seed ${seed} slot ${i}`).toBeGreaterThanOrEqual(GLYPH_DIAMETER);
+      }
     }
   });
 });
