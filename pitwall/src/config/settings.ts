@@ -6,7 +6,7 @@ import type { HighlightType } from '../track/trackModel';
 export interface PitwallSettings {
   workday: WorkdayConfig;
   preset: PresetName;
-  speed: 20 | 30 | 100;
+  speed: 1 | 20 | 30 | 100;
   tyreMode: 'off' | 'rolling_budget' | 'proxy_budget';
   /** 개별 추적할 이벤트 유형. 비워도 클러스터·밀도는 그대로 보인다. */
   highlightTypes: HighlightType[];

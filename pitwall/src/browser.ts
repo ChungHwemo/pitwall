@@ -121,7 +121,7 @@ if (mount) {
         live.setLimits(__PITWALL_LIMITS__);
       }
        // 실시간에는 배속도 데모 시계도 없다. 지금이 지금이다.
-       app.useSource(live, { speed: 20, demoClock: false });
+        app.useSource(live, { speed: 1, demoClock: false });
     };
     win.pitwallIngest = (vendor, lines) => { live.ingest(vendor, lines); };
 
