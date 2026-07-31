@@ -15,7 +15,7 @@
  *
  * **SVG 안에는 rem을 쓰지 않는다.** `svg.track` 안의 길이는 CSS px가 아니라
  * user unit이고 viewBox가 이미 한 번 스케일한다 — rem을 넣으면 두 번 곱해진다.
- * `.pit-label`·`.car-label`·stroke-width가 px로 남아 있는 이유다.
+ * svg.track 안의 stroke-width가 px로 남아 있는 이유다.
  */
 :root {
   color-scheme: dark;
@@ -440,15 +440,3 @@ svg.track g.car path, svg.track g.cold path {
 }
 /* 조용한 차는 트랙에 남되 물러나 있는다 — 사라지면 트랙이 텅 빈다. */
 svg.track [data-idle="true"] { opacity: 0.4; }
-svg.track [data-idle="true"] .car-label { fill: #4b5666; }
-
-/* 피트 — 멈춘 차가 서는 자리. 주행선보다 어둡게 두어 트랙과 구분한다. */
-.pit-label {
-  fill: #55636f; font-size: 30px; letter-spacing: 0.22em;
-  font-family: ui-monospace, SFMono-Regular, monospace; text-anchor: middle;
-}
-/* 차량 라벨 — 몇 대 없을 때만 켠다. 붐비면 렌더러가 비운다. */
-.car-label {
-  fill: #9fb3c8; font-size: 17px; text-anchor: middle;
-  font-family: ui-monospace, SFMono-Regular, monospace; pointer-events: none;
-}
