@@ -1,0 +1,5 @@
+출처: https://raw.githubusercontent.com/Templarian/MaterialDesign/master/svg/flag-checkered.svg
+라이선스: Apache-2.0
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+저장소: https://github.com/Templarian/MaterialDesign

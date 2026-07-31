@@ -1,0 +1,34 @@
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/car.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/car-suv.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/gauge.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/tool.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/alert-circle.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/alert-triangle.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+
+출처: https://raw.githubusercontent.com/tabler/tabler-icons/main/icons/outline/flag-2.svg
+라이선스: MIT
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)

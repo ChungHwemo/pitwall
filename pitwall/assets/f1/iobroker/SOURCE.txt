@@ -1,0 +1,4 @@
+출처: https://github.com/bloop16/ioBroker.f1
+라이선스: MIT
+다운로드: 2026-07-31
+파일: f1.svg (품질 낮음, 폴백 옵션)

@@ -1,0 +1,4 @@
+출처: https://github.com/Tencent/tdesign-icons
+라이선스: MIT
+다운로드: 2026-07-31
+상태: formula.svg 파일 NOT FOUND (리포에 존재하지 않음)

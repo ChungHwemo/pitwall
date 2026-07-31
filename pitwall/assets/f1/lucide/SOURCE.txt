@@ -1,0 +1,7 @@
+출처: https://github.com/lucide-icons/lucide
+라이선스: ISC
+다운로드: 2026-07-31
+파일 목록:
+  - car.svg
+  - gauge.svg
+  - fuel.svg

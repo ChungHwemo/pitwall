@@ -1,0 +1,9 @@
+출처: https://github.com/game-icons/icons
+라이선스: CC BY 3.0 (저작자 표시 필수)
+다운로드: 2026-07-31
+파일 목록:
+  - checkered-flag.svg (저작자: delapouite)
+  - checkered-diamond.svg (저작자: lorc)
+저작자 표시: 인라인 사용 시 HTML 주석으로 저작자명 명시 필수
+  <!-- Icon by delapouite, from game-icons.net, CC BY 3.0 -->
+  <!-- Icon by lorc, from game-icons.net, CC BY 3.0 -->

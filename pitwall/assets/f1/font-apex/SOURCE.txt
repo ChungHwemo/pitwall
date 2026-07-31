@@ -1,0 +1,6 @@
+출처 (small): https://raw.githubusercontent.com/oracle/font-apex/master/svgs/small/flag-checkered.svg
+출처 (large): https://raw.githubusercontent.com/oracle/font-apex/master/svgs/large/flag-checkered.svg
+라이선스: Oracle APEX (오픈소스)
+다운로드: 2026-07-31
+검증: GitHub tree API로 파일 존재 확인됨 (이전 작업)
+저장소: https://github.com/oracle/font-apex
