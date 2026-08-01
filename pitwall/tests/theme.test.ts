@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CLASS_STYLE, SEVERITY_COLOR, BACKGROUND, contrastRatio, relativeLuminance,
-  TRACK_COLOR, EVENT_POLARITY_COLOR, ACCENT_DELTA,
+  TRACK_COLOR, EVENT_POLARITY_COLOR, ACCENT_DELTA, CONTRIBUTION_STEPS,
 } from '../src/config/theme';
 import { CAR_CLASSES } from '../src/types';
 
@@ -109,5 +109,26 @@ describe('GT 클래스 — 색만 이동, 형태는 유지', () => {
   it('보라 계열 색상이고 사각형 배지를 유지한다', () => {
     expect(CLASS_STYLE.GT.shape).toBe('square');
     expect(contrastRatio(CLASS_STYLE.GT.color, BACKGROUND)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe('CONTRIBUTION_STEPS — 기여도 그리드 강도 램프', () => {
+  it('5단이다 — tokscale 레시피와 같다', () => {
+    expect(CONTRIBUTION_STEPS).toHaveLength(5);
+  });
+
+  it('모든 단이 6자리 hex다', () => {
+    for (const step of CONTRIBUTION_STEPS) expect(step).toMatch(/^#[0-9a-fA-F]{6}$/);
+  });
+
+  it('어두운 쪽에서 밝은 쪽으로 단조 증가한다', () => {
+    const lums = CONTRIBUTION_STEPS.map(relativeLuminance);
+    for (let i = 1; i < lums.length; i++) expect(lums[i]!).toBeGreaterThan(lums[i - 1]!);
+  });
+
+  it('따뜻한 노랑(ACCENT_DELTA·ffd24d) 계열을 쓰지 않는다', () => {
+    const banned = new Set(['#f2c744', '#ffd24d']);
+    for (const step of CONTRIBUTION_STEPS) expect(banned.has(step.toLowerCase())).toBe(false);
+    expect(CONTRIBUTION_STEPS.map((s) => s.toLowerCase())).not.toContain(ACCENT_DELTA.toLowerCase());
   });
 });
