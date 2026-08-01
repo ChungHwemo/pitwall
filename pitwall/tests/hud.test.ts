@@ -3,6 +3,7 @@ import {
   loadSalaryConfig, saveSalaryConfig, earnedSoFar, formatElapsed, SALARY_STORAGE_KEY,
 } from '../src/render/hudRenderer';
 import { DEFAULT_WORKDAY } from '../src/state/clock';
+import { PitwallApp } from '../src/main';
 
 function at(hour: number, minute: number): Date {
   return new Date(2026, 6, 29, hour, minute, 0, 0);
@@ -91,5 +92,45 @@ describe('formatElapsed', () => {
 
   it('음수는 00:00:00으로 잘라낸다', () => {
     expect(formatElapsed(-5000)).toBe('00:00:00');
+  });
+});
+
+describe('HUD 시간대별 곡선', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="app"></div>';
+    root = document.getElementById('app')!;
+    localStorage.clear();
+  });
+
+  function runFrames(app: PitwallApp, count: number, stepMs = 100): void {
+    for (let i = 1; i <= count; i++) app.frame(i * stepMs);
+  }
+
+  it('곡선 컨테이너가 상단 바에 존재한다', () => {
+    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    expect(root.querySelector('.hud-hourly')).not.toBeNull();
+  });
+
+  it('작업이 없으면 곡선을 숨긴다', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9999);
+    const app = new PitwallApp(root, { seed: 7, preset: 'sparse', speed: 20 });
+    app.start();
+    runFrames(app, 50);
+    const el = root.querySelector('.hud-hourly') as HTMLElement;
+    expect(el.style.display).toBe('none');
+  });
+
+  it('작업이 쌓이면 나타나고, 이후 프레임에서 노드 수가 불변이다', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.0001);
+    const app = new PitwallApp(root, { seed: 11, preset: 'chaos', speed: 100 });
+    app.start();
+    runFrames(app, 100);
+    const el = root.querySelector('.hud-hourly') as HTMLElement;
+    expect(el.style.display).toBe('');
+    expect(el.textContent!.length).toBe(24);
+    const nodes = root.querySelectorAll('*').length;
+    runFrames(app, 200, 100);
+    expect(root.querySelectorAll('*').length).toBe(nodes);
   });
 });

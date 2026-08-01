@@ -19,13 +19,16 @@ import { RadioRenderer } from './render/radioRenderer';
 import { loadSalaryConfig, earnedSoFar, formatElapsed } from './render/hudRenderer';
 import { setText } from './render/setText';
 import { SummaryRenderer } from './render/summaryRenderer';
+import { hourlyProfile, hourlyCurve } from './render/hourlyProfile';
 import { FeedRenderer } from './render/feedRenderer';
 import type { CarEvent } from './types';
 import { SettingsPanel } from './render/settingsPanel';
+import { loadCarNames } from './config/carNames';
 import { Legend } from './render/legend';
 import { saveSession } from './session/sessionStore';
 import { RingBuffer } from './state/ringBuffer';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
+import type { PricingOverride } from './config/pricingOverride';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RADIO_LINES = 3;
@@ -56,6 +59,11 @@ export interface AppOptions {
    * true. 실기록 재생은 source를 넣고 demo:false, 지어낸 재생은 demo:true.
    */
   demo?: boolean;
+  /**
+   * 로컬 단가 보정. 생략하면 보정 없음(내장 카탈로그). 시뮬레이터 cost 계산과
+   * 설정 패널의 적용 출처 표시가 이걸 쓴다.
+   */
+  pricingOverride?: PricingOverride;
 }
 
 export class PitwallApp {
@@ -71,6 +79,8 @@ export class PitwallApp {
   private hudSalary: HTMLElement;
   private hudPhase: HTMLElement;
   private hudPace: HTMLElement;
+  /** 시간대별(0–23시) 작업 토큰 곡선. 근무일 타임라인 곁에 붙는 하루 모양. */
+  private hudHourly: HTMLElement;
   private detail: HTMLElement;
   /** 데이터셋 선택기가 붙는 자리. 무엇을 보는지 화면이 늘 말해야 한다. */
   private hudSlot: HTMLElement;
@@ -81,6 +91,9 @@ export class PitwallApp {
   private liveSamples: ActivitySample[] = [];
   private summaryRenderer: SummaryRenderer;
   private feedRenderer: FeedRenderer;
+  private settingsPanel: SettingsPanel;
+  /** 계정 표시 이름. 이 기기에만 산다 (PRIV-6). 렌더가 렌더러들에 넘긴다 */
+  private carNames: Record<string, string> = loadCarNames();
   /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
   private selected: string | null = null;
   /**
@@ -140,7 +153,10 @@ export class PitwallApp {
      */
     const datasetSlot = document.createElement('div');
     datasetSlot.className = 'dataset-slot';
-    hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary, datasetSlot);
+    this.hudHourly = document.createElement('div');
+    this.hudHourly.className = 'hud-item hud-hourly';
+    this.hudHourly.title = '시간대별 작업 토큰 0–23시';
+    hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary, this.hudHourly, datasetSlot);
     this.hudSlot = datasetSlot;
 
     const svg = document.createElementNS(SVG_NS, 'svg');
@@ -169,8 +185,12 @@ export class PitwallApp {
 
     this.summaryRenderer = new SummaryRenderer(shell);
     this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
-    new SettingsPanel(hud, this.settings, (next) => this.applySettings(next),
-      { simulated: opts.source === undefined });
+    this.settingsPanel = new SettingsPanel(hud, this.settings, (next) => this.applySettings(next),
+      {
+        simulated: opts.source === undefined,
+        onNamesChange: (): void => { this.carNames = loadCarNames(); this.render(this.raceState.now); },
+        pricingOverride: opts.pricingOverride,
+      });
     // 화면의 말이 대부분 이 안에서만 통한다. 접힌 채로 곁에 둔다.
     new Legend(hud);
 
@@ -181,7 +201,7 @@ export class PitwallApp {
     tower.appendChild(models);
     this.trackRenderer = new TrackRenderer(svg, track);
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
-    this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed);
+    this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed, opts.pricingOverride?.entries);
 
     // 트랙에서 차를 고르면 그 계정의 내역을 띄운다. 같은 차를 다시 누르면 해제한다.
     this.trackRenderer.onSelect((carId) => {
@@ -326,12 +346,13 @@ export class PitwallApp {
       });
     }
     this.trackRenderer.render(this.trackModel, now, this.selected);
+    this.settingsPanel.setAccounts([...this.raceState.cars.values()]);
     this.towerRenderer.render(
       this.raceState, now, real.getTime(), this.selected,
       (carId) => this.recent.get(carId)?.toArray() ?? [],
       // 줄이 모자랄 때 누구를 남길지는 디렉터가 고른다 — 에러·한도가 급한 쪽.
       this.director.update(this.raceState, now),
-      this.settings.speed);
+      this.settings.speed, this.carNames);
     this.modelPanel.render(this.raceState);
 
     // 선택이 있으면 카메라 대신 그 계정의 내역을 보여준다.
@@ -341,10 +362,10 @@ export class PitwallApp {
       this.detail.setAttribute('data-selected', open);
     }
     this.feedRenderer.render(
-      picked ? { carNumber: picked.car_number, carClass: picked.car_class, model: picked.model } : null,
-      picked ? (this.recent.get(picked.car_id)?.toArray() ?? []) : []);
+      picked ? { carId: picked.car_id, carNumber: picked.car_number, carClass: picked.car_class, model: picked.model } : null,
+      picked ? (this.recent.get(picked.car_id)?.toArray() ?? []) : [], this.carNames);
     this.summaryRenderer.render(this.raceState);
-    this.radioRenderer.render();
+    this.radioRenderer.render(this.carNames);
 
     // 분모는 근무 창이 아니라 레이스 시간이다 — 점심을 뺀 값 (PRD §7.0).
     const total = formatElapsed(raceDurationMs(this.settings.workday));
@@ -379,6 +400,12 @@ export class PitwallApp {
       setText(this.hudSalary,
         `💰 ${Math.round(earnedSoFar(salary, this.settings.workday, wall)).toLocaleString('ko-KR')}원`);
     }
+
+    // 하루가 전부 0이면 곡선을 안 그린다 — 연봉 미설정 칸과 같은 규칙.
+    const curve = hourlyCurve(hourlyProfile(this.raceState.cars.values()));
+    const wantedHourly = curve ? '' : 'none';
+    if (this.hudHourly.style.display !== wantedHourly) this.hudHourly.style.display = wantedHourly;
+    if (curve) setText(this.hudHourly, curve);
   }
 
   /**

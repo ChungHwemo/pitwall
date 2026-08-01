@@ -1,6 +1,7 @@
 import './style.css';
 import { PitwallApp } from './main';
 import { loadOrgSettings, loadLocalSettings, resolveSettings } from './config/settings';
+import { loadPricingOverride } from './config/pricingOverride';
 import { latestSession } from './session/sessionStore';
 import { workdayFromActivity } from './state/clock';
 import { workOf } from './state/reducer';
@@ -25,7 +26,10 @@ const mount = document.getElementById('app');
 if (mount) {
   void (async () => {
     const local = loadLocalSettings();
-    const settings = resolveSettings(await loadOrgSettings(), local, {});
+    const org = await loadOrgSettings();
+    const settings = resolveSettings(org, local, {});
+    // 단가 보정은 org·local의 pricingOverride 섹션에서 온다. 조직 파일이 로컬을 이긴다.
+    const pricingOverride = loadPricingOverride(org, local);
 
      // 첫 실행이고 데모 시계면 배속을 올려 띄운다. 실제 조직 속도(30×)로 열면
      // 처음 1분간 트랙이 비어 보여서 고장난 것처럼 읽힌다.
@@ -103,6 +107,7 @@ if (mount) {
       settings: observed,
       source: recorded.length ? new ReplaySource(recorded, settings.speed) : undefined,
       demo,
+      pricingOverride,
     });
 
     // 무엇을 보고 있는지 상단 바가 말한다. 고르면 그 데이터로 다시 연다 —
