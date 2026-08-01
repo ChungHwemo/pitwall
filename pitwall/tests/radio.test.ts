@@ -68,6 +68,10 @@ describe('eventRadio', () => {
     ];
     expect(new Set(ids).size).toBe(3);
   });
+
+  it('조회용 car_id를 싣는다 — 이름 표는 이걸로 찾는다', () => {
+    expect(eventRadio(event({ kind: 'error', car_id: 'car-a' }))?.carId).toBe('car-a');
+  });
 });
 
 describe('phaseRadio', () => {
@@ -85,6 +89,10 @@ describe('phaseRadio', () => {
 
   it('페이즈가 안 바뀌면 침묵한다', () => {
     expect(phaseRadio('racing', 'racing', T)).toBeNull();
+  });
+
+  it('RACE CONTROL은 carId가 빈 문자열이다 — 이름을 붙일 계정이 없다', () => {
+    expect(phaseRadio('racing', 'formation', T)?.carId).toBe('');
   });
 });
 

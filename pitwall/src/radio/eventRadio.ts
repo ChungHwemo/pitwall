@@ -3,6 +3,8 @@ import type { CarEvent, CarState, RacePhase } from '../types';
 export interface RadioMessage {
   id: string;
   carNumber: number;
+  /** 이름 표 조회 키. 화면에 찍지 않는다 (PRIV-1). RACE CONTROL은 빈 문자열이다 */
+  carId: string;
   text: string;
   severity: 'info' | 'warn' | 'critical';
   ts: number;
@@ -18,7 +20,7 @@ function nextId(): string {
  * 다른 차량과 비교하는 문장을 만들지 않는다 (PRD §10.3).
  */
 export function eventRadio(event: CarEvent): RadioMessage | null {
-  const base = { id: nextId(), carNumber: event.car_number, ts: event.ts };
+  const base = { id: nextId(), carNumber: event.car_number, carId: event.car_id, ts: event.ts };
 
   switch (event.kind) {
     case 'error':
@@ -48,7 +50,7 @@ export function eventRadio(event: CarEvent): RadioMessage | null {
  */
 export function stateRadio(prev: CarState | undefined, next: CarState): RadioMessage | null {
   if (!prev) return null;
-  const base = { id: nextId(), carNumber: next.car_number, ts: next.last_event_ts };
+  const base = { id: nextId(), carNumber: next.car_number, carId: next.car_id, ts: next.last_event_ts };
 
   if (prev.model !== next.model) {
     return { ...base, severity: 'info', text: `모델 교체 — ${prev.model} → ${next.model}` };
@@ -99,5 +101,5 @@ export function phaseRadio(phase: RacePhase, prev: RacePhase, now: number): Radi
   if (phase === prev) return null;
   const entry = PHASE_TEXT[phase];
   if (!entry) return null;
-  return { id: nextId(), carNumber: 0, text: entry.text, severity: entry.severity, ts: now };
+  return { id: nextId(), carNumber: 0, carId: '', text: entry.text, severity: entry.severity, ts: now };
 }

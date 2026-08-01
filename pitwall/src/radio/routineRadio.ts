@@ -49,6 +49,7 @@ export class RoutineRadio {
       return {
         id: `routine-${++counter}`,
         carNumber: car.car_number,
+        carId: car.car_id,
         text: rule.text(car),
         severity: 'info',
         ts: now,
