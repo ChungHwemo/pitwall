@@ -1,5 +1,6 @@
 import type { CarClass, CarEvent, EventKind } from '../types';
 import { CLASS_STYLE, EVENT_POLARITY_COLOR } from '../config/theme';
+import { carDisplayName } from '../config/carNames';
 import { workOf, cachedOf } from '../state/reducer';
 import { setText } from './setText';
 
@@ -12,8 +13,12 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * 이 화면이 답해야 하는 질문이라, 차를 고르면 여기에 호출 하나하나가 뜬다.
  *
  * 카넘버만 쓴다. 계정 uuid도 이메일도 화면에 오지 않는다 (PRIV-1·PRIV-3).
+ * 사용자가 이 기기에서 붙인 이름(`carDisplayName`)은 뜰 수 있지만, 그건
+ * 로컬 라벨이지 계정의 uuid가 아니다 — 정체는 여전히 화면 밖에 있다.
  */
 export interface FeedTarget {
+  /** 이름 표를 이 계정으로 조회한다. car_id는 화면에 찍지 않는다 */
+  carId: string;
   carNumber: number;
   /** 색을 정한다 — 등급은 모델의 등급이다 */
   carClass: CarClass;
@@ -217,7 +222,7 @@ export class FeedRenderer {
     container.appendChild(this.root);
   }
 
-  render(target: FeedTarget | null, events: CarEvent[]): void {
+  render(target: FeedTarget | null, events: CarEvent[], names: Record<string, string> = {}): void {
     if (!target) {
       /*
        * 고른 차가 없을 때 제목을 비운다.
@@ -233,7 +238,7 @@ export class FeedRenderer {
       return;
     }
 
-    setText(this.title, `#${String(target.carNumber).padStart(3, '0')}`);
+    setText(this.title, carDisplayName(names, target.carId, target.carNumber, 'padded'));
     const style = CLASS_STYLE[target.carClass];
     setText(this.klass, target.model);
     this.klass.style.color = style.color;

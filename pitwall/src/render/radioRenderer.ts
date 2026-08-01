@@ -43,7 +43,7 @@ export class RadioRenderer {
     this.buffer.push(msg);
   }
 
-  render(): void {
+  render(names: Record<string, string> = {}): void {
     const recent = this.buffer.toArray().slice(-this.maxVisible).reverse();
     this.lines.forEach((line, i) => {
       const msg = recent[i];
@@ -64,7 +64,10 @@ export class RadioRenderer {
       // critical은 caution과 색이 같다 — 굵기로 한 단계 더 강하게 표시한다 (§4.3.1).
       const weight = msg.severity === 'critical' ? '700' : '400';
       if (line.style.fontWeight !== weight) line.style.fontWeight = weight;
-      const who = msg.carNumber === 0 ? 'RACE CONTROL' : `#${String(msg.carNumber).padStart(3, '0')}`;
+      const named = msg.carId ? names[msg.carId]?.trim() : undefined;
+      const who = named
+        ? named
+        : msg.carNumber === 0 ? 'RACE CONTROL' : `#${String(msg.carNumber).padStart(3, '0')}`;
       setText(line, `${who} — ${msg.text}`);
     });
   }
