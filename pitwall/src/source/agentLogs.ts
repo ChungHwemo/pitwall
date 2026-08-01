@@ -57,6 +57,7 @@ interface Tokens {
   prompt: number;
   completion: number;
   cacheRead: number;
+  reasoning: number;
 }
 
 function build(
@@ -76,10 +77,15 @@ function build(
     model,
     kind: 'call',
     session_id: ctx.sessionId,
-    tokens: { prompt: tokens.prompt, completion: tokens.completion, cache_read: tokens.cacheRead },
+    tokens: {
+      prompt: tokens.prompt,
+      completion: tokens.completion,
+      cache_read: tokens.cacheRead,
+      reasoning: tokens.reasoning,
+    },
     cache_hit: cacheHit,
-    // 단가를 모르면 0이다. 지어내지 않는다.
-    cost_usd: spec ? costUsd(spec, tokens.prompt, tokens.completion, cacheHit) : 0,
+    // 단가를 모르면 0이다. 지어내지 않는다. 추론도 출력처럼 과금되므로 비용에 넣는다.
+    cost_usd: spec ? costUsd(spec, tokens.prompt, tokens.completion + tokens.reasoning, cacheHit) : 0,
     latency_ms: 0,
     status: 'ok',
     fuel_pct: 100,
@@ -134,8 +140,10 @@ export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
 
   return build(ctx, ts, {
     prompt: u.input_tokens ?? 0,
-    // 추론 토큰도 출력으로 과금된다.
-    completion: (u.output_tokens ?? 0) + (u.reasoning_output_tokens ?? 0),
+    // 추론 토큰은 출력과 나눠 담는다 — 둘 다 출력으로 과금되지만 하나는 전달된
+    // 응답이고 하나는 내부 추론이라 섞으면 무엇을 돌려받았는지 흐려진다.
+    completion: u.output_tokens ?? 0,
+    reasoning: u.reasoning_output_tokens ?? 0,
     cacheRead: u.cached_input_tokens ?? 0,
   }, limit === null ? {} : {
     tyre_pct: limit.tyre_pct,
@@ -160,7 +168,8 @@ export function grokEvent(raw: unknown, ctx: LogContext): CarEvent | null {
     ts,
     {
       prompt: c.prompt_tokens ?? 0,
-      completion: (c.completion_tokens ?? 0) + (c.reasoning_tokens ?? 0),
+      completion: c.completion_tokens ?? 0,
+      reasoning: c.reasoning_tokens ?? 0,
       cacheRead: c.cached_prompt_tokens ?? 0,
     },
     { latency_ms: c.model_elapsed_ms ?? 0, ttft_ms: c.ttft_ms },
@@ -225,7 +234,8 @@ export function copilotEvents(raw: unknown, ctx: LogContext): CarEvent[] {
     if (!u) return [];
     return [build({ ...ctx, model }, ts, {
       prompt: u.inputTokens ?? 0,
-      completion: (u.outputTokens ?? 0) + (u.reasoningTokens ?? 0),
+      completion: u.outputTokens ?? 0,
+      reasoning: u.reasoningTokens ?? 0,
       cacheRead: u.cacheReadTokens ?? 0,
     })];
   });

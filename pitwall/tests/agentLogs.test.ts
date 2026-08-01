@@ -49,14 +49,16 @@ describe('codexEvent', () => {
     expect(e.ts).toBe(Date.parse('2026-07-30T09:02:18.426Z'));
   });
 
-  it('추론 토큰을 출력에 합산한다 — 과금 대상이다', () => {
+  it('추론 토큰을 출력과 분리해 담는다 — 둘 다 과금되지만 다른 몫이다', () => {
     const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
-    expect(e.tokens.completion).toBe(520 + 201);
+    expect(e.tokens.completion).toBe(520);
+    expect(e.tokens.reasoning).toBe(201);
   });
 
   it('캐시 읽기를 분리해 담는다', () => {
     const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
     expect(e.tokens.cache_read).toBe(6912);
+    // 거리는 분리 전과 같다 — workOf가 추론을 도로 더한다.
     expect(workOf(e)).toBe(25153 - 6912 + 721);
     expect(cachedOf(e)).toBe(6912);
   });
@@ -99,7 +101,8 @@ describe('grokEvent', () => {
     expect(e.model).toBe('grok-4.5');
     expect(e.tokens.prompt).toBe(48229);
     expect(e.tokens.cache_read).toBe(26368);
-    expect(e.tokens.completion).toBe(541 + 427);
+    expect(e.tokens.completion).toBe(541);
+    expect(e.tokens.reasoning).toBe(427);
   });
 
   it('지연과 TTFT를 담는다', () => {
@@ -130,10 +133,17 @@ describe('copilotEvents', () => {
     expect(events.map((e) => e.model).sort()).toEqual(['claude-haiku-4.5', 'gpt-5.4']);
   });
 
-  it('추론 토큰을 출력에 합산한다', () => {
+  it('추론 토큰을 출력과 분리해 담는다', () => {
     const e = copilotEvents(row, { car: CAR }).find((x) => x.model === 'gpt-5.4')!;
-    expect(e.tokens.completion).toBe(95 + 85);
+    expect(e.tokens.completion).toBe(95);
+    expect(e.tokens.reasoning).toBe(85);
     expect(e.tokens.cache_read).toBe(1536);
+  });
+
+  it('추론 토큰이 없는 모델은 0이다 — 지어내지 않는다', () => {
+    const e = copilotEvents(row, { car: CAR }).find((x) => x.model === 'claude-haiku-4.5')!;
+    expect(e.tokens.completion).toBe(20);
+    expect(e.tokens.reasoning).toBe(0);
   });
 
   it('세션 시작 시각을 쓴다', () => {
