@@ -1,5 +1,7 @@
 import type { PitwallSettings } from '../config/settings';
 import { saveLocalSettings } from '../config/settings';
+import { loadCarNames, saveCarNames, CAR_NAME_MAX_LENGTH } from '../config/carNames';
+import type { PricingOverride } from '../config/pricingOverride';
 import type { PresetName } from '../config/presets';
 import type { HighlightType } from '../track/trackModel';
 
@@ -50,15 +52,26 @@ const HELP = {
 
 export class SettingsPanel {
   private settings: PitwallSettings;
+  private names: Record<string, string> = loadCarNames();
+  private onNamesChange: () => void;
+  private accountsRows: HTMLElement;
+  /** 마지막으로 그린 계정 집합의 지문. 바뀔 때만 줄을 다시 짓는다 */
+  private accountsKey = '';
 
   constructor(
     container: HTMLElement,
     initial: PitwallSettings,
     private onChange: (settings: PitwallSettings) => void,
     /** 시뮬레이터로 돌고 있는가. 기록 재생이면 프리셋 칸이 의미가 없다 */
-    opts: { simulated: boolean } = { simulated: true },
+    opts: {
+      simulated: boolean;
+      onNamesChange?: () => void;
+      /** 적용된 로컬 단가 보정. 있으면 적용 출처·판독 나이를 한 줄로 밝힌다. */
+      pricingOverride?: PricingOverride;
+    } = { simulated: true },
   ) {
     this.settings = initial;
+    this.onNamesChange = opts.onNamesChange ?? ((): void => {});
 
     const shell = document.createElement('div');
     shell.className = 'settings hud-item';
@@ -125,6 +138,25 @@ export class SettingsPanel {
     }
     root.appendChild(group);
 
+    // 계정 이름 칸은 시뮬레이터·재생 양쪽에서 다 쓴다 — 프리셋·데모시계와 달리
+    // 재생 모드에서도 화면에 계정이 뜨므로, DEMO 시계 조기 반환보다 앞에 짓는다.
+    const accounts = document.createElement('div');
+    accounts.className = 'settings-group';
+    accounts.title = '화면에 보이는 계정에 이름을 붙인다. 비우면 카넘버로 표시된다. '
+      + '이 기기에만 저장된다 (PRIV-6).';
+    const accountsLabel = document.createElement('span');
+    accountsLabel.className = 'settings-label';
+    accountsLabel.textContent = '계정 이름';
+    this.accountsRows = document.createElement('div');
+    this.accountsRows.className = 'settings-accounts';
+    accounts.append(accountsLabel, this.accountsRows);
+    root.appendChild(accounts);
+
+    // 로컬 단가 보정이 적용됐으면 어디서 왔는지·언제 읽었는지 한 줄로 밝힌다.
+    // 검증된 카탈로그 숫자와 조용히 섞지 않는다 — 출처 정직성 (P3, 새 HUD 줄은 안 만든다).
+    const provenance = this.pricingProvenance(opts.pricingOverride);
+    if (provenance) root.appendChild(provenance);
+
     // DEMO 시계도 시뮬레이터 전용이다. 기록 재생과 실시간에는 진짜 시계가 있어
     // 이 체크박스가 아무것도 바꾸지 않는다 — 눌러도 반응이 없으면 고장으로 읽힌다.
     if (!opts.simulated) {
@@ -151,6 +183,64 @@ export class SettingsPanel {
 
     shell.append(toggle, root);
     container.appendChild(shell);
+  }
+
+  /**
+   * 화면에 뜬 계정마다 이름 입력 줄을 짓는다. 렌더 루프가 매 프레임 부르므로
+   * 계정 집합이 실제로 바뀔 때만 DOM을 다시 짓는다 — 지문을 비교해 거른다.
+   */
+  setAccounts(cars: { car_id: string; car_number: number }[]): void {
+    const sorted = [...cars].sort((a, b) => a.car_number - b.car_number);
+    const key = sorted.map((c) => c.car_id).join('|');
+    if (key === this.accountsKey) return;
+    this.accountsKey = key;
+
+    this.accountsRows.replaceChildren();
+    for (const { car_id, car_number } of sorted) {
+      const row = document.createElement('label');
+      row.className = 'settings-field';
+
+      const tag = document.createElement('span');
+      tag.className = 'settings-label';
+      tag.textContent = `#${String(car_number).padStart(3, '0')}`;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = CAR_NAME_MAX_LENGTH;
+      input.placeholder = '카넘버 표시';
+      input.setAttribute('data-account', car_id);
+      input.value = this.names[car_id] ?? '';
+      input.addEventListener('input', () => {
+        const value = input.value.trim();
+        if (value === '') delete this.names[car_id];
+        else this.names[car_id] = value;
+        saveCarNames(this.names);
+        this.onNamesChange();
+      });
+
+      row.append(tag, input);
+      this.accountsRows.appendChild(row);
+    }
+  }
+
+  /**
+   * 적용된 단가 보정을 `단가 보정: 로컬 · HH:mm`으로 밝힌다. 보정이 없으면(내장
+   * 카탈로그) null이라 아무것도 그리지 않는다. HH:mm은 보정을 읽은 시각이다.
+   */
+  private pricingProvenance(override: PricingOverride | undefined): HTMLElement | null {
+    if (!override || override.entries.size === 0 || override.readAt === null) return null;
+
+    const label = override.source === 'org' ? '조직' : '로컬';
+    const at = new Date(override.readAt);
+    const hhmm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+
+    const line = document.createElement('div');
+    line.className = 'settings-provenance';
+    line.setAttribute('data-pricing-override', override.source);
+    line.title = `모델 ${override.entries.size}종의 단가를 로컬 보정으로 덮었다. `
+      + '검증된 카탈로그 값이 아니라 이 기기/조직 설정의 로컬 값이다.';
+    line.textContent = `단가 보정: ${label} · ${hhmm}`;
+    return line;
   }
 
   private select(

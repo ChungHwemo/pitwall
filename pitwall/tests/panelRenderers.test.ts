@@ -20,7 +20,7 @@ function state(cars: CarState[]): RaceState {
 }
 
 function msg(id: string, over: Partial<RadioMessage> = {}): RadioMessage {
-  return { id, carNumber: 17, text: 'test', severity: 'info', ts: T, ...over };
+  return { id, carNumber: 17, carId: 'car-a', text: 'test', severity: 'info', ts: T, ...over };
 }
 
 /** jsdom은 인라인 `style.color`를 `rgb(r, g, b)`로 정규화한다 — hex와 비교하려면 같은 형식으로 맞춘다. */
@@ -76,6 +76,22 @@ describe('RadioRenderer', () => {
   it('메시지가 없어도 예외 없이 렌더한다', () => {
     const r = new RadioRenderer(host, 5);
     expect(() => r.render()).not.toThrow();
+  });
+
+  it('이름이 있으면 카넘버 대신 이름을 쓴다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { carId: 'car-a', carNumber: 17, text: 'BOX BOX' }));
+    r.render({ 'car-a': '결제팀 배치' });
+    const line = host.querySelector('.radio-line')!;
+    expect(line.textContent).toContain('결제팀 배치');
+    expect(line.textContent).not.toContain('#017');
+  });
+
+  it('RACE CONTROL(carId 빈 문자열)은 이름 표와 무관하게 그대로다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { carId: '', carNumber: 0, text: 'GREEN GREEN GREEN' }));
+    r.render({ 'car-a': '결제팀 배치' });
+    expect(host.querySelector('.radio-line')!.textContent).toContain('RACE CONTROL');
   });
 });
 
