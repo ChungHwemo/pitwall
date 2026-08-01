@@ -214,8 +214,15 @@ for (const account of accounts) {
        * 작업량과 독립이라, 큰 호출이라고 캐시가 같이 커지지 않는다.
        */
       const cacheRead = heavyTail(104_713, 2.3);
-      const completion = Math.round(work * Math.min(0.6, heavyTail(166, 1.2) / 1000));
-      const prompt = work - completion + cacheRead;
+      const outputSide = Math.round(work * Math.min(0.6, heavyTail(166, 1.2) / 1000));
+      /*
+       * 추론 토큰은 출력 과금의 일부다. 실측상 출력 쪽의 의미 있는 몫이라 20%를
+       * 떼어 별도로 담는다 — completion에서 나눠 담을 뿐이라 작업량·비용·prompt는
+       * 그대로다. (share를 바꾸면 카드/HUD의 추론 값만 움직이고 거리는 불변이다.)
+       */
+      const reasoning = Math.round(outputSide * 0.2);
+      const completion = outputSide - reasoning;
+      const prompt = work - outputSide + cacheRead;
 
       const failed = rng.range(0, 1) < account.habit.errorRate;
       // 한도는 조금씩 줄어든다. 0에 닿으면 그 계정은 피트에 선다.
@@ -230,9 +237,9 @@ for (const account of accounts) {
         model: model.id,
         kind: failed ? 'error' : 'call',
         session_id: `demo-${account.carNumber}`,
-        tokens: { prompt, completion, cache_read: cacheRead },
+        tokens: { prompt, completion, cache_read: cacheRead, reasoning },
         cache_hit: true,
-        cost_usd: costUsd(spec, prompt, completion, true),
+        cost_usd: costUsd(spec, prompt, completion + reasoning, true),
         latency_ms: heavyTail(3_200, 1.4),
         status: failed ? 'error' : 'ok',
         error_code: failed ? ERROR_CODES[rng.int(0, ERROR_CODES.length - 1)] : undefined,
@@ -258,7 +265,8 @@ let cache = 0;
 for (const e of events) {
   const row = byCar.get(e.car_number) ?? { calls: 0, work: 0, cost: 0, err: 0 };
   row.calls += 1;
-  row.work += (e.tokens.prompt - (e.tokens.cache_read ?? 0)) + e.tokens.completion;
+  row.work += (e.tokens.prompt - (e.tokens.cache_read ?? 0)) + e.tokens.completion
+    + (e.tokens.reasoning ?? 0);
   row.cost += e.cost_usd;
   if (e.status === 'error') row.err += 1;
   byCar.set(e.car_number, row);

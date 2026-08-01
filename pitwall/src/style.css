@@ -247,6 +247,17 @@ body {
 .hud-pace { font-size: 1.35rem; font-weight: 700; }
 
 /*
+ * 시간대별(0–23시) 작업 토큰 곡선. 타워 스파크라인이 "최근 30분"이라면 이건
+ * "오늘 하루의 모양"이다 — 근무일 타임라인 곁에 얹는 한 줄짜리 하루 프로파일.
+ * 24글자 한 줄로 작게 유지한다. 넘치면 상단 바 오른쪽이 잘리므로 크기를 못박는다.
+ * 조직 합계 한 줄이라 색은 클래스가 아니라 중립 청회색을 쓴다.
+ */
+.hud-hourly {
+  font-size: 0.95rem; line-height: 1; color: #9fb3c8;
+  letter-spacing: 0.02em; white-space: pre; flex-shrink: 0;
+}
+
+/*
  * 범례와 조작판 — 둘 다 기본은 접힘.
  *
  * 상시 노출 화면에서 늘 떠 있으면 그 자체가 방해다. 조작판은 원래 상단 바에
@@ -427,6 +438,39 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
 .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem 1.75rem; }
 .summary-key { font-size: 0.7rem; color: #9fb3c8; letter-spacing: 0.08em; }
 .summary-value { font-size: 1.2rem; font-weight: 700; margin-top: 0.18rem; }
+
+.summary-lede {
+  font-size: 0.95rem; font-weight: 600; color: #e6edf3;
+  margin-bottom: 1rem; letter-spacing: 0.01em; font-variant-numeric: tabular-nums;
+}
+
+.summary-models { margin-top: 1.1rem; }
+.summary-models .summary-key { margin-bottom: 0.5rem; }
+.summary-model-row {
+  display: flex; justify-content: space-between; gap: 1rem;
+  font-size: 0.8rem; margin-bottom: 0.25rem; align-items: baseline;
+}
+.summary-model-name { color: #e6edf3; font-weight: 600; }
+.summary-model-stat { color: #9fb3c8; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/*
+ * 계정 × 시간대 토큰 강도 그리드. 대규모 데모는 계정 40 × 시각 24라 카드가
+ * 폭발하지 않도록 세로를 자르고 스크롤한다. 셀 색은 형태와 분리해 렌더러가 잡는다.
+ */
+.summary-contrib { margin-top: 1.1rem; }
+.summary-contrib .summary-key { margin-bottom: 0.5rem; }
+.contrib-grid { max-height: 16rem; overflow-y: auto; }
+.contrib-row { display: flex; gap: 2px; margin-bottom: 2px; align-items: center; }
+.contrib-acct {
+  flex: 0 0 2rem; font-size: 0.7rem; color: #9fb3c8; text-align: right;
+  padding-right: 0.35rem; font-variant-numeric: tabular-nums;
+}
+.contrib-hour {
+  flex: 1 1 0; min-width: 0.7rem; font-size: 0.55rem; color: #9fb3c8;
+  text-align: center; letter-spacing: 0;
+}
+.contrib-hours { position: sticky; top: 0; background: #161b22; z-index: 1; }
+.contrib-cell { flex: 1 1 0; min-width: 0.7rem; height: 0.7rem; border-radius: 1px; }
 
 /* ── SVG 안 (user unit — rem 금지) ───────────────────────────── */
 
