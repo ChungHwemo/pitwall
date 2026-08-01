@@ -14,19 +14,44 @@ import type { CarActivity, CarEvent, CarState, RaceState } from '../types';
 export const IDLE_THRESHOLD_MS = 300_000;
 
 /**
- * 실제 작업 토큰 = 입력에서 캐시 재전송을 뺀 값 + 출력.
+ * 실제 작업 토큰 = 입력에서 캐시 재전송을 뺀 값 + 출력 + 추론.
  *
  * 실측(2026-07-30, 10,734건): 캐시 읽기가 전체 토큰의 96.5%다. 이걸 거리에 넣으면
  * 화면이 "같은 컨텍스트를 다시 보낸 양"을 주행거리로 보여주게 된다.
+ *
+ * 추론은 출력처럼 과금되는 일한 양이라 거리에 포함한다. 파서가 `completion`에서
+ * 분리해 담으므로 여기서 명시적으로 도로 더한다 — 분리 전과 거리 값이 같아야 한다.
  */
 export function workOf(event: CarEvent): number {
   const cached = event.tokens.cache_read ?? 0;
-  return Math.max(0, event.tokens.prompt - cached) + event.tokens.completion;
+  return Math.max(0, event.tokens.prompt - cached)
+    + event.tokens.completion
+    + (event.tokens.reasoning ?? 0);
 }
 
 /** 캐시에서 다시 읽힌 토큰. 거리와 분리해 따로 표시한다. */
 export function cachedOf(event: CarEvent): number {
   return event.tokens.cache_read ?? 0;
+}
+
+/** 추론 토큰. 거리에는 포함되지만 요약에서 따로 보여주려고 분리해 잰다. */
+export function reasoningOf(event: CarEvent): number {
+  return event.tokens.reasoning ?? 0;
+}
+
+/**
+ * 작업 토큰을 벽시계 hour-of-day 칸에 불변으로 더한다. 직전 배열을 복사한 뒤
+ * 해당 칸만 올린다 — 원본을 변형하면 이전 상태 스냅샷이 같이 바뀐다.
+ *
+ * 시각은 `wall_ts ?? ts`다. 재생 소스가 `ts`를 내부 시계로 갈아끼우므로
+ * 원본 시각을 안 쓰면 하루치가 재생 시각의 한 칸으로 몰린다
+ * (main.ts liveSamples·feedRenderer와 같은 규약).
+ */
+function accumulateHour(prev: number[] | undefined, event: CarEvent): number[] {
+  const hourly = (prev ?? new Array(24).fill(0)).slice();
+  const hour = new Date(event.wall_ts ?? event.ts).getHours();
+  hourly[hour] = (hourly[hour] ?? 0) + workOf(event);
+  return hourly;
 }
 
 export function emptyRaceState(now: number): RaceState {
@@ -42,6 +67,8 @@ function initialCar(event: CarEvent): CarState {
     activity: 'running',
     distance: 0,
     cached: 0,
+    reasoning: 0,
+    hourly: new Array(24).fill(0),
     fuel_pct: 100,
     tyre_pct: event.tyre_pct === undefined ? undefined : 100,
     limit_window_minutes: event.limit_window_minutes,
@@ -65,13 +92,14 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
   const retired = prev.activity === 'retired' || event.kind === 'retire';
 
   const next: CarState = {
-    ...prev,
-    // 계정이 모델을 갈아타면 등급도 같이 간다. 라벨이 모델을 말하는데 색이
+    ...prev,    // 계정이 모델을 갈아타면 등급도 같이 간다. 라벨이 모델을 말하는데 색이
     // 옛 등급이면 화면이 서로 다른 소리를 한다.
     model: event.model,
     car_class: event.car_class,
     distance: prev.distance + workOf(event),
     cached: prev.cached + cachedOf(event),
+    reasoning: (prev.reasoning ?? 0) + reasoningOf(event),
+    hourly: accumulateHour(prev.hourly, event),
     cost_usd: prev.cost_usd + event.cost_usd,
     fuel_pct: event.fuel_pct,
     tyre_pct: event.tyre_pct,

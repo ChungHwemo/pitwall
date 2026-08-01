@@ -13,7 +13,11 @@ export interface RaceSummary {
   totalTokens: number;
   /** 캐시에서 다시 읽힌 토큰. 작업량과 섞지 않는다 */
   totalCachedTokens: number;
+  /** 추론 토큰. 작업 토큰에 이미 포함돼 있지만 별도 값으로도 보여준다 (조직 합계뿐) */
+  totalReasoningTokens: number;
   totalCostUsd: number;
+  /** 조직 전체 호출 수. Wrapped식 리드 한 줄이 읽는다 — 개인 단위가 아니다 (PRIV-5) */
+  totalCalls: number;
   finished: number;
   retired: number;
   byClass: Record<CarClass, number>;
@@ -27,6 +31,7 @@ export function summarise(state: RaceState): RaceSummary {
 
   let totalTokens = 0;
   let totalCachedTokens = 0;
+  let totalReasoningTokens = 0;
   let totalCostUsd = 0;
   let finished = 0;
   let retired = 0;
@@ -37,6 +42,7 @@ export function summarise(state: RaceState): RaceSummary {
   for (const car of state.cars.values()) {
     totalTokens += car.distance;
     totalCachedTokens += car.cached;
+    totalReasoningTokens += car.reasoning ?? 0;
     totalCostUsd += car.cost_usd;
     cacheHits += car.cache_hits;
     calls += car.call_count;
@@ -49,7 +55,9 @@ export function summarise(state: RaceState): RaceSummary {
   return {
     totalTokens,
     totalCachedTokens,
+    totalReasoningTokens,
     totalCostUsd,
+    totalCalls: calls,
     finished,
     retired,
     byClass,

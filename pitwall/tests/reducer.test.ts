@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { emptyRaceState, applyEvent, activityOf, IDLE_THRESHOLD_MS } from '../src/state/reducer';
+import { emptyRaceState, applyEvent, activityOf, IDLE_THRESHOLD_MS, workOf, reasoningOf } from '../src/state/reducer';
 import { cacheSavingOf } from '../src/state/savings';
 import type { CarEvent } from '../src/types';
 
@@ -105,6 +105,77 @@ describe('applyEvent', () => {
     const snapshot = before.cars.get('car-a')?.distance;
     applyEvent(before, makeEvent({ ts: T0 + 1000 }));
     expect(before.cars.get('car-a')?.distance).toBe(snapshot);
+  });
+});
+
+describe('추론 토큰', () => {
+  it('workOf는 추론을 거리에 포함한다 — 출력 과금분이라 일한 양이다', () => {
+    const e = makeEvent({ tokens: { prompt: 1000, completion: 200, reasoning: 50 } });
+    expect(workOf(e)).toBe(1000 + 200 + 50);
+  });
+
+  it('추론이 없으면 거리는 분리 전과 같다', () => {
+    const merged = makeEvent({ tokens: { prompt: 1000, completion: 200 } });
+    expect(workOf(merged)).toBe(1200);
+  });
+
+  it('reasoningOf는 추론 토큰을 낸다 — 없으면 0이다', () => {
+    expect(reasoningOf(makeEvent({ tokens: { prompt: 100, completion: 10, reasoning: 7 } }))).toBe(7);
+    expect(reasoningOf(makeEvent({ tokens: { prompt: 100, completion: 10 } }))).toBe(0);
+  });
+
+  it('상태에 추론을 따로 쌓는다 — 거리와 별개 값이다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ tokens: { prompt: 1000, completion: 200, reasoning: 50 } }));
+    s = applyEvent(s, makeEvent({ ts: T0 + 1000, tokens: { prompt: 500, completion: 100, reasoning: 30 } }));
+    const car = s.cars.get('car-a')!;
+    expect(car.reasoning).toBe(80);
+    expect(car.distance).toBe(1880);
+  });
+});
+
+describe('시간대별 토큰 (hourly)', () => {
+  function at(hour: number): number {
+    return new Date(2026, 0, 1, hour, 30, 0).getTime();
+  }
+
+  it('초기 상태는 길이 24의 0 배열이다', () => {
+    const s = applyEvent(emptyRaceState(T0), makeEvent({ wall_ts: at(9) }));
+    const hourly = s.cars.get('car-a')!.hourly!;
+    expect(hourly).toHaveLength(24);
+    expect(hourly.reduce((a, b) => a + b, 0)).toBe(1200);
+  });
+
+  it('wall_ts의 hour-of-day 칸에 작업 토큰을 쌓는다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ wall_ts: at(9), tokens: { prompt: 1000, completion: 200 } }));
+    s = applyEvent(s, makeEvent({ wall_ts: at(9), tokens: { prompt: 500, completion: 100 } }));
+    const hourly = s.cars.get('car-a')!.hourly!;
+    expect(hourly[9]).toBe(1800);
+  });
+
+  it('wall_ts가 없으면 ts의 hour로 떨어진다', () => {
+    const ts = at(14);
+    const { wall_ts: _omit, ...noWall } = makeEvent({ ts });
+    const s = applyEvent(emptyRaceState(T0), noWall as typeof noWall & { ts: number });
+    expect(s.cars.get('car-a')!.hourly![14]).toBe(1200);
+  });
+
+  it('다른 시간대는 서로 섞이지 않는다', () => {
+    let s = emptyRaceState(T0);
+    s = applyEvent(s, makeEvent({ wall_ts: at(9), tokens: { prompt: 1000, completion: 0 } }));
+    s = applyEvent(s, makeEvent({ wall_ts: at(13), tokens: { prompt: 700, completion: 0 } }));
+    const hourly = s.cars.get('car-a')!.hourly!;
+    expect(hourly[9]).toBe(1000);
+    expect(hourly[13]).toBe(700);
+    expect(hourly[10]).toBe(0);
+  });
+
+  it('직전 상태의 배열을 변형하지 않는다', () => {
+    const before = applyEvent(emptyRaceState(T0), makeEvent({ wall_ts: at(9) }));
+    const snapshot = before.cars.get('car-a')!.hourly!.slice();
+    applyEvent(before, makeEvent({ wall_ts: at(9) }));
+    expect(before.cars.get('car-a')!.hourly).toEqual(snapshot);
   });
 });
 
