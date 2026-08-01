@@ -84,6 +84,17 @@ describe('SettingsPanel', () => {
     expect(host.querySelector('[data-setting="highlight-error"]')).not.toBeNull();
   });
 
+  it('1× 실시간 배속을 선택하면 speed 1을 저장한다', () => {
+    let latest = DEFAULT_SETTINGS;
+    new SettingsPanel(host, DEFAULT_SETTINGS, (settings) => { latest = settings; });
+    const select = host.querySelector('[data-setting="speed"]') as HTMLSelectElement;
+    expect([...select.options].map((option) => option.textContent)).toEqual(['1×', '20×', '30×', '100×']);
+    select.value = '1';
+    select.dispatchEvent(new Event('change'));
+    expect(latest.speed).toBe(1);
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!).speed).toBe(1);
+  });
+
   it('하한이 걸린 값은 노출하지 않는다', () => {
     // 슬라이더를 보여주고 되돌리는 건 안 보여주는 것보다 나쁘다 (PRD §7.0).
     new SettingsPanel(host, DEFAULT_SETTINGS, () => {});

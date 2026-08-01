@@ -122,16 +122,32 @@ describe('프리셋 노출', () => {
 });
 
 describe('설명과 노출', () => {
-  it('기록을 재생 중이면 DEMO 시계를 감춘다 — 실제 시계를 쓰므로 효과가 없다', () => {
+  it('기록을 재생 중이면 데모 모드를 감춘다 — 실제 시계를 쓰므로 효과가 없다', () => {
     const host = document.createElement('div');
     new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: false });
-    expect(host.textContent).not.toContain('DEMO');
+    expect(host.textContent).not.toContain('데모 모드');
   });
 
-  it('시뮬레이터면 DEMO 시계를 보여준다', () => {
+  it('시뮬레이터면 데모 모드를 보여준다', () => {
     const host = document.createElement('div');
     new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
-    expect(host.textContent).toContain('DEMO');
+    expect(host.textContent).toContain('데모 모드');
+    const demo = host.querySelector('[data-setting="demoClock"]')!.parentElement!;
+    expect(demo.getAttribute('title')).toContain('밤에도 레이스가 도는 것처럼 시각을 지어낸다');
+    expect(demo.getAttribute('title')).toContain('실제 벽시계');
+    expect(demo.getAttribute('title')).toContain('HUD의 DEMO 배지');
+  });
+
+  it('프리셋은 한국어 제목을 보여주고 값은 id를 유지한다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    const options = [...host.querySelectorAll<HTMLSelectElement>('[data-setting="preset"] option')];
+    expect(options.map((option) => [option.value, option.textContent])).toEqual([
+      ['busy', '붐비는 날'],
+      ['sparse', '한산한 날'],
+      ['chaos', '대혼란'],
+      ['real', '실측'],
+    ]);
   });
 
   /*
