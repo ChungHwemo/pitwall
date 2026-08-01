@@ -46,6 +46,13 @@ describe('DatasetPicker', () => {
     expect(host.querySelector('select')).toBeNull();
     expect(host.textContent).toContain('실기록');
   });
+
+  it('둘 이상이면 .dataset-select 드롭다운이 뜬다', () => {
+    // 기본 빌드가 데모를 여러 벌 심으면 이 목록이 나와야 한다 — 예전처럼
+    // 가짜 `실시간` 한 줄이 아니라 고를 수 있는 화면이어야 한다.
+    new DatasetPicker(host, SETS, 'demo', () => {});
+    expect(host.querySelector('.dataset-select')).not.toBeNull();
+  });
 });
 
 describe('설명', () => {

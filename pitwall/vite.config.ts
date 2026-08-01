@@ -25,23 +25,28 @@ const SOURCES = [
 const limitsPath = 'fixtures/limits.json';
 const limits = existsSync(limitsPath) ? JSON.parse(readFileSync(limitsPath, 'utf8')) : undefined;
 
-const datasets = process.env.PITWALL_REAL === '1'
-  ? SOURCES.flatMap((src) => {
-    if (!existsSync(src.file)) return [];
-    const lines = readFileSync(src.file, 'utf8').trim().split('\n');
-    const from = lines.length > PER_SET ? busiestWindow(lines, PER_SET) : null;
-    const kept = from ? lines.slice(from.at, from.at + PER_SET) : lines;
-    console.log(`[pitwall] ${src.label}: ${kept.length}/${lines.length}건`
-      + (from ? ` · ${from.at}번째부터 (계정 ${from.cars}대가 겹친다)` : ''));
-    return [{
-      id: src.id,
-      label: src.label,
-      // 실기록 두 벌만 진짜다. 나머지는 화면이 `지어낸 데이터`라고 밝힌다.
-      synthetic: !src.id.startsWith('real'),
-      events: kept.map((l) => JSON.parse(l)),
-    }];
-  })
-  : undefined;
+/*
+ * 기본 빌드는 지어낸 데모만 심는다 — 화면이 무엇을 보는지 정직하게 밝히려면
+ * 고를 수 있는 데모가 있어야 한다. 실기록 두 벌은 `PITWALL_REAL=1`일 때만 심는다.
+ */
+const wantReal = process.env.PITWALL_REAL === '1';
+const chosen = wantReal ? SOURCES : SOURCES.filter((src) => src.id.startsWith('demo'));
+
+const datasets = chosen.flatMap((src) => {
+  if (!existsSync(src.file)) return [];
+  const lines = readFileSync(src.file, 'utf8').trim().split('\n');
+  const from = lines.length > PER_SET ? busiestWindow(lines, PER_SET) : null;
+  const kept = from ? lines.slice(from.at, from.at + PER_SET) : lines;
+  console.log(`[pitwall] ${src.label}: ${kept.length}/${lines.length}건`
+    + (from ? ` · ${from.at}번째부터 (계정 ${from.cars}대가 겹친다)` : ''));
+  return [{
+    id: src.id,
+    label: src.label,
+    // 실기록 두 벌만 진짜다. 나머지는 화면이 `지어낸 데이터`라고 밝힌다.
+    synthetic: !src.id.startsWith('real'),
+    events: kept.map((l) => JSON.parse(l)),
+  }];
+});
 
 export default defineConfig({
   define: {

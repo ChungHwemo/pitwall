@@ -51,6 +51,11 @@ export interface AppOptions {
   settings?: PitwallSettings;
   /** 생략하면 시뮬레이터. 실 기록 재생은 ReplaySource를 넣는다. */
   source?: EventSource & { setSpeed(speed: number): void };
+  /**
+   * 지어낸 데이터인가 — DEMO 배지를 켠다. 생략하면 소스가 없을 때(시뮬레이터)
+   * true. 실기록 재생은 source를 넣고 demo:false, 지어낸 재생은 demo:true.
+   */
+  demo?: boolean;
 }
 
 export class PitwallApp {
@@ -70,6 +75,8 @@ export class PitwallApp {
   /** 데이터셋 선택기가 붙는 자리. 무엇을 보는지 화면이 늘 말해야 한다. */
   private hudSlot: HTMLElement;
   private live = false;
+  /** 지어낸 데이터인가. LIVE의 반대편이 아니라 출처의 사실이다 — demoClock과 무관. */
+  private demo: boolean;
   /** 실시간 창을 다시 뽑는 재료. 이벤트가 올 때마다 늘어난다. */
   private liveSamples: ActivitySample[] = [];
   private summaryRenderer: SummaryRenderer;
@@ -95,6 +102,7 @@ export class PitwallApp {
   constructor(root: HTMLElement, private opts: AppOptions) {
     // 하한 강제는 resolveSettings에서 끝난다. 여기서는 결과를 쓰기만 한다.
     this.settings = opts.settings ?? DEFAULT_SETTINGS;
+    this.demo = opts.demo ?? (opts.source === undefined);
     this.director = new Director(this.settings.cameraSlots);
 
     /*
@@ -260,8 +268,9 @@ export class PitwallApp {
     this.selected = null;
     this.source = source;
     this.settings = { ...this.settings, ...over };
-    // 재생인지 지금인지는 화면이 말해야 한다. DEMO 배지의 반대편이다.
+    // 실시간 소스로 갈아탄다 — 지금이 지금이다. LIVE를 켜고 DEMO를 끈다.
     this.live = true;
+    this.demo = false;
     this.liveSamples = [];
     if (this.running) this.wireSource();
   }
@@ -350,11 +359,11 @@ export class PitwallApp {
       formatPace(paceOf(this.raceState,
         { events: allRecent, now, windowMs: window_, speed: this.settings.speed })));
     setText(this.hudPhase,
-      // 기록을 재생 중이면 시계는 지어낸 값이 아니라 재생 위치다 — DEMO를 붙이면
-      // 그게 거짓말이 된다.
+      // 배지는 출처를 말한다. LIVE는 실시간이 흐를 때만, DEMO는 데이터가
+      // 지어낸 것일 때(시뮬레이터 또는 지어낸 재생) — demoClock과 무관하다.
       `${phase.toUpperCase().replace('_', ' ')}`
       + (this.live ? ' · LIVE' : '')
-      + (!this.live && !replayed && this.settings.demoClock ? ' · DEMO' : ''));
+      + (this.demo ? ' · DEMO' : ''));
 
     /*
      * 연봉이 없으면 칸 자체를 안 그린다.

@@ -65,10 +65,13 @@ if (mount) {
       ...embedded,
     ];
     const wanted = localStorage.getItem(DATASET_KEY);
-    // 저장된 선택이 없으면 실시간(껍데기가 있을 때만 뜬다), 아니면 첫 기록.
+    // 저장된 선택이 없으면 첫 데모 기록(기본 빌드가 심는다), 그것도 없으면 실시간.
     const chosen = datasets.find((d) => d.id === wanted) ?? datasets[1] ?? datasets[0];
     const wantsLive = chosen?.id === LIVE_ID;
     const recorded = wantsLive ? [] : (chosen?.events ?? []);
+    // DEMO 배지는 지금 도는 것이 지어낸 데이터인지를 말한다. 시뮬레이터(기록
+    // 없음)이거나 고른 데이터셋이 지어낸 것이면 데모다. 실기록 재생만 아니다.
+    const demo = recorded.length === 0 || (chosen?.synthetic ?? false);
 
     // 근무창은 기록이 정한다. 09:00-18:00을 고집하면 실측 기준 하루 작업의
     // 61.4%가 창 밖으로 밀려나 화면에 아예 오지 않는다.
@@ -99,6 +102,7 @@ if (mount) {
       speed: observed.speed,
       settings: observed,
       source: recorded.length ? new ReplaySource(recorded, settings.speed) : undefined,
+      demo,
     });
 
     // 무엇을 보고 있는지 상단 바가 말한다. 고르면 그 데이터로 다시 연다 —

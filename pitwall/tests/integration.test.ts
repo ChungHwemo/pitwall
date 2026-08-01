@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { LiveSource } from '../src/source/LiveSource';
+import { ReplaySource } from '../src/source/ReplaySource';
 import { PitwallApp } from '../src/main';
 import { resolveSettings } from '../src/config/settings';
 
@@ -147,5 +148,55 @@ describe('실시간 표시', () => {
      app.useSource(new LiveSource(), { speed: 20, demoClock: false });
     runFrames(app, 3);
     expect(root.querySelector('.hud')!.textContent).toContain('LIVE');
+  });
+});
+
+describe('배지는 데이터의 출처를 말한다 — demoClock과 무관하다', () => {
+  const hud = (): string => root.querySelector('.hud')!.textContent ?? '';
+
+  it('시뮬레이터는 DEMO다 — 데모 시계를 꺼도 지어낸 데이터라는 사실은 남는다', () => {
+    const app = new PitwallApp(root, {
+      seed: 1, preset: 'busy', speed: 20,
+      settings: resolveSettings({}, { demoClock: false }, {}),
+    });
+    app.start();
+    app.frame(100);
+    expect(hud()).toContain('DEMO');
+    expect(hud()).not.toContain('LIVE');
+  });
+
+  it('지어낸 데이터셋 재생도 DEMO다 — 재생이라도 출처가 가짜면 밝힌다', () => {
+    const app = new PitwallApp(root, {
+      seed: 1, preset: 'busy', speed: 20,
+      source: new ReplaySource([], 1), demo: true,
+      settings: resolveSettings({}, { demoClock: false }, {}),
+    });
+    app.start();
+    app.frame(100);
+    expect(hud()).toContain('DEMO');
+    expect(hud()).not.toContain('LIVE');
+  });
+
+  it('실기록 재생은 배지가 없다 — 실시간도 아니고 지어낸 것도 아니다', () => {
+    const app = new PitwallApp(root, {
+      seed: 1, preset: 'busy', speed: 20,
+      source: new ReplaySource([], 1), demo: false,
+    });
+    app.start();
+    app.frame(100);
+    expect(hud()).not.toContain('LIVE');
+    expect(hud()).not.toContain('DEMO');
+  });
+
+  it('실시간으로 갈아타면 DEMO가 사라지고 LIVE만 남는다', () => {
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.frame(100);
+    expect(hud()).toContain('DEMO');
+
+    app.useSource(new LiveSource(), { speed: 1, demoClock: false });
+    runFrames(app, 3);
+    expect(hud()).toContain('LIVE');
+    expect(hud()).not.toContain('DEMO');
   });
 });
