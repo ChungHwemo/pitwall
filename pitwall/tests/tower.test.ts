@@ -89,6 +89,15 @@ describe('TowerRenderer', () => {
     expect(picked).toHaveLength(1);
   });
 
+  it('이름을 붙이면 카넘버 대신 이름을 쓴다 — 정렬은 그대로 카넘버다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(state([car('a', { car_number: 17 }), car('b', { car_number: 2 })]),
+      T, T, null, () => [], [], 1, { a: '결제팀 배치' });
+    const numbers = [...host.querySelectorAll('.tower-number')].map((n) => n.textContent);
+    // 이름은 라벨일 뿐이라 줄 순서는 카넘버(2, 17)를 지킨다.
+    expect(numbers.slice(0, 2)).toEqual(['2', '결제팀 배치']);
+  });
+
   it('반복 렌더에도 줄 수가 늘지 않는다', () => {
     const r = new TowerRenderer(host, 8);
     for (let i = 0; i < 40; i++) r.render(state([car('a'), car('b', { car_number: 883 })]), T, T, null, () => []);

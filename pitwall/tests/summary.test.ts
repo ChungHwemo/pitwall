@@ -59,6 +59,16 @@ describe('summarise', () => {
     expect(s.errors).toBe(5);
   });
 
+  it('추론 토큰을 조직 합계로 쌓는다', () => {
+    const s = summarise(state([car('a', { reasoning: 300 }), car('b', { reasoning: 200 })]));
+    expect(s.totalReasoningTokens).toBe(500);
+  });
+
+  it('추론이 없는 차량은 0으로 다룬다', () => {
+    const s = summarise(state([car('a'), car('b', { reasoning: 120 })]));
+    expect(s.totalReasoningTokens).toBe(120);
+  });
+
   it('빈 레이스도 예외 없이 요약한다', () => {
     const s = summarise(state([]));
     expect(s).toMatchObject({ totalTokens: 0, finished: 0, retired: 0, cacheHitRate: 0 });

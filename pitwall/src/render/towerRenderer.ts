@@ -1,5 +1,6 @@
 import type { CarEvent, CarState, RaceState } from '../types';
 import { CLASS_STYLE } from '../config/theme';
+import { carDisplayName } from '../config/carNames';
 import { IDLE_THRESHOLD_MS } from '../state/reducer';
 import { setText } from './setText';
 import { sparkline } from './spark';
@@ -206,6 +207,7 @@ export class TowerRenderer {
     historyOf: (carId: string) => CarEvent[],
     priority: string[] = [],
     speed = 1,
+    names: Record<string, string> = {},
   ): void {
     // 카넘버 오름차순 고정. 사용량으로 재정렬하면 그 순간 리더보드가 된다.
     const all = [...state.cars.values()].sort((a, b) => a.car_number - b.car_number);
@@ -236,7 +238,7 @@ export class TowerRenderer {
 
       const style = CLASS_STYLE[car.car_class];
       if (row.bar.style.backgroundColor !== style.color) row.bar.style.backgroundColor = style.color;
-      setText(row.number, String(car.car_number));
+      setText(row.number, carDisplayName(names, car.car_id, car.car_number, 'bare'));
       setText(row.model, car.model);
 
       // 한도는 막대가 먼저 읽히고 숫자가 뒤를 받친다. 소스가 없으면 둘 다 없다.
@@ -301,10 +303,10 @@ export class TowerRenderer {
       setText(this.overflow, `접힘 ${hidden.length}대 · 합계 $${sum.toFixed(2)}`);
     }
 
-    let calls = 0; let work = 0; let cached = 0; let cost = 0; let saved = 0;
+    let calls = 0; let work = 0; let cached = 0; let cost = 0; let saved = 0; let reasoning = 0;
     for (const c of all) {
       calls += c.call_count; work += c.distance; cached += c.cached; cost += c.cost_usd;
-      saved += c.saved_usd;
+      saved += c.saved_usd; reasoning += c.reasoning ?? 0;
     }
     const share = work + cached;
     setText(this.total, [
@@ -314,6 +316,8 @@ export class TowerRenderer {
       // 수십 배로 부풀어 보인다.
       // 비율은 크다는 사실만 말한다. 그게 좋은 일인지는 아낀 돈이 말한다.
       share > 0 ? `캐시 ${Math.round(cached / share * 100)}%` : '캐시 —',
+      // 추론은 작업 토큰에 이미 들어 있다. 얼마가 내부 추론이었는지만 따로 적는다.
+      ...(reasoning > 0 ? [`추론 ${reasoning.toLocaleString('ko-KR')}`] : []),
       `$${cost.toFixed(2)}`,
       ...(saved > 0 ? [`$${saved.toFixed(2)} 아낌`] : []),
     ].join('  ·  '));
