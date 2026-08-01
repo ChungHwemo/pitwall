@@ -28,6 +28,17 @@ describe('resolveSettings', () => {
   it('부분 설정은 나머지를 덮지 않는다', () => {
     expect(resolveSettings({}, { speed: 100 }, {}).workday).toEqual(DEFAULT_SETTINGS.workday);
   });
+
+  it('pricingOverride 섹션은 PitwallSettings로 새지 않는다 — sane이 무시한다', () => {
+    const out = resolveSettings(
+      { pricingOverride: { models: { 'claude-opus-5': { input_cost_per_million_tokens: 9 } } } },
+      { speed: 100 },
+      {},
+    );
+    expect(out).not.toHaveProperty('pricingOverride');
+    expect(out.speed).toBe(100);
+    expect(out).toEqual({ ...DEFAULT_SETTINGS, speed: 100 });
+  });
 });
 
 describe('clampSettings — 하한 강제', () => {

@@ -1,4 +1,5 @@
 import type { CarClass } from '../types';
+import type { PricingOverrideEntry } from './pricingOverride';
 
 /**
  * 모델 카탈로그 — 시뮬레이터 더미 데이터의 모델·단가 출처.
@@ -125,6 +126,37 @@ export function specOf(id: string): ModelSpec | undefined {
   const exact = MODEL_CATALOG.find((m) => m.id === id);
   if (exact) return exact;
   return MODEL_CATALOG.find((m) => id.startsWith(`${m.id}-`) && /-\d{8}$/.test(id));
+}
+
+/**
+ * 카탈로그 항목에 로컬 단가 보정을 얹는다.
+ *
+ * 보정은 카탈로그를 건드리지 않는 **순수 치환 계층**이다 (tokscale의 검증 카탈로그
+ * 분리와 같다). 보정이 없거나 이 id에 걸린 보정이 없으면 카탈로그 항목을 **그대로**
+ * (같은 참조로) 돌려준다 — 기존 호출·테스트가 바이트 그대로 유지된다.
+ *
+ * 보정이 걸리면 준 필드만 바꾸고 나머지는 카탈로그 값을 남긴다. 결과는 사용자가 준
+ * 로컬 값이므로 `priceSource='unverified'`로 낮추고 `priceNote`에 로컬 보정임을 남긴다 —
+ * 검증된 카탈로그 숫자와 조용히 섞이지 않게(출처 정직성).
+ */
+export function resolveModelSpec(
+  id: string,
+  overrides?: ReadonlyMap<string, PricingOverrideEntry>,
+): ModelSpec | undefined {
+  const base = specOf(id);
+  if (!base || overrides === undefined || overrides.size === 0) return base;
+
+  const override = overrides.get(base.id.toLowerCase());
+  if (!override) return base;
+
+  return {
+    ...base,
+    inputPerMtok: override.inputPerMtok ?? base.inputPerMtok,
+    outputPerMtok: override.outputPerMtok ?? base.outputPerMtok,
+    cachedInputPerMtok: override.cachedInputPerMtok ?? base.cachedInputPerMtok,
+    priceSource: 'unverified',
+    priceNote: '로컬 단가 보정',
+  };
 }
 
 export function modelsOfClass(carClass: CarClass): ModelSpec[] {

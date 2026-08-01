@@ -115,7 +115,17 @@ function sane(merged: Partial<Record<keyof PitwallSettings, unknown>>): PitwallS
  * 아무 모양이나 담을 수 있고, 예전 버전이 남긴 값도 그대로 온다. 타입으로
  * 아는 척하는 대신 모른다고 쓰고, `sane`이 런타임에서 확인한다.
  */
-export type SettingsInput = Partial<Record<keyof PitwallSettings, unknown>>;
+export type SettingsInput = Partial<Record<keyof PitwallSettings, unknown>> & {
+  /**
+   * 모델별 로컬 단가 보정 섹션 (`{ models: {...} }`, tokscale custom-pricing 모양).
+   *
+   * `PitwallSettings` 키가 **아니다** — UI 설정이 아니라 데이터 계층 보정이다.
+   * `sane()`는 `DEFAULT_SETTINGS`의 키만 돌므로 이 섹션을 그냥 무시한다. 그래서
+   * `pricingOverride`는 `resolveSettings`가 만드는 `PitwallSettings`로 새지 않고,
+   * `loadPricingOverride`(pricingOverride.ts)가 org/local 원본에서 따로 읽는다.
+   */
+  pricingOverride?: unknown;
+};
 
 export function resolveSettings(
   org: SettingsInput,
@@ -161,7 +171,7 @@ export async function loadOrgSettings(): Promise<SettingsInput> {
     if (!res.ok) return {};
     const parsed: unknown = await res.json();
     return typeof parsed === 'object' && parsed !== null
-      ? (parsed as Partial<PitwallSettings>)
+      ? (parsed as SettingsInput)
       : {};
   } catch {
     return {};
