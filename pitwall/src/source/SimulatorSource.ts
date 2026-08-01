@@ -2,7 +2,8 @@ import type { CarClass, CarEvent } from '../types';
 import { CAR_CLASSES } from '../types';
 import type { SimPreset } from '../config/presets';
 import type { ModelSpec } from '../config/models';
-import { modelsOfClass, costUsd } from '../config/models';
+import { modelsOfClass, costUsd, resolveModelSpec } from '../config/models';
+import type { PricingOverrideEntry } from '../config/pricingOverride';
 import type { EventSource } from './EventSource';
 
 interface CarProfile {
@@ -30,6 +31,7 @@ export class SimulatorSource implements EventSource {
   constructor(
     private preset: SimPreset,
     public speed: number,
+    private overrides: ReadonlyMap<string, PricingOverrideEntry> = new Map(),
   ) {
     this.buildFleet();
   }
@@ -57,7 +59,9 @@ export class SimulatorSource implements EventSource {
       // 모델은 클래스 안에서 순환 배정한다 — 한 벤더로 쏠리면 더미 데이터가
       // 실제 조직(여러 공급자를 섞어 쓰는)과 다른 분포를 갖게 된다.
       const fleet = modelsOfClass(cls);
-      const model = fleet[i % fleet.length]!;
+      const base = fleet[i % fleet.length]!;
+      // 로컬 단가 보정을 얹은 스펙을 profile에 담는다 — cost_usd가 보정값을 쓰게.
+      const model = resolveModelSpec(base.id, this.overrides) ?? base;
       this.profiles.set(car_id, {
         car_id,
         car_number: pool[i]!,
@@ -128,7 +132,11 @@ export class SimulatorSource implements EventSource {
 
     const latency = Math.max(1, Math.round(logNormal(p.latencyMedianMs, p.latencySigma)));
     const prompt = Math.max(1, Math.round(logNormal(2_400, 0.7)));
-    const completion = isError ? 0 : Math.max(0, Math.round(logNormal(600, 0.8)));
+    const outputSide = isError ? 0 : Math.max(0, Math.round(logNormal(600, 0.8)));
+    // 추론 토큰은 출력 과금의 일부다 — 실측상 출력의 의미 있는 몫이라 20%를 떼어
+    // 별도로 담는다. completion에서 나눠 담을 뿐이라 작업량·비용은 그대로다.
+    const reasoning = Math.round(outputSide * 0.2);
+    const completion = outputSide - reasoning;
 
     return {
       ts: nowMs,
@@ -138,9 +146,14 @@ export class SimulatorSource implements EventSource {
       model: profile.model.id,
       kind: isError ? 'error' : profile.fuel_pct <= 0 ? 'retire' : 'call',
       // 캐시 히트면 프롬프트 대부분이 재전송이다 — 실측 분포를 따른다.
-      tokens: { prompt, completion, cache_read: cacheHit ? Math.round(prompt * 0.965) : 0 },
+      tokens: {
+        prompt,
+        completion,
+        cache_read: cacheHit ? Math.round(prompt * 0.965) : 0,
+        reasoning,
+      },
       cache_hit: cacheHit,
-      cost_usd: costUsd(profile.model, prompt, completion, cacheHit),
+      cost_usd: costUsd(profile.model, prompt, completion + reasoning, cacheHit),
       latency_ms: latency,
       ttft_ms: Math.max(1, Math.round(latency * 0.3)),
       status: isError ? 'error' : 'ok',

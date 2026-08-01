@@ -186,8 +186,21 @@ describe('SimulatorSource', () => {
     const sim = new SimulatorSource({ ...PRESETS.busy, carCount: 5 }, 1);
     for (const e of collect(sim, 2)) {
       const spec = MODEL_CATALOG.find((m) => m.id === e.model)!;
-      const expected = costUsd(spec, e.tokens.prompt, e.tokens.completion, e.cache_hit);
+      // 추론도 출력처럼 과금된다 — completion에 도로 합쳐 단가를 잰다.
+      const output = e.tokens.completion + (e.tokens.reasoning ?? 0);
+      const expected = costUsd(spec, e.tokens.prompt, output, e.cache_hit);
       expect(e.cost_usd).toBeCloseTo(expected, 12);
+    }
+  });
+
+  it('추론 토큰을 출력과 나눠 담고 음수가 아니다', () => {
+    stubRandom(0.0001);
+    const sim = new SimulatorSource({ ...PRESETS.busy, carCount: 5 }, 1);
+    const events = collect(sim, 3);
+    expect(events.length).toBeGreaterThan(0);
+    for (const e of events) {
+      expect(e.tokens.reasoning ?? 0).toBeGreaterThanOrEqual(0);
+      expect(e.tokens.completion).toBeGreaterThanOrEqual(0);
     }
   });
 
