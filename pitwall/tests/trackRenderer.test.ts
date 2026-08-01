@@ -732,18 +732,21 @@ describe('섹터 경계 틱 (P0-2)', () => {
 });
 
 describe('F1 차량 아이콘 (P0-1)', () => {
-  it('hot 차량에 viewBox="0 0 512 512" 아이콘이 있다', () => {
+  it('hot 차량에 크롭된 차량 bbox viewBox 아이콘이 있다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('boom', { error_count: 1 })]), T);
     const icon = svg.querySelector('g.car svg.class-car-icon')!;
-    expect(icon.getAttribute('viewBox')).toBe('0 0 512 512');
+    // 원본 512×512가 아니라 차량 실루엣 bbox에 맞춰 잘린 viewBox다.
+    expect(icon.getAttribute('viewBox')).not.toBe('0 0 512 512');
+    expect(icon.getAttribute('viewBox')).toContain('194.9');
   });
 
-  it('cold 차량에도 같은 아이콘이 있다', () => {
+  it('cold 차량에도 같은 크롭 아이콘이 있다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('a')]), T);
     const icon = svg.querySelector('g.cold svg.class-car-icon')!;
-    expect(icon.getAttribute('viewBox')).toBe('0 0 512 512');
+    expect(icon.getAttribute('viewBox')).not.toBe('0 0 512 512');
+    expect(icon.getAttribute('viewBox')).toContain('194.9');
   });
 
   it('F1 경로의 고유 구간이 DOM에 있다', () => {
@@ -818,5 +821,41 @@ describe('F1 차량 아이콘 (P0-1)', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('a'), car('boom', { error_count: 1 })]), T);
     expect(svg.querySelectorAll('g.cars image, g.cars img, g.cars use').length).toBe(0);
+  });
+});
+
+describe('아이콘 확대와 투명 클릭 타깃 (Task C)', () => {
+  it('차량 아이콘 상자가 예전 18×12보다 크고 종횡비 1.5를 지킨다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('a')]), T);
+    const icon = svg.querySelector('g.cold svg.class-car-icon')!;
+    const w = Number(icon.getAttribute('width'));
+    const h = Number(icon.getAttribute('height'));
+    expect(w).toBeGreaterThan(18);
+    expect(h).toBeGreaterThan(12);
+    expect(w / h).toBeCloseTo(1.5);
+  });
+
+  it('hot·cold 모두 투명 클릭 타깃을 가진다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('cold'), car('boom', { error_count: 1 })]), T);
+    for (const sel of ['g.cold', 'g.car']) {
+      const hit = svg.querySelector(`${sel} .car-hit`) as SVGCircleElement | null;
+      expect(hit, sel).not.toBeNull();
+      expect(hit!.getAttribute('fill')).toBe('transparent');
+      expect(hit!.getAttribute('pointer-events')).toBe('all');
+      expect(Number(hit!.getAttribute('r'))).toBeGreaterThan(0);
+    }
+  });
+
+  it('장식 없는 cold 차량도 투명 클릭 타깃으로 선택된다', () => {
+    const r = new TrackRenderer(svg, track);
+    const picked: string[] = [];
+    r.onSelect((id) => picked.push(id));
+    r.render(model([car('a')]), T);
+    const hit = svg.querySelector('g.cold .car-hit') as unknown as HTMLElement;
+    expect(hit).not.toBeNull();
+    hit.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(picked).toEqual(['a']);
   });
 });

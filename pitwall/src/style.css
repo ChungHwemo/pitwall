@@ -454,6 +454,17 @@ svg.track .class-car-icon {
   pointer-events: none;
 }
 
+/*
+ * 투명 클릭 타깃. cold 차량은 연료 링·경고가 없어 칠해진 자식이 전부
+ * pointer-events:none이라 클릭이 그룹까지 닿지 못했다 — 이 원이 차량 영역을
+ * 덮어 어떤 장식 상태든 g.car/g.cold의 클릭 리스너로 흘려보낸다. 요소 속성으로도
+ * 같은 값을 박아 CSS가 없는 환경에서도 동작한다.
+ */
+svg.track .car-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
 /* 스타트/피니시 체커 스트립과 섹터 틱 (P0-2). 정적 표지 — 클릭 대상이 아니다. */
 svg.track .start-finish-marker,
 svg.track .sector-marker {

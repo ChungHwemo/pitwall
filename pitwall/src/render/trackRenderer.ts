@@ -10,7 +10,7 @@ import { HOT_CAP } from '../track/trackModel';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** 글리프 반지름. 선보다 점이 커야 미니맵처럼 읽힌다. */
-const GLYPH_SIZE = 5;
+const GLYPH_SIZE = 6;
 /**
  * 코스 선의 굵기. **한 곳에서만 정한다** — 예전에는 51이 이 파일과 `layout.ts`와
  * `generateTrack.ts`에 각각 박혀 있었고, 하나만 고치면 나머지가 조용히 어긋났다.
@@ -22,7 +22,7 @@ export const GLYPH_DIAMETER = GLYPH_SIZE * 2;
  * F1 차량 실루엣 본체 경로. `assets/f1/game-icons/f1-car.svg`(Skoll, Game Icons,
  * CC BY 3.0)의 흰색 본체 `d` 값만 뗀 것이다 — 원본의 검은 배경 사각형 경로는
  * 쓰지 않는다. 클래스 색으로 칠할 수 없고 배경과 겹쳐 차량 실루엣을 흐리기 때문이다.
- * viewBox는 원본과 같은 `0 0 512 512`.
+ * 원본 viewBox는 `0 0 512 512`지만 렌더 시 본체 bbox로 잘라 쓴다 (`CAR_ICON_VIEWBOX`).
  */
 export const F1_CAR_PATH =
   'M355.975 292.25a24.82 24.82 0 1 0 24.82-24.81 24.84 24.84 0 0 0-24.82 24.81zm-253-24.81a24.81 24.81 0 1 1-24.82 24.81 24.84 24.84 0 0 1 24.81-24.81zm-76.67-71.52h67.25l-13.61 49.28 92-50.28h57.36l1.26 34.68 32 14.76 11.74-14.44h15.62l3.16 16c137.56-13 192.61 29.17 192.61 29.17s-7.52 5-25.93 8.39c-3.88 3.31-3.66 14.44-3.66 14.44h24.2v16h-52v-27.48c-1.84.07-4.45.41-7.06.47a40.81 40.81 0 1 0-77.25 23h-204.24a40.81 40.81 0 1 0-77.61-17.67c0 1.24.06 2.46.17 3.67h-36z';
@@ -35,10 +35,18 @@ export const F1_CAR_PATH =
 const SKOLL_CREDIT = ' Icon by Skoll, from game-icons.net, CC BY 3.0 ';
 
 /** F1 아이콘이 그룹 원점 기준 차지하는 자리 (user unit). */
-const CAR_ICON = { x: -9, y: -6, width: 18, height: 12 };
+const CAR_ICON = { x: -12, y: -8, width: 24, height: 16 };
+/**
+ * 중첩 SVG viewBox. 본체 `d`의 실측 bbox(`x=26.3, y=194.9, w=459.4, h=122.2`)에
+ * 맞춰 자른다 — 512×512 그대로면 실루엣이 한가운데 점처럼 뜬다. 본체는 fill 전용
+ * (획 없음)이라 여백 없이 딱 맞춰도 잘리지 않는다.
+ */
+const CAR_ICON_VIEWBOX = '26.3 194.9 459.4 122.2';
+/** 투명 클릭 타깃 반지름. cold 차량이 장식 없이도 선택되도록 차량 영역을 덮는다. */
+const CAR_HIT_RADIUS = 10;
 /** 클래스 배지 반지름/반폭과 차량 아래 중앙 위치. */
-const BADGE_RADIUS = 2.5;
-const BADGE_Y = 8.5;
+const BADGE_RADIUS = 3;
+const BADGE_Y = 10.5;
 
 /**
  * 멈춤 사유별 표시. 글자가 아니라 획으로 그린다 (§6.3: 트랙 위 텍스트 금지).
@@ -122,6 +130,14 @@ function glyphPath(shape: 'circle' | 'triangle' | 'square', s: number, dx = 0, d
  * 배지가 먼저, F1 아이콘이 다음이다 — 배지가 차량 실루엣을 가리지 않는 순서.
  */
 function appendCarBody(group: SVGGElement): { badge: SVGPathElement; carIcon: SVGPathElement } {
+  const hit = document.createElementNS(SVG_NS, 'circle');
+  hit.setAttribute('class', 'car-hit');
+  hit.setAttribute('r', String(CAR_HIT_RADIUS));
+  hit.setAttribute('fill', 'transparent');
+  hit.setAttribute('pointer-events', 'all');
+  hit.setAttribute('aria-hidden', 'true');
+  group.appendChild(hit);
+
   const badge = document.createElementNS(SVG_NS, 'path');
   badge.setAttribute('class', 'class-badge');
   badge.setAttribute('aria-hidden', 'true');
@@ -133,7 +149,7 @@ function appendCarBody(group: SVGGElement): { badge: SVGPathElement; carIcon: SV
 
   const iconSvg = document.createElementNS(SVG_NS, 'svg');
   iconSvg.setAttribute('class', 'class-car-icon');
-  iconSvg.setAttribute('viewBox', '0 0 512 512');
+  iconSvg.setAttribute('viewBox', CAR_ICON_VIEWBOX);
   iconSvg.setAttribute('x', String(CAR_ICON.x));
   iconSvg.setAttribute('y', String(CAR_ICON.y));
   iconSvg.setAttribute('width', String(CAR_ICON.width));
