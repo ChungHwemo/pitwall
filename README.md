@@ -5,9 +5,9 @@
 대시보드가 아니다. 대시보드는 응시하는 물건이고, PITWALL은 곁눈질하는 물건이다. 체류 시간이 길면 실패다 — 3초 훑고 자기 일로 돌아가되 내일도 켜져 있으면 성공이다.
 
 현재 상태: **v1 구현 완료 + 브라우저 실측 완료.**
-256 tests · `tsc` 0 오류 · 빌드 24 kB · 런타임 의존성 0개.
-차량 100대 × 36,000프레임에서 **layout 유발 0** — 남은 layout은 전부 텍스트 변경분이고 프레임 수가 아니라 이벤트 수에 비례한다.
-8시간 힙 구동만 남았다 — [CHECKLIST.md](pitwall/CHECKLIST.md).
+703 tests · `tsc` 0 오류 · 기본 단일 파일 빌드 5,434.4 kB (약 5.4 MB) · 런타임 의존성 0개.
+차량 100대 × 35,996프레임에서 **layout 유발 0** — 남은 layout은 전부 텍스트 변경분이고 프레임 수가 아니라 이벤트 수에 비례한다.
+기본 빌드는 데모 데이터셋 3벌을 HTML에 심기 때문에 예전 24 kB보다 커졌다. 실기록은 `PITWALL_REAL=1` 빌드에서만 심는다. 8시간 힙 구동만 남았다 — [CHECKLIST.md](pitwall/CHECKLIST.md).
 
 ```bash
 cd pitwall && npm install
@@ -36,12 +36,12 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 
 ## 더미 데이터
 
-시뮬레이터는 6개 공급자 19개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
+시뮬레이터는 6개 공급자 21개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
 
 | 공급자 | 모델 |
 |---|---|
-| Anthropic | `claude-fable-5` · `claude-opus-5` · `claude-sonnet-5` · `claude-haiku-4-5` |
-| OpenAI | `gpt-5.6-sol` · `gpt-5.6-terra` · `gpt-5.6-luna` · `gpt-5.4-mini` · `gpt-5.4-nano` |
+| Anthropic | `claude-fable-5` · `claude-opus-5` · `claude-opus-4-8` · `claude-sonnet-5` · `claude-haiku-4-5` |
+| OpenAI | `gpt-5.6-sol` · `gpt-5.5` · `gpt-5.6-terra` · `gpt-5.6-luna` · `gpt-5.4-mini` · `gpt-5.4-nano` |
 | Google | `gemini-3.1-pro-preview` · `gemini-3.5-flash` · `gemini-3.1-flash-lite` |
 | xAI | `grok-4.5` · `grok-4.3` |
 | DeepSeek | `deepseek-v4-pro` · `deepseek-v4-flash` |
@@ -51,17 +51,30 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 
 샘플 출력은 [`pitwall/fixtures/`](pitwall/fixtures/)에 커밋되어 있으며, v1.5 어댑터가 맞춰야 할 데이터 계약의 실물이다.
 
+### 데이터 출처와 선택
+
+상단 바에서 데이터셋을 고른다. 선택은 `localStorage`의 `pitwall.dataset`에 저장되어 다음 실행에도 유지된다. 기본 빌드는 **데모 · 소규모**, **데모 · 중규모**, **데모 · 대규모** 세 벌만 심는다. 각 세트는 원본 fixture 기준으로 각각 계정 4·14·40개, 모델 4·7·8종의 서로 다른 규모다. 각 데이터셋은 최대 5,000건만 번들에 넣고, 더 많이 있으면 계정이 겹치는 구간을 골라 자른 사실을 빌드 로그에 남긴다. `PITWALL_REAL=1` 빌드에는 여기에 **실기록**, **실기록 · 붐빈 날**도 추가된다.
+
+**실시간**은 데이터 파일이 아니다. 네이티브 앱이 `window.pitwallLive` 브리지를 호출해 실제 `LiveSource`를 연결할 때만 `LIVE`가 뜬다. 일반 브라우저에서는 그 경로를 실행할 수 없으므로 실시간 항목을 골라도 LIVE라고 가장하지 않는다. 시뮬레이터와 지어낸 재생은 `DEMO`와 `지어낸 데이터`로 표시하고, 실기록 재생에는 DEMO를 붙이지 않는다. 설정 패널의 **데모 모드**는 벽시계를 근무 창 안으로 접는 시계 설정이며, 데이터 출처 배지와는 별개다.
+
+### 가독성 구현
+
+- 설정 패널은 `1×` · `20×` · `30×` · `100×` 배속을 제공한다. 시뮬레이터 프리셋의 내부값은 `busy` · `sparse` · `chaos` · `real`로 유지하고 화면에는 **붐비는 날** · **한산한 날** · **대혼란** · **실측**으로 표시한다. 시뮬레이터에서는 **데모 모드**도 고를 수 있다.
+- 트랙 차량은 Skoll의 Game Icons F1 아이콘을 쓴다. CC BY 3.0이며, 차량 bbox에 맞춘 `26.3 194.9 459.4 122.2` viewBox와 24×16 크기로 표시하고 글리프를 키웠다.
+- 각 차량에는 투명 `.car-hit` 클릭 타깃이 있어 장식 상태와 관계없이 모든 차량을 누를 수 있다. 차량을 고르면 선택 상태가 되고 해당 차량의 호출 피드가 열린다.
+
 ---
 
 ## 문서
 
 | 문서 | 내용 |
 |---|---|
-| [PRD v1.2](docs/superpowers/specs/2026-07-29-pitwall-prd.md) | 제품 정의, 은유 사전, 데이터 모델, 프라이버시 가드레일, 리스크 등록부 |
-| [구현 계획 v1](docs/superpowers/plans/2026-07-29-pitwall-v1.md) | 18개 태스크 TDD 실행 계획 |
+| [PRD v1.4](docs/superpowers/specs/2026-07-29-pitwall-prd.md) | 제품 정의, 은유 사전, 데이터 모델, 프라이버시 가드레일, 리스크 등록부 |
+| [구현 계획 v1](docs/superpowers/plans/2026-07-29-pitwall-v1.md) | 19개 태스크 TDD 실행 계획 |
 | [f1-telemetry 분해](docs/reference/2026-07-30-f1-telemetry-teardown.md) | 참조 구현 원본 코드 분석. 채택 기법 5건 / 기각 7건 |
 | [출시 검수](pitwall/CHECKLIST.md) | 측정한 것과 **측정하지 않은 것**을 분리해 기록 |
 | **[MVP 결정 사항](docs/superpowers/specs/2026-07-30-mvp-decisions.md)** | 실제로 띄워 보고 나온 가독성 문제 + 지금 정해야 할 10건 (D1–D10) |
+| [가독성 구현 명세](pitwall/docs/superpowers/specs/2026-08-01-readability.md) | 데이터 출처 라벨, 데모 데이터 선택, 설정 패널, 트랙 차량 가독성 구현 명세 |
 
 ---
 
@@ -75,7 +88,9 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 - 팀 라디오 — 이벤트 즉시 발화 + 매시 정각 패턴 피드백
 - 근무일 타임라인 (포메이션 랩 → 스타트 라이트 → 점심 피트 → 체커기)
 - 연봉 HUD (`localStorage` 전용) · 하루 요약 카드
-- 시뮬레이터 3프리셋 (`busy` / `sparse` / `chaos`) · **서버 없음**
+- 시뮬레이터 4프리셋 (`busy` / `sparse` / `chaos` / `real`) · 화면 제목 **붐비는 날 / 한산한 날 / 대혼란 / 실측** · **서버 없음**
+- LIVE는 네이티브 `LiveSource`에서만, 시뮬레이터와 지어낸 재생은 DEMO와 `지어낸 데이터`로 표시하는 출처 정직성
+- 실시간·실기록·데모 데이터셋 선택과 `localStorage`의 `pitwall.dataset` 저장
 
 ## 기술 스택
 
