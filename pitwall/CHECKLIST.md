@@ -210,7 +210,13 @@ transform 쓰기를 100에서 12로 줄여도 layout이 안 줄어드는 것 자
 | **8시간 힙 증가** | ≤ 50 MB | **미측정.** 5분 실측에서 누수 징후는 없다 — 30초 +2.1 MB vs 300초 +1.8 MB로 **구동 시간에 비례해 늘지 않았고**, DOM 노드는 634 고정, 라디오 버퍼는 링버퍼로 상한. 그래도 8시간은 8시간을 돌려야 한다 |
 | 실 GPU 프레임률 | 평균 ≥ 55fps | **부분 측정.** headless shell은 120fps 무제한으로 돌아 상한이 아니라 하한만 말해준다. 32ms 초과 프레임 0회는 유의미하나, 실제 컴포지터 경로는 헤드풀 브라우저로 재확인 필요 |
 | 라디오 가독성 | `chaos`에서 읽을 수 있는 속도 | **미측정.** 사람의 판단이 필요하다 |
-| 새 레이스 / 이어하기 | 새로고침 동작 | **미측정.** 세션 저장은 단위 테스트로만 확인 |
+| macOS 앱 production build | 성공 | ✅ `npm run build:app` exit 0. 앱 실행·렌더는 확인했지만 DEMO 표면뿐 |
+| native LIVE 연속성·중복 재생 | 새로고침 뒤 집계 연속, 중복 없음 | **미측정 / INCONCLUSIVE.** Task 3에서 fresh native launch가 LIVE를 기동하지 않아 확인하지 못함 |
+| 지연·즉시 리로드 | 저장된 스냅샷 복원 및 미저장 창 관찰 | **미측정 / INCONCLUSIVE.** 사람 운영 native LIVE 절차가 실행되지 않음 |
+| `localStorage['pitwall.live']` 프라이버시 검사 | 본문·raw account identifier 없음 | **미측정 / BLOCKED.** 배포 앱에서 Web Inspector가 노출되지 않음 |
+| malformed / expired fixture 폴백 | 충돌 없이 새 LIVE 상태로 폴백 | **미측정 / BLOCKED.** 주입할 native console이 노출되지 않음 |
+
+> 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저장 실패나 rAF 정지 때문에 이를 보편적인 손실 상한이나 zero-loss 보장으로 해석하지 않는다.
 
 ### 실행 방법
 

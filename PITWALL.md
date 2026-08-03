@@ -1,6 +1,6 @@
 # PITWALL — 현재 상태 전부
 
-2026-08-03 기준 · 테스트 840개 통과 · 테스트 파일 47개 · tsc 클린 · 런타임 의존성 0
+2026-08-03 기준 · 테스트 847개 통과 · 테스트 파일 48개 · tsc 클린 · 런타임 의존성 0
 
 조직의 LLM 사용을 내구 레이스로 그리는 상시 노출 화면. 대시보드가 아니라
 두 번째 모니터에 띄워 두고 **곁눈질로 읽는** 물건이다.
@@ -10,7 +10,7 @@
 ## 1. 실행
 
 ```bash
-npm test                      # 840개 · 테스트 파일 47개
+npm test                      # 847개 · 테스트 파일 48개
 npm run dev                   # 웹 (시뮬레이터)
 npm run build:single          # 기본 빌드 · 데모 3벌을 심은 단일 HTML (5,434.4 kB 실측)
 npm run build                 # Vite 정적 산출물
@@ -54,6 +54,15 @@ open dist/PITWALL.app         # ⌘T 항상 위 · ⌘F 전체 화면
 재생은 `DEMO`와 `지어낸 데이터`로 표시하고, 실기록 재생에는 DEMO를 붙이지 않는다.
 설정 패널의 **데모 모드**는 벽시계를 근무 창 안으로 접는 설정이다. 내부 상태 키
 `demoClock`은 남아 있지만 이 출처 배지와는 별개다.
+
+### 리로드 신뢰성 (2026-08-03)
+
+LIVE 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저장 실패나 rAF 정지로
+마지막 성공 스냅샷이 임의로 오래될 수 있으므로, 5초를 손실 상한이나 zero-loss 보장으로
+해석하지 않는다. Task 3에서 production build와 DEMO 표면의 앱 실행은 PASS였지만 fresh
+native launch가 LIVE를 기동하지 못했다. 따라서 native LIVE 연속성, 중복 재생, 지연·즉시
+리로드는 **미측정 / INCONCLUSIVE**다. `localStorage['pitwall.live']` 프라이버시 검사와
+malformed/expired fixture 폴백은 Web Inspector가 노출되지 않아 **미측정 / BLOCKED**다.
 
 더미는 실측 분포로 만든다 — 작업 토큰 중앙 2,107 · 캐시 재전송 비중 96.0% ·
 호출 간격 중앙 2.3초 / p99 172초. 계정마다 성향이 다르다
@@ -263,7 +272,7 @@ pitwall/
   scripts/              importClaudeCode · fetchLimits · makeDemo · liveCheck
                         bundleSingleFile · dumpEvents · importCircuits
   app/                  main.swift · PitwallApp.swift · LogTail.swift · build.sh
-  tests/                47개 파일 840개
+  tests/                48개 파일 847개
 docs/
   superpowers/specs/    PRD · MVP 결정 · 악마의 변호인 감사
   reference/            f1-telemetry 분해 · 사용량 시각화 벤치마크
