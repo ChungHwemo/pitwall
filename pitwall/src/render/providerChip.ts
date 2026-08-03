@@ -18,12 +18,18 @@ export function createProviderChip(): HTMLSpanElement {
 
 /**
  * 모델 id로 공급자를 조회해 칩을 칠한다. 카탈로그 밖 모델은 공급자를 지어내지 않으므로
- * 칩을 숨긴다 — 화면에 없는 브랜드를 그리지 않는다.
+ * 칩을 숨긴다 — 화면에 없는 브랜드를 그리지 않는다. 아는 모델에서 미지 모델로 바뀌면
+ * 숨기기 전에 낡은 텍스트·색·title·data를 지운다 — 숨은 칩에 옛 공급자 흔적을 남기지 않는다.
  */
 export function paintProviderChip(chip: HTMLSpanElement, modelId: string): void {
   const provider = providerOfModel(modelId);
   if (provider === null) {
-    if (chip.getAttribute('data-provider') !== null) chip.removeAttribute('data-provider');
+    if (chip.getAttribute('data-provider') !== null) {
+      chip.removeAttribute('data-provider');
+      chip.style.color = '';
+      chip.title = '';
+      setText(chip, '');
+    }
     if (chip.style.display !== 'none') chip.style.display = 'none';
     return;
   }

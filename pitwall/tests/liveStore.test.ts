@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   serializeLiveState, saveLiveSnapshot, loadLiveSnapshot, clearLiveSnapshot,
   rebaseLiveSnapshot, LIVE_STORAGE_KEY, LIVE_SNAPSHOT_TTL_MS, type LiveSnapshot,
@@ -27,6 +27,7 @@ function stateWith(cars: [string, CarState][], byModel: [string, ModelTally][], 
 const TALLY: ModelTally = { calls: 7, work: 12_000, cached: 500_000, cost: 1.23 };
 
 beforeEach(() => localStorage.clear());
+afterEach(() => vi.restoreAllMocks());
 
 describe('실시간 스냅샷 직렬화', () => {
   it('cars·byModel를 왕복해도 누적이 유지된다 — Map↔Record 직렬화', () => {
@@ -122,5 +123,42 @@ describe('실시간 스냅샷 재기준화', () => {
     expect(state.byModel).toBeInstanceOf(Map);
     expect(state.cars.get('car-1')!.distance).toBe(12_000);
     expect(state.byModel.get('gpt-5.6-sol')).toEqual(TALLY);
+  });
+});
+
+describe('실시간 스냅샷 읽기 실패 격리', () => {
+  it('localStorage.getItem이 던져도 loadLiveSnapshot은 던지지 않고 null이다 — boot가 죽지 않는다', () => {
+    // Given: 브라우저 저장소가 읽기 자체를 거부한다 (Safari 프라이빗/정책 차단).
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('storage disabled', 'SecurityError');
+    });
+    // When/Then: 읽기 예외가 boot 경계를 넘지 않고 null로 접힌다.
+    expect(() => loadLiveSnapshot()).not.toThrow();
+    expect(loadLiveSnapshot()).toBeNull();
+  });
+});
+
+describe('실시간 스냅샷 미래·형태 거부', () => {
+  it('savedAt이 미래면 null이다 — 시계 왜곡/변조 스냅샷으로 상태를 오염시키지 않는다', () => {
+    // Given: 로드 시점보다 앞선 savedAt (앞선 시계에서 온 저장 또는 변조).
+    const now = 1_000_000_000_000;
+    saveLiveSnapshot(serializeLiveState(stateWith([['car-1', car()]], [], 2_000), [], now + 60_000));
+    // When/Then: 미래 날짜는 만료와 같은 무게로 거부한다.
+    expect(loadLiveSnapshot(now)).toBeNull();
+  });
+
+  it('객체가 아닌 JSON은 null이다 — 배열/원시값을 스냅샷으로 믿지 않는다', () => {
+    // Given: 유효한 JSON이지만 스냅샷 객체가 아니다.
+    localStorage.setItem(LIVE_STORAGE_KEY, JSON.stringify(42));
+    // When/Then: 형태 검증이 restore 전에 걸러낸다.
+    expect(loadLiveSnapshot()).toBeNull();
+  });
+
+  it('키는 다 있어도 now가 숫자가 아니면 null이다 — 형태만 흉내낸 저장을 거른다', () => {
+    // Given: 최상위 키는 다 있으나 시프트 기준값 now가 문자열이다.
+    const snap = serializeLiveState(stateWith([['car-1', car()]], [], 2_000), [], Date.now());
+    localStorage.setItem(LIVE_STORAGE_KEY, JSON.stringify({ ...snap, now: 'soon' }));
+    // When/Then: 잘못된 타입은 rebase가 손대기 전에 null로 떨어진다.
+    expect(loadLiveSnapshot()).toBeNull();
   });
 });

@@ -102,11 +102,18 @@ export function saveLiveSnapshot(snapshot: LiveSnapshot): void {
 }
 
 /**
- * 저장된 스냅샷을 읽는다. 없음·깨짐·버전 불일치·만료는 모두 null.
- * 만료 판정은 벽시계(`savedAt`)로 한다 — 페이지 상대 `now`는 리로드마다 리셋된다.
+ * 저장된 스냅샷을 읽는다. 읽기 예외·없음·깨짐·버전 불일치·만료·미래 날짜는 모두 null.
+ * `getItem` 자체가 던지는 환경(프라이빗 모드·정책 차단)도 boot가 죽지 않게 null로 접는다.
+ * 나이 판정은 벽시계(`savedAt`)로 한다 — 페이지 상대 `now`는 리로드마다 리셋된다.
+ * 나이가 음수(미래 날짜)면 시계 왜곡/변조로 보고 만료와 같은 무게로 거부한다.
  */
 export function loadLiveSnapshot(now: number = Date.now()): LiveSnapshot | null {
-  const raw = localStorage.getItem(LIVE_STORAGE_KEY);
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(LIVE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
   if (raw === null) return null;
   let parsed: unknown;
   try {
@@ -115,7 +122,8 @@ export function loadLiveSnapshot(now: number = Date.now()): LiveSnapshot | null 
     return null;
   }
   if (!isLiveSnapshot(parsed)) return null;
-  if (now - parsed.savedAt > LIVE_SNAPSHOT_TTL_MS) return null;
+  const age = now - parsed.savedAt;
+  if (age < 0 || age > LIVE_SNAPSHOT_TTL_MS) return null;
   return parsed;
 }
 

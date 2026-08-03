@@ -308,4 +308,39 @@ describe('실시간 리로드 복원', () => {
 
     expect(app2.state.cars.get(before.car_id)!.distance).toBe(before.distance);
   });
+
+  it('쓰기 실패는 frame()을 넘지 못하고, 다음 주기 저장은 성공한다', () => {
+    // Given: 첫 실시간 쓰기만 할당량 초과로 던지고, 이후 쓰기는 통과한다.
+    const realSetItem = Storage.prototype.setItem;
+    let liveWrites = 0;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage, k: string, v: string,
+    ) {
+      if (k === LIVE_STORAGE_KEY) {
+        liveWrites += 1;
+        if (liveWrites === 1) throw new DOMException('quota', 'QuotaExceededError');
+      }
+      realSetItem.call(this, k, v);
+    });
+
+    const live = new LiveSource();
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.useSource(live, { speed: 1, demoClock: false });
+    live.ingest('codex', [CODEX_CTX, CODEX_USAGE]);
+
+    // When: 첫 저장 주기(5초)를 넘긴다 — 쓰기가 던져도 frame()은 죽지 않는다.
+    expect(() => {
+      for (let t = 1_000; t <= 6_000; t += 1_000) app.frame(t);
+    }).not.toThrow();
+    // Then: 첫 쓰기가 실패했으므로 저장은 아직 비어 있다 (즉시 재시도를 약속하지 않는다).
+    expect(localStorage.getItem(LIVE_STORAGE_KEY)).toBeNull();
+
+    // When: 다음 저장 주기가 돌아온다.
+    for (let t = 7_000; t <= 11_000; t += 1_000) app.frame(t);
+    // Then: 나중 쓰기는 성공해 스냅샷이 남는다 — 실패가 저장을 영구히 막지 않는다.
+    expect(liveWrites).toBeGreaterThanOrEqual(2);
+    expect(localStorage.getItem(LIVE_STORAGE_KEY)).not.toBeNull();
+    expect(loadLiveSnapshot()).not.toBeNull();
+  });
 });
