@@ -1,6 +1,6 @@
 # PITWALL — 현재 상태 전부
 
-2026-08-01 기준 · 테스트 703개 통과 · 테스트 파일 43개 · tsc 클린 · 런타임 의존성 0
+2026-08-03 기준 · 테스트 840개 통과 · 테스트 파일 47개 · tsc 클린 · 런타임 의존성 0
 
 조직의 LLM 사용을 내구 레이스로 그리는 상시 노출 화면. 대시보드가 아니라
 두 번째 모니터에 띄워 두고 **곁눈질로 읽는** 물건이다.
@@ -10,7 +10,7 @@
 ## 1. 실행
 
 ```bash
-npm test                      # 703개 · 테스트 파일 43개
+npm test                      # 840개 · 테스트 파일 47개
 npm run dev                   # 웹 (시뮬레이터)
 npm run build:single          # 기본 빌드 · 데모 3벌을 심은 단일 HTML (5,434.4 kB 실측)
 npm run build                 # Vite 정적 산출물
@@ -263,7 +263,7 @@ pitwall/
   scripts/              importClaudeCode · fetchLimits · makeDemo · liveCheck
                         bundleSingleFile · dumpEvents · importCircuits
   app/                  main.swift · PitwallApp.swift · LogTail.swift · build.sh
-  tests/                43개 파일 703개
+  tests/                47개 파일 840개
 docs/
   superpowers/specs/    PRD · MVP 결정 · 악마의 변호인 감사
   reference/            f1-telemetry 분해 · 사용량 시각화 벤치마크
