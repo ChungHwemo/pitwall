@@ -3,6 +3,7 @@ import { CLASS_STYLE } from '../config/theme';
 import { carDisplayName } from '../config/carNames';
 import { IDLE_THRESHOLD_MS } from '../state/reducer';
 import { setText } from './setText';
+import { createProviderChip, paintProviderChip } from './providerChip';
 import { sparkline } from './spark';
 import { recentPace } from '../state/pace';
 
@@ -27,6 +28,7 @@ export interface TowerRow {
   bar: HTMLElement;
   number: HTMLElement;
   model: HTMLElement;
+  modelChip: HTMLSpanElement;
   limitTrack: HTMLElement;
   limitText: HTMLElement;
   spark: HTMLElement;
@@ -147,6 +149,10 @@ export class TowerRenderer {
       number.className = 'tower-number';
       const model = document.createElement('div');
       model.className = 'tower-model';
+      const modelChip = createProviderChip();
+      const modelText = document.createElement('span');
+      modelText.className = 'tower-model-text';
+      model.append(modelChip, modelText);
 
       const limit = document.createElement('div');
       limit.className = 'tower-limit';
@@ -174,7 +180,7 @@ export class TowerRenderer {
       row.append(bar, number, model, spark, limit, money, state);
       root.appendChild(row);
       this.rows.push({
-        root: row, bar, number, model, spark, limitTrack, limitText, cost, rate, state,
+        root: row, bar, number, model: modelText, modelChip, spark, limitTrack, limitText, cost, rate, state,
         carId: '',
       });
     }
@@ -240,6 +246,7 @@ export class TowerRenderer {
       if (row.bar.style.backgroundColor !== style.color) row.bar.style.backgroundColor = style.color;
       setText(row.number, carDisplayName(names, car.car_id, car.car_number, 'bare'));
       setText(row.model, car.model);
+      paintProviderChip(row.modelChip, car.model);
 
       // 한도는 막대가 먼저 읽히고 숫자가 뒤를 받친다. 소스가 없으면 둘 다 없다.
       if (car.tyre_pct === undefined) {

@@ -3,6 +3,30 @@ import { LiveSource } from '../src/source/LiveSource';
 import { ReplaySource } from '../src/source/ReplaySource';
 import { PitwallApp } from '../src/main';
 import { resolveSettings } from '../src/config/settings';
+import { loadLiveSnapshot, LIVE_STORAGE_KEY } from '../src/session/liveStore';
+
+const CODEX_CTX = JSON.stringify({
+  timestamp: '2026-07-30T21:00:01.000Z',
+  type: 'turn_context', payload: { model: 'gpt-5.6-sol' },
+});
+const CODEX_USAGE = JSON.stringify({
+  timestamp: '2026-07-30T21:00:02.000Z',
+  payload: {
+    type: 'token_count',
+    info: { last_token_usage: { input_tokens: 5_000, output_tokens: 800, cached_input_tokens: 4_000 } },
+    rate_limits: { primary: { used_percent: 40, window_minutes: 10_080, resets_at: 1_785_913_052 } },
+  },
+});
+
+function liveWithOneEvent(root: HTMLElement): PitwallApp {
+  const live = new LiveSource();
+  const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+  app.start();
+  app.useSource(live, { speed: 1, demoClock: false });
+  live.ingest('codex', [CODEX_CTX, CODEX_USAGE]);
+  runFrames(app, 3);
+  return app;
+}
 
 let root: HTMLElement;
 beforeEach(() => {
@@ -198,5 +222,90 @@ describe('배지는 데이터의 출처를 말한다 — demoClock과 무관하�
     runFrames(app, 3);
     expect(hud()).toContain('LIVE');
     expect(hud()).not.toContain('DEMO');
+  });
+});
+
+describe('실시간 리로드 복원', () => {
+  function freshRoot(): HTMLElement {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    return el;
+  }
+
+  it('실시간이 아니면 captureLiveSnapshot은 null이다 — 저장할 것이 없다', () => {
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.frame(100);
+    expect(app.captureLiveSnapshot()).toBeNull();
+  });
+
+  it('capture한 누적을 새 앱에 restore하면 토큰·비용·호출 수가 유지된다', () => {
+    const app = liveWithOneEvent(root);
+    const before = [...app.state.cars.values()][0]!;
+    const snap = app.captureLiveSnapshot();
+    expect(snap).not.toBeNull();
+
+    const app2 = new PitwallApp(freshRoot(), { seed: 2, preset: 'busy', speed: 20 });
+    app2.start();
+    app2.useSource(new LiveSource(), { speed: 1, demoClock: false });
+    app2.restoreLiveState(snap!);
+
+    const after = app2.state.cars.get(before.car_id)!;
+    expect(after).not.toBeUndefined();
+    expect(after.distance).toBe(before.distance);
+    expect(after.cost_usd).toBe(before.cost_usd);
+    expect(after.call_count).toBe(before.call_count);
+    expect(app2.state.byModel.get(before.model)).toEqual(app.state.byModel.get(before.model));
+  });
+
+  it('restore는 페이지 상대 시각을 새 시계로 시프트한다 — 유휴 간격이 보존된다', () => {
+    const app = liveWithOneEvent(root);
+    const before = [...app.state.cars.values()][0]!;
+    const snap = app.captureLiveSnapshot()!;
+
+    const app2 = new PitwallApp(freshRoot(), { seed: 2, preset: 'busy', speed: 20 });
+    app2.start();
+    app2.useSource(new LiveSource(), { speed: 1, demoClock: false });
+    app2.restoreLiveState(snap);
+
+    const after = app2.state.cars.get(before.car_id)!;
+    // 벽시계가 아니라 페이지 상대 시각이라 새 페이지의 원점으로 옮겨졌다.
+    const gapBefore = snap.now - before.last_event_ts;
+    const gapAfter = app2.state.now - after.last_event_ts;
+    expect(gapAfter).toBeCloseTo(gapBefore, 5);
+    // 벽시계 한도값은 그대로다.
+    expect(after.limit_resets_at).toBe(before.limit_resets_at);
+    expect(after.hourly).toEqual(before.hourly);
+  });
+
+  it('frame()이 5초 주기로 실시간 스냅샷을 저장한다 — 리로드가 이걸 읽는다', () => {
+    const live = new LiveSource();
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.useSource(live, { speed: 1, demoClock: false });
+    live.ingest('codex', [CODEX_CTX, CODEX_USAGE]);
+    // 5초를 넘겨야 첫 저장이 떨어진다.
+    for (let t = 1_000; t <= 6_000; t += 1_000) app.frame(t);
+    expect(localStorage.getItem(LIVE_STORAGE_KEY)).not.toBeNull();
+    expect(loadLiveSnapshot()).not.toBeNull();
+  });
+
+  it('저장→로드→복원 전체 경로에서 누적이 살아남는다', () => {
+    const live = new LiveSource();
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.useSource(live, { speed: 1, demoClock: false });
+    live.ingest('codex', [CODEX_CTX, CODEX_USAGE]);
+    for (let t = 1_000; t <= 6_000; t += 1_000) app.frame(t);
+    const before = [...app.state.cars.values()][0]!;
+
+    const restored = loadLiveSnapshot();
+    expect(restored).not.toBeNull();
+    const app2 = new PitwallApp(freshRoot(), { seed: 2, preset: 'busy', speed: 20 });
+    app2.start();
+    app2.useSource(new LiveSource(), { speed: 1, demoClock: false });
+    app2.restoreLiveState(restored!);
+
+    expect(app2.state.cars.get(before.car_id)!.distance).toBe(before.distance);
   });
 });

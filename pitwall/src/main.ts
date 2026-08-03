@@ -26,6 +26,7 @@ import { SettingsPanel } from './render/settingsPanel';
 import { loadCarNames } from './config/carNames';
 import { Legend } from './render/legend';
 import { saveSession } from './session/sessionStore';
+import { serializeLiveState, saveLiveSnapshot, rebaseLiveSnapshot, type LiveSnapshot } from './session/liveStore';
 import { RingBuffer } from './state/ringBuffer';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 import type { PricingOverride } from './config/pricingOverride';
@@ -45,6 +46,11 @@ const FEED_ROWS = 12;
 /** 계정별로 들고 있는 최근 호출 수. 피드가 쓰고 스파크라인도 여기서 읽는다. */
 const FEED_HISTORY = 400;
 const ROUTINE_INTERVAL_MS = 3_600_000;
+/**
+ * 실시간 스냅샷 자동 저장 주기. 프레임(60fps)마다 저장하면 localStorage 할당량을
+ * 태우고 직렬화가 프레임을 굶긴다 — 5초면 리로드 데이터 손실을 막기에 충분하다.
+ */
+const LIVE_SAVE_INTERVAL_MS = 5_000;
 
 export interface AppOptions {
   seed: number;
@@ -111,6 +117,7 @@ export class PitwallApp {
   private running = false;
   private lastPhase = phaseAt(new Date(), DEFAULT_WORKDAY);
   private lastRoutineAt = 0;
+  private lastLiveSaveAt = 0;
 
   constructor(root: HTMLElement, private opts: AppOptions) {
     // 하한 강제는 resolveSettings에서 끝난다. 여기서는 결과를 쓰기만 한다.
@@ -306,6 +313,46 @@ export class PitwallApp {
     this.raceState = { ...this.raceState, now: Math.max(this.raceState.now, nowMs) };
     this.emitRoutineRadio(this.raceState.now);
     this.render(this.raceState.now);
+    this.maybeSaveLive();
+  }
+
+  /**
+   * 실시간이면 5초마다 누적 상태를 저장한다. 저장 실패(할당량 초과 등)는 조용히
+   * 무시한다 — 스냅샷 하나를 못 남긴다고 프레임 루프를 죽이면 안 된다.
+   */
+  private maybeSaveLive(): void {
+    if (!this.live) return;
+    if (this.raceState.now - this.lastLiveSaveAt < LIVE_SAVE_INTERVAL_MS) return;
+    this.lastLiveSaveAt = this.raceState.now;
+    const snap = this.captureLiveSnapshot();
+    if (!snap) return;
+    try {
+      saveLiveSnapshot(snap);
+    } catch {
+      // 저장소가 거부하면 다음 주기에 다시 시도한다.
+    }
+  }
+
+  /** 지금 누적 상태를 스냅샷으로 굳힌다. 실시간이 아니면 저장할 것이 없다. */
+  captureLiveSnapshot(): LiveSnapshot | null {
+    if (!this.live) return null;
+    return serializeLiveState(this.raceState, this.liveSamples);
+  }
+
+  /**
+   * 스냅샷을 새 페이지 시계에 맞춰 되살린다. **반드시 `useSource` 이후**에 부른다 —
+   * `useSource`가 `raceState`를 비우므로 순서가 뒤집히면 복원분이 지워진다.
+   *
+   * 집계(`raceState`)와 실시간 창(`liveSamples`)만 되살린다. 피드 링버퍼(`recent`)는
+   * 비운 채 둔다 — 카드가 "지금 무엇이 도는가"를 보여주는데 옛 호출을 새것처럼
+   * 되살리면 거짓이 된다. 새 이벤트부터 채운다.
+   */
+  restoreLiveState(snap: LiveSnapshot): void {
+    const { state, samples } = rebaseLiveSnapshot(snap, performance.now());
+    this.raceState = state;
+    this.liveSamples = samples;
+    this.modelCars = null;
+    this.lastLiveSaveAt = state.now;
   }
 
   private emitRoutineRadio(now: number): void {

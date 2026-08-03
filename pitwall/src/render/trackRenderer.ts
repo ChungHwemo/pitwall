@@ -172,19 +172,46 @@ function paintCarClass(badge: SVGPathElement, carIcon: SVGPathElement, carClass:
 }
 
 /**
+ * carId → 0..4초 결정적 idle sway 위상 (FNV-1a).
+ *
+ * 같은 차는 항상 같은 위상이라 재접속·재렌더에도 떨림이 튀지 않는다.
+ * RNG가 아니라 id 해시인 이유는 `trackModel.progressOf`와 같다 — 배치는
+ * 데이터에서만 나와야 한다. sway는 진행이 아니라 제자리 시각 효과일 뿐이라
+ * 시각적 다양성 용도로만 쓴다.
+ */
+function idleSwayDelay(carId: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < carId.length; i++) {
+    h ^= carId.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (((h >>> 0) % 1000) / 1000) * 4;
+}
+
+/**
  * 속도와 유휴를 DOM에 얹는다. **위치는 건드리지 않는다** — 위치는 누적이고
  * 속도는 별개의 사실이다. 어떻게 보일지는 CSS가 정한다.
  *
  * 값은 소수 둘째 자리로 자른다. 프레임마다 미세하게 다른 문자열을 쓰면
  * 재계산이 공짜가 아니다.
+ *
+ * `--pw-idle-delay`는 유휴 sway(엔진 공회전 떨림, REVIEW #10)의 차량별 위상이다.
+ * data-idle이 'false'→'true'로 **바뀔 때만** 쓴다 — 프레임 쓰기 예산을 지키는
+ * 기존 가드 안에 끼워 넣는다. **진행은 토큰의 순수 함수(1:1 불변식)이고 sway는
+ * 제자리 시각 효과일 뿐 진행이 아니다** — 위상 var는 위치를 1밀리도 옮기지 않는다.
+ * 음수 delay라 애니메이션이 시작 즉시 중간 위상에서 도는데, 이래야 유휴 차들이
+ * 한 박자로 동기화돼 떨리지 않는다.
  */
-function applyHeat(el: SVGGElement, heat: number, idle: boolean): void {
+function applyHeat(el: SVGGElement, heat: number, idle: boolean, carId: string): void {
   const rounded = heat.toFixed(2);
   if (el.style.getPropertyValue('--pw-heat') !== rounded) {
     el.style.setProperty('--pw-heat', rounded);
   }
   const flag = idle ? 'true' : 'false';
-  if (el.getAttribute('data-idle') !== flag) el.setAttribute('data-idle', flag);
+  if (el.getAttribute('data-idle') !== flag) {
+    el.setAttribute('data-idle', flag);
+    if (idle) el.style.setProperty('--pw-idle-delay', `-${idleSwayDelay(carId).toFixed(2)}s`);
+  }
 }
 
 function translate(el: SVGGElement, p: Point): void {
@@ -509,7 +536,7 @@ export class TrackRenderer {
         node.carId = car.carId;
       }
 
-      applyHeat(node.group, car.heat, car.idle);
+      applyHeat(node.group, car.heat, car.idle, car.carId);
       const next = this.projector.step(car.carId, car.progress, now);
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
@@ -566,7 +593,7 @@ export class TrackRenderer {
       // 주행선 위에 세우면 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인
       // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
-      applyHeat(node.group, car.heat, car.idle);
+      applyHeat(node.group, car.heat, car.idle, car.carId);
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);

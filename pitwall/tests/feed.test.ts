@@ -147,6 +147,41 @@ describe('피드 헤더', () => {
   });
 });
 
+describe('피드 헤더 프로바이더 칩 (REVIEW #11)', () => {
+  it('아는 모델이면 헤더 모델 옆에 공급자 칩을 그린다', () => {
+    const r = new FeedRenderer(host, 4);
+    r.render({ carId: 'car-a', carNumber: 7, carClass: 'H', model: 'gpt-5.6-sol' }, [event()]);
+    const chip = host.querySelector('.feed-head .provider-chip') as HTMLElement;
+    expect(chip).not.toBeNull();
+    expect(chip.style.display).toBe('');
+    expect(chip.getAttribute('data-provider')).toBe('openai');
+    expect(chip.textContent).toBe('Op');
+  });
+
+  it('카탈로그 밖 모델이면 칩을 그리지 않는다 — 브랜드를 지어내지 않는다', () => {
+    const r = new FeedRenderer(host, 4);
+    r.render({ carId: 'car-a', carNumber: 7, carClass: 'H', model: 'mystery-model-x' }, [event()]);
+    const chip = host.querySelector('.feed-head .provider-chip') as HTMLElement;
+    expect(chip.style.display).toBe('none');
+    expect(chip.getAttribute('data-provider')).toBeNull();
+  });
+
+  it('선택이 없으면 칩을 숨긴다', () => {
+    const r = new FeedRenderer(host, 4);
+    r.render({ carId: 'car-a', carNumber: 7, carClass: 'H', model: 'gpt-5.6-sol' }, [event()]);
+    r.render(null, []);
+    const chip = host.querySelector('.feed-head .provider-chip') as HTMLElement;
+    expect(chip.style.display).toBe('none');
+  });
+
+  it('모델 텍스트를 대체하지 않고 옆에 붙는다', () => {
+    const r = new FeedRenderer(host, 4);
+    r.render({ carId: 'car-a', carNumber: 7, carClass: 'H', model: 'gpt-5.6-sol' }, [event()]);
+    expect(host.querySelector('.feed-class')!.textContent).toBe('gpt-5.6-sol');
+    expect(host.querySelector('.feed-head .provider-chip')!.textContent).toBe('Op');
+  });
+});
+
 describe('이벤트 극성 (P0-3)', () => {
   it('일반 call 행은 neutral이다', () => {
     const r = new FeedRenderer(host, 6);

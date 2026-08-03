@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODEL_CATALOG, modelsOfClass, classOfModel, costUsd } from '../src/config/models';
+import { MODEL_CATALOG, modelsOfClass, classOfModel, costUsd, providerOfModel } from '../src/config/models';
 import { CAR_CLASSES } from '../src/types';
 
 describe('MODEL_CATALOG', () => {
@@ -73,6 +73,25 @@ describe('classOfModel', () => {
 
   it('모르는 모델은 null이다 — 임의로 배정하지 않는다', () => {
     expect(classOfModel('nonexistent-model-9')).toBeNull();
+  });
+});
+
+describe('providerOfModel (REVIEW #11)', () => {
+  it('여섯 공급자를 모델 id로 각각 되돌려준다', () => {
+    expect(providerOfModel('claude-opus-5')).toBe('anthropic');
+    expect(providerOfModel('gpt-5.6-sol')).toBe('openai');
+    expect(providerOfModel('gemini-3.5-flash')).toBe('google');
+    expect(providerOfModel('grok-4.5')).toBe('xai');
+    expect(providerOfModel('deepseek-v4-pro')).toBe('deepseek');
+    expect(providerOfModel('kimi-k3')).toBe('moonshot');
+  });
+
+  it('날짜 별칭 id도 카탈로그 항목의 공급자로 맞춘다', () => {
+    expect(providerOfModel('claude-haiku-4-5-20251001')).toBe('anthropic');
+  });
+
+  it('카탈로그 밖 모델은 null이다 — 공급자를 지어내지 않는다', () => {
+    expect(providerOfModel('nonexistent-model-9')).toBeNull();
   });
 });
 

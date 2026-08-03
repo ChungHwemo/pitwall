@@ -229,3 +229,39 @@ describe('캐시가 아낀 돈', () => {
     expect(host.querySelector('.tower-total')!.textContent).not.toContain('아낌');
   });
 });
+
+describe('타워 프로바이더 칩 (REVIEW #11)', () => {
+  it('아는 모델이면 줄의 모델 옆에 공급자 칩을 그린다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(state([car('a', { model: 'claude-opus-5' })]), T, T, null, () => []);
+    const chip = host.querySelector('.tower-model .provider-chip') as HTMLElement;
+    expect(chip).not.toBeNull();
+    expect(chip.style.display).toBe('');
+    expect(chip.getAttribute('data-provider')).toBe('anthropic');
+    expect(chip.textContent).toBe('An');
+  });
+
+  it('카탈로그 밖 모델이면 칩을 그리지 않는다 — 브랜드를 지어내지 않는다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(state([car('a', { model: 'mystery-model-x' })]), T, T, null, () => []);
+    const chip = host.querySelector('.tower-model .provider-chip') as HTMLElement;
+    expect(chip.style.display).toBe('none');
+    expect(chip.getAttribute('data-provider')).toBeNull();
+  });
+
+  it('모델 텍스트를 대체하지 않고 옆에 붙는다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(state([car('a', { model: 'gemini-3.5-flash' })]), T, T, null, () => []);
+    expect(host.querySelector('.tower-model-text')!.textContent).toBe('gemini-3.5-flash');
+    expect(host.querySelector('.tower-model .provider-chip')!.textContent).toBe('Gg');
+  });
+
+  it('공급자가 다른 모델로 바뀌면 칩도 바뀐다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(state([car('a', { model: 'claude-opus-5' })]), T, T, null, () => []);
+    r.render(state([car('a', { model: 'grok-4.5' })]), T, T, null, () => []);
+    const chip = host.querySelector('.tower-model .provider-chip') as HTMLElement;
+    expect(chip.getAttribute('data-provider')).toBe('xai');
+    expect(chip.textContent).toBe('Xa');
+  });
+});

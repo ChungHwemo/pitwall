@@ -3,6 +3,7 @@ import { CLASS_STYLE, EVENT_POLARITY_COLOR } from '../config/theme';
 import { carDisplayName } from '../config/carNames';
 import { workOf, cachedOf } from '../state/reducer';
 import { setText } from './setText';
+import { createProviderChip, paintProviderChip } from './providerChip';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -178,6 +179,7 @@ export class FeedRenderer {
   private root: HTMLElement;
   private title: HTMLElement;
   private klass: HTMLElement;
+  private klassChip: HTMLSpanElement;
   private empty: HTMLElement;
   private rows: Row[] = [];
 
@@ -191,7 +193,8 @@ export class FeedRenderer {
     this.title.className = 'feed-number';
     this.klass = document.createElement('div');
     this.klass.className = 'feed-class';
-    head.append(this.title, this.klass);
+    this.klassChip = createProviderChip();
+    head.append(this.title, this.klass, this.klassChip);
 
     this.empty = document.createElement('div');
     this.empty.className = 'feed-empty';
@@ -233,6 +236,7 @@ export class FeedRenderer {
        */
       setText(this.title, '');
       setText(this.klass, '');
+      this.klassChip.style.display = 'none';
       setText(this.empty, '트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다');
       for (const row of this.rows) row.root.style.display = 'none';
       return;
@@ -242,6 +246,7 @@ export class FeedRenderer {
     const style = CLASS_STYLE[target.carClass];
     setText(this.klass, target.model);
     this.klass.style.color = style.color;
+    paintProviderChip(this.klassChip, target.model);
     setText(this.empty, events.length === 0 ? '아직 기록된 호출이 없습니다' : '');
 
     // 새것부터. 초 단위로 몰린 호출은 화면에서 구분이 안 되므로 접는다.

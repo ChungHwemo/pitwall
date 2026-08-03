@@ -3,6 +3,7 @@ import { PitwallApp } from './main';
 import { loadOrgSettings, loadLocalSettings, resolveSettings } from './config/settings';
 import { loadPricingOverride } from './config/pricingOverride';
 import { latestSession } from './session/sessionStore';
+import { loadLiveSnapshot } from './session/liveStore';
 import { workdayFromActivity } from './state/clock';
 import { workOf } from './state/reducer';
 import { ReplaySource } from './source/ReplaySource';
@@ -131,6 +132,10 @@ if (mount) {
       }
        // 실시간에는 배속도 데모 시계도 없다. 지금이 지금이다.
         app.useSource(live, { speed: 1, demoClock: false });
+        // useSource가 상태를 비운 **직후**에 되살린다 — 순서가 뒤집히면 복원분이
+        // 지워진다. 저장이 없거나 만료됐으면 loadLiveSnapshot이 null이라 새로 시작한다.
+        const snap = loadLiveSnapshot();
+        if (snap) app.restoreLiveState(snap);
     };
     win.pitwallIngest = (vendor, lines) => { live.ingest(vendor, lines); };
 

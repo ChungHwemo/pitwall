@@ -1,4 +1,5 @@
 import type { CarClass } from '../types';
+import type { ProviderId } from './models';
 
 export const BACKGROUND = '#0e1116';
 
@@ -66,6 +67,33 @@ export const CLASS_STYLE: Record<CarClass, { color: string; shape: 'circle' | 't
   H: { color: '#ff5c5c', shape: 'triangle', label: 'HYPERCAR' },
   P: { color: '#4dc3ff', shape: 'circle', label: 'PROTOTYPE' },
   GT: { color: '#c084fc', shape: 'square', label: 'GT' },
+};
+
+/**
+ * 공급자 칩(REVIEW #11). 트랙 글리프의 단가 축(H/P/GT 도형+색)은 그대로 두고,
+ * 어느 공급자의 모델인지는 feed/tower **카드의 모델 텍스트 옆** 작은 칩으로만 얹는다.
+ *
+ * **문자+색 이중 인코딩** — 색상 단독 인코딩 금지 룰(하드 룰) 때문에 칩은 색뿐 아니라
+ * 공급자 약어 `label`을 함께 보여준다. 색은 보조 신호이고 판독은 문자가 진다.
+ *
+ * 색 선택 근거:
+ *  - 배경(`#0e1116`) 대비는 전부 6:1을 넘긴다 (하한 2.5:1을 여유 있게 통과) — 아래
+ *    `PROVIDER_STYLE contrast` 테스트가 강제한다.
+ *  - 클래스·이벤트 예약색과 **색상(hue)을 비켜간다**: 빨강(H·caution `#ff5c5c`),
+ *    청록(P·spark `#4dc3ff`), 보라(GT `#c084fc`), 따뜻한 노랑(`ACCENT_DELTA` 델타 전용)은
+ *    피한다. 여섯 칩은 주황·청록초록·하늘·중립회색·남보라·자홍으로 색환에 흩어 두어
+ *    인접한 두 공급자가 헷갈리게 비슷해지지 않게 했다. 문자 약어가 이미 판독을 지므로
+ *    색은 한눈에 "다른 공급자"임만 거들면 된다.
+ *  - xAI는 브랜드가 무채색이라 중립 밝은 회색(`#c9d1d9`)을 준다 — 색환의 어느 hue와도
+ *    충돌하지 않는 유일한 안전한 자리다.
+ */
+export const PROVIDER_STYLE: Record<ProviderId, { label: string; color: string }> = {
+  anthropic: { label: 'An', color: '#e0955e' },
+  openai: { label: 'Op', color: '#2fbf9f' },
+  google: { label: 'Gg', color: '#5fa8f0' },
+  xai: { label: 'Xa', color: '#c9d1d9' },
+  deepseek: { label: 'Ds', color: '#8b90f5' },
+  moonshot: { label: 'Mo', color: '#e06abf' },
 };
 
 /**

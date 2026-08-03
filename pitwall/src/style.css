@@ -498,6 +498,26 @@ svg.track .class-car-icon {
   pointer-events: none;
 }
 
+/* ── 유휴 sway (REVIEW #10) — #11이 나중에 이 파일을 건드리니 구역을 지킬 것 ──
+ *
+ * 진행은 토큰 소비의 순수 함수(1:1 불변식)이고 sway는 제자리 시각 효과일 뿐
+ * 진행이 아니다 — 위치를 1밀리도 옮기지 않는다. 그룹 transform은 translate()가
+ * 프레임마다 덮어쓰므로 자식 `.class-car-icon`에만 건다. 정지 사유 차(data-reason
+ * 보유)는 제외해 고장난 차가 멈춰 있게 둔다.
+ */
+@keyframes pw-idle-sway {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+svg.track [data-idle="true"]:not([data-reason]) .class-car-icon {
+  animation: pw-idle-sway 4s ease-in-out infinite;
+  animation-delay: var(--pw-idle-delay, 0s);
+}
+@media (prefers-reduced-motion: reduce) {
+  svg.track .class-car-icon { animation: none; }
+}
+/* ── /유휴 sway (REVIEW #10) ── */
+
 /*
  * 투명 클릭 타깃. cold 차량은 연료 링·경고가 없어 칠해진 자식이 전부
  * pointer-events:none이라 클릭이 그룹까지 닿지 못했다 — 이 원이 차량 영역을
@@ -514,3 +534,30 @@ svg.track .start-finish-marker,
 svg.track .sector-marker {
   pointer-events: none;
 }
+
+/* ── 프로바이더 칩 (REVIEW #11) — 위 구역들은 건드리지 말 것, 여기 아래로만 추가 ──
+ *
+ * 트랙 글리프의 단가 축(H/P/GT 도형+색)은 그대로 두고, 어느 공급자인지는 feed/tower
+ * 카드의 모델 텍스트 옆 작은 칩으로만 얹는다. 문자(약어)+색 이중 인코딩이라 색만으로
+ * 구분되는 정보가 아니다 — 색은 `data-provider`별로 JS가 인라인 `color`로 넣고,
+ * 테두리는 `currentColor`로 그 색을 따른다. 트랙 SVG 안이 아니라 이미 텍스트가 있는
+ * 카드 영역이므로 "트랙 텍스트 라벨 금지" 하드 룰에 걸리지 않는다.
+ */
+.provider-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.28rem;
+  border: var(--hair) solid currentColor;
+  border-radius: 0.25rem;
+}
+/* 피드 헤더는 이미 flex라 칩이 모델 이름 뒤에 그대로 붙는다. 위쪽 정렬만 맞춘다. */
+.feed-head .provider-chip { align-self: center; }
+/* 타워 모델 칸을 flex로 바꿔 칩과 모델 텍스트를 나란히 둔다 — 텍스트만 말줄임한다. */
+.tower-model { display: flex; align-items: baseline; gap: 0.3rem; }
+.tower-model-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* ── /프로바이더 칩 (REVIEW #11) ── */

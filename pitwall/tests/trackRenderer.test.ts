@@ -423,6 +423,60 @@ describe('사건 차량 정지', () => {
   });
 });
 
+describe('유휴 sway (REVIEW #10)', () => {
+  const idle = (id: string, over: Partial<CarState> = {}) =>
+    car(id, { last_event_ts: T - 600_000, ...over });
+
+  it('불변식: sway는 유휴 차의 진행률을 바꾸지 않는다', () => {
+    const r = new TrackRenderer(svg, track);
+    const m = model([idle('slow', { distance: 12_345 })]);
+    for (let f = 0; f < 400; f++) r.render(m, T + f * 16);
+    const settled = r.visualProgressOf('slow');
+    for (let f = 400; f < 500; f++) r.render(m, T + f * 16);
+    expect(r.visualProgressOf('slow')).toBe(settled);
+  });
+
+  it('유휴 차 그룹에 sway 위상(--pw-idle-delay)이 설정되고 애니메이션 대상 svg가 있다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([idle('a')]), T);
+    const g = svg.querySelector('g.cold') as SVGGElement;
+    expect(g.getAttribute('data-idle')).toBe('true');
+    expect(g.style.getPropertyValue('--pw-idle-delay')).not.toBe('');
+    expect(g.querySelector('.class-car-icon')).not.toBeNull();
+  });
+
+  it('비유휴 차에는 sway 위상을 쓰지 않는다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('busy', { last_event_ts: T })]), T);
+    const g = svg.querySelector('g.cold') as SVGGElement;
+    expect(g.getAttribute('data-idle')).toBe('false');
+    expect(g.style.getPropertyValue('--pw-idle-delay')).toBe('');
+  });
+
+  it('sway 위상은 carId에서 결정적이다 — 같은 차는 항상 같은 위상', () => {
+    const r1 = new TrackRenderer(svg, track);
+    r1.render(model([idle('same')]), T);
+    const d1 = (svg.querySelector('g.cold') as SVGGElement).style.getPropertyValue('--pw-idle-delay');
+
+    document.body.innerHTML = '';
+    const svg2 = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    document.body.appendChild(svg2);
+    const r2 = new TrackRenderer(svg2, track);
+    r2.render(model([idle('same')]), T);
+    const d2 = (svg2.querySelector('g.cold') as SVGGElement).style.getPropertyValue('--pw-idle-delay');
+
+    expect(d1).not.toBe('');
+    expect(d1).toBe(d2);
+  });
+
+  it('정지 사유 차(에러)는 data-reason을 보유해 CSS sway에서 제외된다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([idle('boom', { error_count: 1 })]), T);
+    const g = svg.querySelector('g.car') as SVGGElement;
+    expect(g.getAttribute('data-reason')).toBe('error');
+  });
+});
+
 describe('트랙에서 차 선택', () => {
   it('글리프를 클릭하면 그 차량을 알린다', () => {
     const r = new TrackRenderer(svg, track);

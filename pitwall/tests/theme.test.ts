@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CLASS_STYLE, SEVERITY_COLOR, BACKGROUND, contrastRatio, relativeLuminance,
-  TRACK_COLOR, EVENT_POLARITY_COLOR, ACCENT_DELTA, CONTRIBUTION_STEPS,
+  TRACK_COLOR, EVENT_POLARITY_COLOR, ACCENT_DELTA, CONTRIBUTION_STEPS, PROVIDER_STYLE,
 } from '../src/config/theme';
 import { CAR_CLASSES } from '../src/types';
 
@@ -130,5 +130,50 @@ describe('CONTRIBUTION_STEPS — 기여도 그리드 강도 램프', () => {
     const banned = new Set(['#f2c744', '#ffd24d']);
     for (const step of CONTRIBUTION_STEPS) expect(banned.has(step.toLowerCase())).toBe(false);
     expect(CONTRIBUTION_STEPS.map((s) => s.toLowerCase())).not.toContain(ACCENT_DELTA.toLowerCase());
+  });
+});
+
+describe('PROVIDER_STYLE (REVIEW #11) — 공급자 칩', () => {
+  const providers = Object.keys(PROVIDER_STYLE) as (keyof typeof PROVIDER_STYLE)[];
+
+  it('여섯 공급자가 모두 정의되어 있다', () => {
+    expect([...providers].sort()).toEqual(
+      ['anthropic', 'deepseek', 'google', 'moonshot', 'openai', 'xai'],
+    );
+  });
+
+  it('모든 label이 비어 있지 않고 짧은 약어다 (문자 인코딩)', () => {
+    for (const p of providers) {
+      expect(PROVIDER_STYLE[p].label.length, `${p} label`).toBeGreaterThan(0);
+      expect(PROVIDER_STYLE[p].label.length, `${p} label`).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('label이 서로 달라야 한다 — 문자만으로도 여섯을 가른다', () => {
+    const labels = providers.map((p) => PROVIDER_STYLE[p].label);
+    expect(new Set(labels).size).toBe(providers.length);
+  });
+
+  it('색상이 6자리 hex이고 서로 다르다', () => {
+    const colors = providers.map((p) => PROVIDER_STYLE[p].color);
+    for (const c of colors) expect(c).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(new Set(colors.map((c) => c.toLowerCase())).size).toBe(providers.length);
+  });
+
+  it('모든 칩 색이 배경 대비 2.5:1 이상이다', () => {
+    for (const p of providers) {
+      expect(contrastRatio(PROVIDER_STYLE[p].color, BACKGROUND), `${p} contrast`)
+        .toBeGreaterThanOrEqual(2.5);
+    }
+  });
+
+  it('클래스 예약색·따뜻한 노랑과 충돌하지 않는다', () => {
+    const reserved = new Set([
+      ...CAR_CLASSES.map((c) => CLASS_STYLE[c].color.toLowerCase()),
+      ACCENT_DELTA.toLowerCase(),
+    ]);
+    for (const p of providers) {
+      expect(reserved.has(PROVIDER_STYLE[p].color.toLowerCase()), `${p} vs reserved`).toBe(false);
+    }
   });
 });

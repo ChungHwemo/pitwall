@@ -16,9 +16,12 @@ import type { PricingOverrideEntry } from './pricingOverride';
  *   P  (Prototype) 출력 $2.5 ~ $10
  *   GT             출력 ≤ $1.5
  */
+/** 카탈로그가 아는 공급자. 화면 칩은 이 목록 밖 브랜드를 지어내지 않는다. */
+export type ProviderId = 'anthropic' | 'openai' | 'google' | 'xai' | 'deepseek' | 'moonshot';
+
 export interface ModelSpec {
   id: string;
-  provider: 'anthropic' | 'openai' | 'google' | 'xai' | 'deepseek' | 'moonshot';
+  provider: ProviderId;
   carClass: CarClass;
   inputPerMtok: number;
   cachedInputPerMtok: number;
@@ -166,6 +169,11 @@ export function modelsOfClass(carClass: CarClass): ModelSpec[] {
 /** 카탈로그에 없는 모델은 클래스를 추측하지 않는다 — 모르면 null이다. */
 export function classOfModel(id: string): CarClass | null {
   return specOf(id)?.carClass ?? null;
+}
+
+/** 카탈로그 밖 모델은 공급자를 지어내지 않는다 — 모르면 null이고 칩도 그리지 않는다. */
+export function providerOfModel(id: string): ProviderId | null {
+  return specOf(id)?.provider ?? null;
 }
 
 export function costUsd(
