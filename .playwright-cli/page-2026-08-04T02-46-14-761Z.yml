@@ -1,0 +1,35 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 05:44 ⏱ 00:44:00 / 13:00:00
+    - generic [ref=e6]: $0.24 · $0.5/시간 · 37 tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모" [selected]
+        - option "데모 · 중규모"
+        - option "데모 · 대규모"
+      - generic [ref=e12]: 지어낸 데이터
+    - button "설정" [ref=e14] [cursor=pointer]
+    - button "범례" [ref=e16] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "290 An claude-fable-5 █ 0% · 5시간창 $0.24 $0.5/시간 · 37 tok/분 PIT · LIM" [ref=e19] [cursor=pointer]:
+        - generic [ref=e21]: "290"
+        - generic [ref=e22]:
+          - generic "anthropic" [ref=e23]: An
+          - generic [ref=e24]: claude-fable-5
+        - generic [ref=e25]: █
+        - generic [ref=e26]: 0% · 5시간창
+        - generic [ref=e29]:
+          - generic [ref=e30]: $0.24
+          - generic [ref=e31]: $0.5/시간 · 37 tok/분
+        - generic [ref=e32]: PIT · LIM
+      - generic [ref=e33]: 계정 1 · 1콜 · 캐시 100% · $0.24 · $2.08 아낌
+    - generic [ref=e35]:
+      - generic [ref=e36]: 모델별 오늘
+      - generic [ref=e37]:
+        - generic [ref=e38]: claude-fable-5
+        - generic [ref=e41]: 1콜 · 1.1k · $0.24
+  - generic [ref=e42]: 트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다

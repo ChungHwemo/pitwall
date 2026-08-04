@@ -1,0 +1,19 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 08/03 10:39 ⏱ 01:39:00 / 08:00:00
+    - generic [ref=e6]: $0.00
+    - generic [ref=e7]: RACING · DEMO
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e9]:
+      - combobox [ref=e10]:
+        - option "실시간" [selected]
+        - option "데모 · 소규모"
+        - option "데모 · 중규모"
+        - option "데모 · 대규모"
+    - button "설정" [ref=e12] [cursor=pointer]
+    - button "범례" [ref=e14] [cursor=pointer]
+  - generic [ref=e15]:
+    - generic [ref=e17]: 계정 0 · 0콜 · 캐시 — · $0.00
+    - generic [ref=e20]: 모델별 오늘
+  - generic [ref=e21]:
+    - generic [ref=e23]: 트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다
+    - img [ref=e24]
