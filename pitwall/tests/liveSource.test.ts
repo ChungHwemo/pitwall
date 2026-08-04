@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LiveSource } from '../src/source/LiveSource';
+import { providerOfModel } from '../src/config/models';
 import type { CarEvent } from '../src/types';
 
 const CLAUDE_LINE = JSON.stringify({
@@ -18,6 +19,19 @@ const CODEX_USAGE = JSON.stringify({
     type: 'token_count',
     info: { last_token_usage: { input_tokens: 500, output_tokens: 50, cached_input_tokens: 400 } },
     rate_limits: { primary: { used_percent: 97, window_minutes: 10080, resets_at: 1785913052 } },
+  },
+});
+
+// 실측 형태: 최상위 model_id + shell.turn.inference_done, ctx엔 모델 필드 없음.
+const GROK_BUILD_LINE = JSON.stringify({
+  ts: '2026-07-30T21:00:03.000Z',
+  msg: 'shell.turn.inference_done',
+  sid: 'grok-sess-1',
+  model_id: 'grok-4.5-build',
+  ctx: {
+    prompt_tokens: 1_200, cached_prompt_tokens: 400,
+    completion_tokens: 88, reasoning_tokens: 20,
+    ttft_ms: 500, model_elapsed_ms: 2_200,
   },
 });
 
@@ -97,6 +111,17 @@ describe('LiveSource — 계정은 나중에 온다', () => {
     const [e] = collect(src);
     expect(e!.car_id).toMatch(/^car-[0-9a-f]{8}$/);
     expect(JSON.stringify(e)).not.toContain('uuid-b');
+  });
+});
+
+describe('LiveSource — Grok 최상위 model_id', () => {
+  it('ctx에 모델이 없어도 최상위 model_id로 이벤트 모델을 채우고 공급자가 xai로 해소된다', () => {
+    const src = new LiveSource();
+    src.ingest('grok', [GROK_BUILD_LINE]);
+    const out = collect(src);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.model).toBe('grok-4.5-build');
+    expect(providerOfModel(out[0]!.model)).toBe('xai');
   });
 });
 

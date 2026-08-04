@@ -95,6 +95,17 @@ describe('providerOfModel (REVIEW #11)', () => {
   });
 });
 
+describe('providerOfModel — Grok build 채널', () => {
+  it('grok-4.5-build를 xai로 명시적으로 해소한다', () => {
+    expect(providerOfModel('grok-4.5-build')).toBe('xai');
+  });
+
+  it('진짜 미지 모델과 리터럴 "unknown"은 여전히 null이다', () => {
+    expect(providerOfModel('grok-9.9-nonexistent')).toBeNull();
+    expect(providerOfModel('unknown')).toBeNull();
+  });
+});
+
 describe('costUsd', () => {
   it('입력·출력 토큰을 각 단가로 계산한다', () => {
     const m = MODEL_CATALOG.find((x) => x.id === 'claude-opus-5')!;

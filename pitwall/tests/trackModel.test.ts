@@ -257,3 +257,14 @@ describe('유휴 차량', () => {
     expect(m.cold).toEqual([]);
   });
 });
+
+describe('한도 차량', () => {
+  it('한도 차량은 hot 상한을 넘어도 cold 트랙으로 밀리지 않는다', () => {
+    const cars = Array.from({ length: HOT_CAP + 2 }, (_, i) =>
+      car(`limit-${i}`, { tyre_pct: 1, distance: i * 1_000 }));
+    const m = buildTrackModel(state(cars), T, opts());
+
+    expect(m.hot.filter((c) => c.reason === 'limit')).toHaveLength(cars.length);
+    expect(m.cold).toHaveLength(0);
+  });
+});

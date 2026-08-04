@@ -134,11 +134,10 @@ export function heatOf(workPerMin: number): number {
  * 주장하지 않는다 (PRD §9.1).
  */
 function highlightOf(car: CarState, opts: TrackModelOptions): HotCar['reason'] | null {
-  // 핀은 사용자가 직접 고른 차다. 필터보다 우선한다.
-  if (opts.pinned.has(car.car_id)) return 'pinned';
-  if (opts.highlightTypes.includes('error') && car.error_count > 0) return 'error';
   if (opts.highlightTypes.includes('limit')
     && car.tyre_pct !== undefined && car.tyre_pct < opts.limitWarnPct) return 'limit';
+  if (opts.pinned.has(car.car_id)) return 'pinned';
+  if (opts.highlightTypes.includes('error') && car.error_count > 0) return 'error';
   return null;
 }
 
@@ -182,7 +181,9 @@ export function buildTrackModel(
   }
   candidates.sort((a, b) => b.score - a.score);
 
-  const hot = candidates.slice(0, HOT_CAP);
+  const limits = candidates.filter((candidate) => candidate.reason === 'limit');
+  const others = candidates.filter((candidate) => candidate.reason !== 'limit');
+  const hot = [...limits, ...others.slice(0, Math.max(0, HOT_CAP - limits.length))];
   const hotOverflow = candidates.length - hot.length;
   const individual = new Set(hot.map((h) => h.carId));
 

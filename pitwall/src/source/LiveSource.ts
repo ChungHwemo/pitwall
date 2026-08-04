@@ -116,8 +116,10 @@ export class LiveSource implements EventSource {
     }
 
     if (vendor === 'grok') {
-      const ctx = (row as Record<string, unknown>)?.ctx as Record<string, unknown> | undefined;
-      const named = ctx?.model ?? ctx?.current_model_id;
+      const r = row as Record<string, unknown>;
+      const ctx = r?.ctx as Record<string, unknown> | undefined;
+      // 관측된 다수 형태는 모델을 ctx가 아니라 줄 최상위 model_id에 담는다.
+      const named = ctx?.model ?? ctx?.current_model_id ?? r?.model_id;
       if (typeof named === 'string' && named.startsWith('grok-')) this.model.grok = named;
       const e = grokEvent(row, { car: accountCar('grok', 'grok'), model: this.model.grok });
       return e ? [e] : [];
