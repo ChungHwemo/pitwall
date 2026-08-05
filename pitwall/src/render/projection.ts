@@ -45,9 +45,9 @@ const STALE_MS = 30_000;
 const FORGET_MS = 600_000;
 
 interface Track {
-  /** 화면에 실제로 그려지는 진행률 */
+  /** 화면에 실제로 그려지는 누적 진행률 */
   visual: number;
-  /** 마지막으로 받은 목표 */
+  /** 마지막으로 받은 누적 목표 */
   anchor: number;
   anchorAt: number;
   /** 진행률/ms */
@@ -55,14 +55,6 @@ interface Track {
   lastAt: number;
   /** 직전 앵커가 움직인 크기. 투영 한계가 여기서 나온다. */
   lastStep: number;
-}
-
-/** 폐곡선에서 두 진행률의 최단 부호 거리. */
-function shortest(from: number, to: number): number {
-  let d = to - from;
-  if (d > 0.5) d -= 1;
-  if (d < -0.5) d += 1;
-  return d;
 }
 
 function wrap(p: number): number {
@@ -83,11 +75,12 @@ export class Projector {
     const car = this.cars.get(carId);
     if (!car) {
       // 처음 보는 차는 목표 위치에서 시작한다. 날아오면 안 된다.
+      const initial = wrap(target);
       this.cars.set(carId, {
-        visual: wrap(target), anchor: target, anchorAt: now,
+        visual: initial, anchor: initial, anchorAt: now,
         velocity: 0, lastAt: now, lastStep: 0,
       });
-      return wrap(target);
+      return initial;
     }
 
     const gap = Math.max(0, now - car.lastAt);
@@ -99,12 +92,12 @@ export class Projector {
     const dt = Math.min(gap, STALE_MS);
 
     // 앵커가 움직였으면 그 사이의 속도를 다시 잰다.
-    const rawTargetDelta = target - car.anchor;
+    const rawTargetDelta = target - wrap(car.anchor);
     const forwardTarget = rawTargetDelta >= 0 || rawTargetDelta < -0.5 || car.velocity === 0;
     const targetDelta = forwardTarget
-      ? (rawTargetDelta >= 0 ? rawTargetDelta : (rawTargetDelta < -0.5 ? shortest(car.anchor, target) : 1 + rawTargetDelta))
+      ? (rawTargetDelta >= 0 ? rawTargetDelta : 1 + rawTargetDelta)
       : 0;
-    const effectiveTarget = forwardTarget ? target : car.anchor;
+    const effectiveTarget = forwardTarget ? car.anchor + targetDelta : car.anchor;
     if (effectiveTarget !== car.anchor) {
       const span = now - car.anchorAt;
       car.lastStep = targetDelta;
@@ -127,15 +120,15 @@ export class Projector {
     //    상쇄돼 고정점에 갇힌다 (이벤트 사이 정지 → "스팟에서 스팟으로" 튐).
     //    앞서기는 아래 lead 한계가 계속 막으므로 데이터를 지어내지 않는다.
     const projected = effectiveTarget + car.velocity * (now - car.anchorAt);
-    next += shortest(next, projected) * LERP;
+    next += (projected - next) * LERP;
 
     // 3. 앵커보다 너무 앞서면 세운다 — 한계는 직전 한 걸음이다.
     const limit = Math.max(MAX_LEAD, car.lastStep);
-    const lead = shortest(effectiveTarget, next);
+    const lead = next - effectiveTarget;
     if (lead > limit) next = effectiveTarget + limit;
 
     // 4. 한 프레임에 순간이동하지 않는다. 큰 걸음은 나눠 따라간다.
-    const move = shortest(car.visual, next);
+    const move = next - car.visual;
     const capped = Math.abs(move) > MAX_FRAME_STEP
       ? car.visual + Math.sign(move) * MAX_FRAME_STEP
       : next;
@@ -144,14 +137,14 @@ export class Projector {
     //    (active forward motion) 구간에서 앵커 재보정·lead 클램프가 앞서 나간 화면을
     //    끌어내리면(실측: 318프레임 중 171 역주행, 방향 코사인 -1.0) 그 프레임을 세운다.
     //    앵커가 STALE_MS 넘게 조용하면 관성이 죽고(위 else-if) 지어낸 lead를 참 앵커로
-    //    되감아야 하므로(bounded lead) 이 뒤로 감기는 막지 않는다. 폐곡선 랩(1→0)은
-    //    shortest가 앞으로 읽어 그대로 통과한다.
-    const candidate = wrap(capped);
+    //    되감아야 하므로(bounded lead) 이 뒤로 감기는 막지 않는다. 누적 진행률에서는
+    //    폐곡선 랩(1→0)도 더 큰 값으로 이어져 그대로 통과한다.
+    const candidate = capped;
     const activeForward = now - car.anchorAt <= STALE_MS;
-    if (activeForward && shortest(car.visual, candidate) < 0) return car.visual;
+    if (activeForward && candidate < car.visual) return wrap(car.visual);
 
     car.visual = candidate;
-    return car.visual;
+    return wrap(car.visual);
   }
 
   /** 멈춘 차. 진행은 없지만 자리는 기억한다. */
@@ -160,11 +153,12 @@ export class Projector {
     if (!car) return 0;
     car.velocity = 0;
     car.lastAt = now;
-    return car.visual;
+    return wrap(car.visual);
   }
 
   visual(carId: string): number | undefined {
-    return this.cars.get(carId)?.visual;
+    const visual = this.cars.get(carId)?.visual;
+    return visual === undefined ? undefined : wrap(visual);
   }
 
   /**

@@ -31,9 +31,8 @@ describe('Projector', () => {
   it('새 샘플이 뒤에 와도 화면은 뒤로 돌지 않는다', () => {
     const p = new Projector();
     p.step('a', 0.20, 1_000);
-    p.step('a', 0.30, 2_000);
-    for (let t = 2_100; t < 8_000; t += 100) p.step('a', 0.30, t);   // 앞서 나가 있다
-    const before = p.visual('a')!;
+    let before = p.step('a', 0.30, 2_000);
+    for (let t = 2_100; t < 8_000; t += 100) before = p.step('a', 0.30, t);   // 앞서 나가 있다
     const after = p.step('a', 0.25, 8_100);                          // 목표가 뒤로
     // 앵커가 뒤로 재보정돼도 화면은 역주행하지 않는다 — 제자리에 서서 데이터를 기다린다.
     expect(after).toBeGreaterThanOrEqual(before);
@@ -80,8 +79,7 @@ describe('투영 한계는 샘플 간격을 따른다', () => {
   it('샘플이 크게 뛰는 소스에서도 그 한 걸음만큼은 앞서 갈 수 있다', () => {
     const p = new Projector();
     p.step('a', 0.00, 1_000);
-    p.step('a', 0.10, 2_000);          // 한 샘플에 0.10 — 고정 3%보다 훨씬 크다
-    let last = p.visual('a')!;
+    let last = p.step('a', 0.10, 2_000); // 한 샘플에 0.10 — 고정 3%보다 훨씬 크다
     let grew = 0;
     for (let t = 2_100; t < 3_000; t += 100) {
       const now = p.step('a', 0.10, t);
@@ -179,24 +177,55 @@ function frameShortest(from: number, to: number): number {
 // 240 경계 전부 무단절이었으므로 역주행 신호는 상류 visual 진행률에서 왔다.
 // 근인: step()의 앵커 당기기 / lead 클램프가 전방 진행 뒤 더 낮은 visual을 되돌려준다.
 describe('진행률은 역주행하지 않는다 (REVIEW H1)', () => {
+  it('알려진 전진 목표가 반 바퀴보다 멀어도 앞으로 따라간다', () => {
+    // Given: 화면보다 0.6랩 앞선 목표가 전진 샘플로 들어온다.
+    const p = new Projector();
+    const before = p.step('a', 0.00, 1_000);
+
+    // When: 투영기가 그 목표를 향해 한 프레임 진행한다.
+    const after = p.step('a', 0.60, 2_000);
+
+    // Then: 원형 최단거리의 후진 방향으로 오독하지 않고 전진한다.
+    expect(frameShortest(before, after)).toBeGreaterThan(0);
+  });
+
+  it('누적 진행이 두 번째 랩 경계를 넘어도 계속 앞으로 간다', () => {
+    // Given: 한 번 랩을 돈 뒤 두 번째 결승선 직전까지 진행한다.
+    const p = new Projector();
+    p.step('a', 0.90, 1_000);
+    p.step('a', 0.99, 2_000);
+    p.step('a', 0.10, 3_000);
+    p.step('a', 0.90, 4_000);
+    const before = p.step('a', 0.99, 5_000);
+
+    // When: 두 번째 랩 경계를 넘는 전진 샘플을 받는다.
+    const after = p.step('a', 0.10, 6_000);
+
+    // Then: 누적 앵커의 랩 수와 관계없이 화면도 전진한다.
+    expect(frameShortest(before, after)).toBeGreaterThan(0);
+  });
+
   it('뒤로 튄 앵커가 다음 전진 샘플의 속도까지 뒤집지 않는다', () => {
     const p = new Projector();
     p.step('a', 0.20, 1_000);
     p.step('a', 0.30, 2_000);
 
-    const samples = [0.25, 0.302, 0.252, 0.304, 0.254, 0.306];
-    const values = samples.map((target, index) => p.step('a', target, 2_100 + index * 100));
+    p.step('a', 0.25, 2_100);
+    const second = p.step('a', 0.302, 2_200);
+    p.step('a', 0.252, 2_300);
+    const fourth = p.step('a', 0.304, 2_400);
+    p.step('a', 0.254, 2_500);
+    const sixth = p.step('a', 0.306, 2_600);
 
-    expect(values[3]).toBeGreaterThan(values[1]!);
-    expect(values[5]).toBeGreaterThan(values[3]!);
+    expect(fourth).toBeGreaterThan(second);
+    expect(sixth).toBeGreaterThan(fourth);
   });
 
   it('큰 후퇴 보정 뒤에도 같은 위치의 화면 주행은 계속 전진한다', () => {
     const p = new Projector();
     p.step('a', 0.20, 1_000);
     p.step('a', 0.30, 2_000);
-    p.step('a', 0.02, 2_100);
-    const before = p.visual('a')!;
+    const before = p.step('a', 0.02, 2_100);
     const after = p.step('a', 0.02, 2_200);
 
     expect(after).toBeGreaterThan(before);
@@ -205,11 +234,10 @@ describe('진행률은 역주행하지 않는다 (REVIEW H1)', () => {
   it('전방 진행이 성립한 뒤 앵커·리드 보정이 화면을 뒤로 돌리지 않는다', () => {
     const p = new Projector();
     p.step('a', 0.20, 1_000);
-    p.step('a', 0.30, 2_000);                       // 전방 속도 확보 → 앞서 나간다
-    for (let t = 2_100; t < 8_000; t += 100) p.step('a', 0.30, t);
+    let prev = p.step('a', 0.30, 2_000);            // 전방 속도 확보 → 앞서 나간다
+    for (let t = 2_100; t < 8_000; t += 100) prev = p.step('a', 0.30, t);
 
     // 앵커가 뒤로 튄 뒤 다시 앞으로 기어간다 — 실측에서 visual 진동을 유발한 신호.
-    let prev = p.visual('a')!;
     let reversals = 0;
     let target = 0.25;                              // 앞서 있던 위치보다 뒤
     for (let t = 8_000; t < 24_000; t += 100) {
@@ -225,16 +253,19 @@ describe('진행률은 역주행하지 않는다 (REVIEW H1)', () => {
   it('전방 주행 중 lead 클램프가 걸려도 이전 프레임보다 낮은 진행률을 내지 않는다', () => {
     const p = new Projector();
     p.step('a', 0.00, 1_000);
-    p.step('a', 0.10, 2_000);                       // 큰 한 걸음 → lead 여유가 크다
+    let prev = p.step('a', 0.10, 2_000);            // 큰 한 걸음 → lead 여유가 크다
     // 앵커가 앞서 나간 visual보다 뒤로 재보정되는 구간을 반복 노출.
-    let prev = p.visual('a')!;
     let reversals = 0;
     const targets = [0.06, 0.07, 0.05, 0.08, 0.06, 0.09, 0.07, 0.10];
-    let ti = 0;
-    for (let t = 2_100; t < 6_000; t += 100) {
-      const v = p.step('a', targets[ti++ % targets.length]!, t);
-      if (frameShortest(prev, v) < -1e-9) reversals++;
-      prev = v;
+    let now = 2_100;
+    while (now < 6_000) {
+      for (const target of targets) {
+        if (now >= 6_000) break;
+        const v = p.step('a', target, now);
+        if (frameShortest(prev, v) < -1e-9) reversals++;
+        prev = v;
+        now += 100;
+      }
     }
     expect(reversals).toBe(0);
   });

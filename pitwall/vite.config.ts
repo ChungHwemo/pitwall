@@ -49,6 +49,10 @@ const datasets = chosen.flatMap((src) => {
 });
 
 export default defineConfig({
+  build: {
+    // 실기록까지 단일 오프라인 HTML에 심는 제품 계약의 8.5MB 상한이다.
+    chunkSizeWarningLimit: 8_500,
+  },
   define: {
     __PITWALL_DATASETS__: JSON.stringify(datasets),
     __PITWALL_LIMITS__: JSON.stringify(limits),

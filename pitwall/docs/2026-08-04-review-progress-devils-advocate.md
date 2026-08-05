@@ -398,3 +398,52 @@ git log --oneline origin/main..HEAD
 ---
 
 *이 문서는 구현을 대신하지 않는다. Tier 0을 닫기 전에는 #13을 “완료”로 부르지 말 것.*
+
+---
+
+## 9. 추록 — 2026-08-05 재검증 (Codex 마무리 교차확인)
+
+**감사 시점:** HEAD `3f1c8f8` + 워킹트리 미커밋 3파일  
+(`projection.ts` · `projection.test.ts` · `vite.config.ts`)
+
+### 9.1 이전 D-항목 재판정
+
+| 이전 | 재판정 | 근거 |
+|---|---|---|
+| D1 `appMotion` 회귀 ❌ | ✅ **해소** | `npm test` 857/857 · `appMotion` 단독 통과. 누적 진행률 투영으로 lead 천장 still 부작용 소멸 |
+| D2 불변식 서술 누락 ⚠️ | ⚠️ 부분 | 코드는 누적 진행으로 명확해짐. REVIEW #13 근거란은 2026-08-05에 갱신 |
+| D3 #14 반쪽 증명 ⚠️ | ⚠️ 유지 | `9c9f1a6` 커밋됨. 렌더러/스케일 테스트는 여전히 없음 |
+| D4 #12 운영 미증명 ⚠️ | ⚠️ 유지 | 변화 없음 (INCONCLUSIVE) |
+| D5 문서 수치 거짓말 ⚠️ | ⚠️ 개선 | REVIEW 상태 문자열 정리. README/PITWALL 847은 아직 857 미반영 |
+| D6 워킹트리 혼재 ⚠️ | ⚠️ 유지 | 누적 투영 + 번들 예산 + 테스트 정리 **미커밋** (커밋 권고는 유지) |
+
+### 9.2 Codex 주장 vs 이 세션 재측정
+
+| 주장 | 재측정 | 판정 |
+|---|---|---|
+| 857/857 | 48 files · **857 passed** | ✅ |
+| 비-null 단언 8곳 제거 | `projection.test.ts` 반환값/루프 변수로 교체 | ✅ |
+| 8.5MB 예산, 실기록 7.83MB | `build:real` → `pitwall.html` **7826.9 kB**, 경고 없음 | ✅ |
+| 기본 ~5.45MB | `build:single` → **5448.3 kB** | ✅ |
+| 코드 분할 기각 (file:// 단일 HTML) | 제품 계약과 정합 — 채택 안 함이 맞음 | ✅ |
+| `tsc` 클린 | `npx tsc --noEmit` exit 0 | ✅ |
+| Production Chrome QA | 이 세션에서 미재실행 (Codex 로그 의존) | 🔍 L3는 Codex 측 주장 |
+
+### 9.3 남은 Tier (축소)
+
+| ID | 상태 |
+|---|---|
+| T0.1 appMotion+역주행 동시 녹색 | **닫힘** |
+| T0.2 REVIEW #13 상태 | **닫힘** (`9c9f1a6` + 누적 다듬기 미커밋 표기) |
+| T0.3 커밋 원자 분리 | **열림** — 미커밋 3파일 커밋 대기 |
+| T0.4 README/PITWALL 857 동기화 | **열림** |
+| T1.1–T1.2 #14 렌더러/soft-cap | **열림** |
+| T1.3 #12 native LIVE | **열림** |
+
+### 9.4 커밋 권고 (아직 실행하지 않음)
+
+1. `fix(projection): use cumulative progress to prevent reverse motion` — `projection.ts` + `projection.test.ts`
+2. `build: raise single-file budget to 8.5MB for real datasets` — `vite.config.ts`
+3. `docs: refresh REVIEW statuses after 857-test reverify` — `REVIEW.md` (+ 원하면 본 추록)
+
+**한 줄:** Tier 0 제품 게이트(D1)는 닫혔다. 남은 건 커밋·문서 숫자·#12/#14 잔여뿐이다.
