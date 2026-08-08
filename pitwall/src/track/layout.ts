@@ -71,11 +71,11 @@ export const PIT_LANE_STROKE = TRACK_STROKE * 0.8;
  * 아니라 **30**이다. 실제로 1.4배(14)로 잡았을 때 글리프는 떨어졌는데 노란 게이지가
  * 여전히 위 차에 얹혔다 — 표식이 겹치면 한도와 에러를 나눈 의미가 사라진다.
  *
- * 실측(서킷 40개 + 생성 시드 300개, 정지 12대): 30에서도 전부 자리를 찾고
- * 레인 길이는 최대 529다 (좌표계 세로 1000).
+ * 피트 왕복은 박스에서 최대 6씩 움직인다. 이웃 둘이 서로 가까워지는 최악의 경우
+ * 12가 줄어드므로, 표식 안전 거리 30에 왕복 여유 12를 더한 42를 anchor 간격으로 쓴다.
  */
-const PIT_BOX_SPACING = GLYPH_DIAMETER * 3;
 const PIT_CREEP_DISTANCE = GLYPH_DIAMETER * 0.6;
+const PIT_BOX_SPACING = GLYPH_DIAMETER * 3 + PIT_CREEP_DISTANCE * 2;
 const PIT_CREEP_PERIOD_MS = 8_000;
 
 /**
@@ -112,21 +112,15 @@ export function pitBoxes(track: Track, slots: number): Point[] {
 
   for (let ring = 0; out.length < slots; ring++) {
     const lateral = PIT_LANE_OFFSET - ring * PIT_ROW_GAP;
-    const before = out.length;
     let progress = track.pitEntry / n;
-    out.push(pitPointAt(track, progress, lateral));
-
-    // 한 바퀴가 이 링의 상한이다. 실측(서킷 40개 + 생성 시드 300개, 12대)에서는
-    // 한 바퀴를 다 쓰기 전에 전부 자리를 찾았다.
     for (let k = 0; k < n && out.length < slots; k++) {
-      progress += step;
       const here = pitPointAt(track, progress, lateral);
-      const last = out[out.length - 1]!;
-      if (Math.hypot(here.x - last.x, here.y - last.y) >= PIT_BOX_SPACING) out.push(here);
+      // ponytail: stopped fleets are small; use spatial buckets if hundreds become normal.
+      if (out.every((other) => Math.hypot(here.x - other.x, here.y - other.y) >= PIT_BOX_SPACING)) {
+        out.push(here);
+      }
+      progress += step;
     }
-
-    // 안전판 — 링이 자리를 하나도 못 늘리면(있을 수 없지만) 무한 루프를 막는다.
-    if (out.length === before) break;
   }
   return out;
 }

@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
 import { generateTrack } from '../src/track/generateTrack';
-import { pitBoxes } from '../src/track/layout';
+import { pitBoxes, GLYPH_DIAMETER as PIT_GLYPH_DIAMETER } from '../src/track/layout';
+import { CIRCUITS } from '../src/track/circuitData';
+import { toTrack } from '../src/track/circuits';
 import { buildTrackModel, HOT_CAP } from '../src/track/trackModel';
 import type { TrackModelOptions } from '../src/track/trackModel';
 import type { CarState, RaceState } from '../src/types';
 
 const T = 1_000_000;
 const track = generateTrack(2026);
+const worstCircuit = CIRCUITS.find((circuit) => circuit.id === 'mc-1929');
+if (!worstCircuit) throw new RangeError('worst pit-spacing circuit missing');
+const worstTrack = toTrack(worstCircuit, 1);
 const options: TrackModelOptions = {
   highlightTypes: ['error', 'limit'],
   fuelWarnPct: 20,
@@ -88,9 +93,9 @@ describe('사건 차량 피트 이동', () => {
   });
 
   it('여러 stopped 차량의 피트 간격을 유지한다', () => {
-    const cars = Array.from({ length: HOT_CAP }, (_, i) =>
-      car(`stopped-${i}`, i % 2 === 0 ? { tyre_pct: 2 } : { error_count: 1 }));
-    const renderer = new TrackRenderer(svg, track);
+    const cars = Array.from({ length: HOT_CAP + 12 }, (_, i) =>
+      car(`stopped-${i}`, { tyre_pct: 2 }));
+    const renderer = new TrackRenderer(svg, worstTrack);
     const seen = new Set<string>();
 
     for (const now of [T, T + 1_000, T + 2_000]) {
@@ -102,7 +107,7 @@ describe('사건 차량 피트 이동', () => {
           const a = frame[i];
           const b = frame[j];
           if (!a || !b) throw new RangeError('pit position missing');
-          expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(GLYPH_DIAMETER);
+          expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(PIT_GLYPH_DIAMETER * 3);
         }
       }
     }
