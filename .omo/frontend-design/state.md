@@ -21,6 +21,11 @@ Lock PITWALL’s existing visual language and the operating rules for truthful L
 10. At narrow widths, provenance, car number, state, limit, money/rate remain before model, spark, and feed detail.
 11. Motion is semantic and limited to transform, opacity, and filter. Reduced motion removes idle/freshness/broadcast animation without removing state.
 12. No Critical or Major accessibility issue is accepted as debt.
+13. Broadcast radar is SVG/DOM only: full field remains visible beside one dominant subject card; no WebGL.
+14. Director scoring is deterministic (10s window; error 400, limit 300, critical 200, warn 100, info 25, comparable 25% work-rate delta 50, otherwise fresh 1), with `last_event_ts` then code-point `car_id` tie-break, 5s dwell, and 100-point preemption.
+15. Visual identity is keyed by `car_id`, not pooled slot index; hot/cold reorder or membership changes must not teleport a car.
+16. Broadcast assets are mapped from `pitwall/assets/broadcast/SOURCE.txt`: Kenney Future Narrow CC0 plus five pinned Tabler MIT SVGs; no external runtime fetch.
+17. Legacy rollback preserves the exact one-line dated comment; support/construct/first-render/fatal-render fallback is session-scoped, while reduced motion remains an internal broadcast profile.
 
 ## Source Inputs and Explicit Exclusions
 
@@ -37,7 +42,7 @@ Lock PITWALL’s existing visual language and the operating rules for truthful L
 
 ### Exclusions
 
-- No new brand language, Layer-B clone, visual framework, runtime/tooling package, second renderer, scene engine, canvas path, or user camera interaction.
+- No new brand language, Layer-B clone, visual framework, runtime/tooling package, additional renderer beyond the one `BroadcastTrackRenderer` seam, scene engine, canvas path, or user camera interaction.
 - No ranking, personal-performance comparison, body capture, raw account identity, outbound runtime telemetry, public sharing, or fabricated heartbeat.
 - No event-driven vehicle movement without tokens, hidden full-track context, added per-vehicle decoration node, or layout animation.
 - No acceptance of unresolved Critical/Major accessibility debt.
@@ -97,7 +102,7 @@ PITWALL is an ambient second-screen race-control wall. Its job is to answer “b
 | V-07 | Fresh car with limit/error and manual selection | Stopped mark/movement truth remains; manual detail remains selected; no active-running cue appears | Task 3/4 state-precedence evidence |
 | V-08 | Manual selection, Director update, then explicit deselection | Director cannot steal manual focus; exactly one automatic focus resumes after deselection; pin state is unchanged by auto focus | Task 4 browser evidence |
 | V-09 | Dense rendered SVG and 1,000-frame DOM check | SVG node count ≤800 and exact DOM node count is stable | Integration/performance evidence |
-| V-10 | Static/runtime scope checks | Runtime dependency count remains zero; one SVG tree; no new renderer, ranking/body/outbound path, SVG transform attribute, or layout animation | Tasks 3-7 and final review |
+| V-10 | Static/runtime scope checks | Runtime dependency count remains zero; one SVG tree; exactly one `BroadcastTrackRenderer` plus the documented legacy fallback; no additional renderer, ranking/body/outbound path, SVG transform attribute, or layout animation | Tasks 3-7 and final review |
 
 ## Decisions Log
 

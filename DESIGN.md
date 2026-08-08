@@ -150,6 +150,10 @@ Source: `pitwall/src/style.css:61-85,97-153,327-473`, `pitwall/src/main.ts:139-2
 - **Precedence:** manual focus > stopped reason > automatic broadcast focus > freshness > heat. Manual focus owns the detail subject and selected outline. Stopped reason still owns movement and stopped glyph/ring, so selection cannot make a stopped vehicle look active. Freshness and heat never alter token-derived progress.
 - **Focus modes:** with a manual track/tower selection, Director output cannot replace the subject. Toggling that same selection off resumes automatic focus from the first eligible Director result on the next render. Automatic focus never mutates selection or pin state.
 - **Budget:** preserve one live SVG tree and at most 800 SVG nodes. Reuse `.car-hit` as the freshness ring; add no per-vehicle decorative node.
+- **Broadcast contract:** the full-field SVG/DOM radar stays visible at all times; one dominant subject card is the only broadcast focus. Radar geometry and scale never change when focus changes.
+- **Director:** score only observed data: within the last 10s, `error` 400, `limit` 300, `critical` 200, `warn` 100, `info` 25, comparable `work_per_min` change of at least 25% 50, otherwise fresh 1. Ties sort by newest `last_event_ts`, then ascending code-point `car_id`. Dwell is 5s; during dwell, a replacement must be at least 100 points higher. No candidate means literal “방송 포커스 없음 — 새 이벤트 대기”.
+- **Stable identity:** pooled SVG slots are an allocation detail, not car identity. A car’s visual identity remains keyed by `car_id` across hot/cold reorder and membership changes; reassignment must not teleport a visible car.
+- **Truthful sparse/stale states:** sparse and empty data keep the full course and literal “관측 차량 없음”; dense overflow is explicit with `+N`; stale shows elapsed age without inventing progress, speed, position, or connectivity; stopped `ERROR` and `LIMIT` keep distinct shapes and text.
 
 ### Detail / Feed Overlay
 
@@ -176,8 +180,8 @@ Source: `pitwall/src/main.ts:139-224`, renderers under `pitwall/src/render/`, `p
 | Motion | Value | Meaning |
 |---|---:|---|
 | Idle sway | `4s ease-in-out infinite` | Local engine-idle presence only; never progress |
-| Projection | `requestAnimationFrame`, projector clamp `0.95` | Smooths between token-derived anchors without overtaking them |
-| State transition | short, CSS-only | May use transform, opacity, or filter to clarify an actual status/focus change |
+| Projection | `requestAnimationFrame`, elapsed-time anchors | Smooths between observed anchors without overtaking them; H1’s call-count-clock diagnosis is refuted |
+| Broadcast cut | `160–240ms` | One interruptible opacity/transform cross-fade for a real Director subject change |
 
 The beui animated-badge reference contributes one mechanism only: stable semantic status with keyed text/shape, optional state-only pulse, and an equivalent reduced-motion result. PITWALL implements that mechanism through existing attributes, pooled nodes, and CSS; it does not import the reference’s component or animation stack.
 
@@ -188,6 +192,7 @@ Rules:
 - `prefers-reduced-motion: reduce` disables idle sway, freshness pulse, and broadcast transition while leaving state text, shapes, focus, selection, and live attributes unchanged.
 - Manual selection persists until the user toggles it off. Automatic focus may not steal it or change pin state.
 - No user-controlled camera movement. The product keeps the complete circuit visible and uses a fixed-depth broadcast detail cut; a three-dimensional scene engine is outside the product contract.
+- H3 identity rule: pooled node index is never a visual identity key; preserve per-car continuity through reordering and hot/cold membership changes.
 
 Source: `pitwall/src/style.css:475-519`, `pitwall/src/render/projection.ts`, `pitwall/src/director/director.ts`, the beui animated-badge mechanism, and plan Task 4.
 
@@ -199,7 +204,8 @@ Strategy: mixed tonal shift and borders, with restrained translucent overlays.
 - Fixed overlays use the existing near-opaque raised surface (`#161b22ee`/`#161b22f2`) and 6px backdrop blur. No shadow vocabulary is introduced.
 - The 2.5D track uses the existing track/pit tonal hierarchy plus CSS transform/filter depth. The full track remains the stable context; detail focus is layered over it.
 - Selected/manual focus, stopped marks, broadcast focus, freshness ring, and heat are separate semantic layers governed by Section 5 precedence.
-- No new runtime dependency, renderer, canvas, or scene engine. No user camera controls. Depth must remain static, CSS/SVG-native, and compatible with the offline single-HTML build.
+- Exactly one new `BroadcastTrackRenderer` is permitted as the SVG/DOM broadcast renderer; it is selected at boot and falls back to the legacy `TrackRenderer` for the session under the documented seam. No additional renderer, runtime dependency, canvas, WebGL, or scene engine is permitted. No user camera controls. Depth remains static, CSS/SVG-native, and compatible with the offline single-HTML build.
+- Broadcast assets map only to the broadcast radar/focus/timeline surface: `pitwall/assets/broadcast/Kenney Future Narrow.ttf` (CC0) and the five pinned Tabler MIT SVGs listed in `pitwall/assets/broadcast/SOURCE.txt`; licenses are `LICENSE-CC0.txt` and `LICENSE-MIT.txt`. No external runtime fetch is permitted.
 
 Source: `pitwall/src/style.css:268-364,422-473`, `pitwall/src/config/theme.ts:4-23`, and plan guardrails.
 
@@ -216,6 +222,7 @@ Source: `pitwall/src/style.css:268-364,422-473`, `pitwall/src/config/theme.ts:4-
 - Dense and sparse/empty datasets remain truthful. Silent truncation is forbidden; hidden/overflow counts must be explicit.
 - The SVG remains at most 800 nodes, uses pooled groups, and adds no freshness decoration node.
 - Privacy is part of accessibility and trust: no ranking, public sharing, prompt/response body, raw account identifier, outbound runtime telemetry, or fabricated connection/activity claim.
+- Preserve the exact rollback seam comment: `/* LEGACY/ROLLBACK 2026-08-08: this.trackRenderer = new TrackRenderer(svg, track); */`. Broadcast support checks SVG/DOM/CSS `transform`; unsupported, construction/first-render failure, and one post-success fatal render failure fall back for the session. Reduced motion is not a fallback condition; WebGL is never requested.
 
 ### Blocking obligations before UI sign-off
 
