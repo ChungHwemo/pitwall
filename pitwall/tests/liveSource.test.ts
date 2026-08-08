@@ -101,6 +101,14 @@ describe('LiveSource', () => {
     src.tick(1_016);
     expect(out).toHaveLength(3);
   });
+
+  it('65개 이벤트는 한 tick 뒤 실제 pending 1을 노출한다', () => {
+    const src = new LiveSource({ codexAccountId: 'acc-1' });
+    src.ingest('codex', [CODEX_CTX, ...Array(65).fill(CODEX_USAGE)]);
+    src.start(() => undefined);
+    src.tick(1_000);
+    expect(src.pending).toBe(1);
+  });
 });
 
 describe('LiveSource — 계정은 나중에 온다', () => {

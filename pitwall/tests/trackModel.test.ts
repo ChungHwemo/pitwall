@@ -250,6 +250,19 @@ describe('유휴 차량', () => {
   it('막 달린 차는 유휴가 아니다', () => {
     const m = buildTrackModel(state([car('a', { last_event_ts: T })]), T, opts());
     expect(m.cold[0]!.idle).toBe(false);
+    expect(m.cold[0]!.freshness).toBe('fresh');
+  });
+
+  it('조용한 시간도 fresh/quiet/stale로 모델에 남긴다', () => {
+    const cars = [
+      car('fresh', { last_event_ts: T - 30_000 }),
+      car('quiet', { last_event_ts: T - 30_001 }),
+      car('stale', { last_event_ts: T - 300_001 }),
+    ];
+    const m = buildTrackModel(state(cars), T, opts());
+    expect(Object.fromEntries(m.cold.map((c) => [c.carId, c.freshness]))).toEqual({
+      fresh: 'fresh', quiet: 'quiet', stale: 'stale',
+    });
   });
 
   it('리타이어한 차는 여전히 뺀다', () => {

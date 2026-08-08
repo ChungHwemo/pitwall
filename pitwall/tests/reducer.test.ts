@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { emptyRaceState, applyEvent, activityOf, IDLE_THRESHOLD_MS, workOf, reasoningOf } from '../src/state/reducer';
+import {
+  emptyRaceState, applyEvent, activityOf, freshnessOf, IDLE_THRESHOLD_MS, workOf, reasoningOf,
+} from '../src/state/reducer';
 import { cacheSavingOf } from '../src/state/savings';
 import type { CarEvent } from '../src/types';
 
@@ -196,6 +198,18 @@ describe('activityOf', () => {
     const s = applyEvent(emptyRaceState(T0), makeEvent({ kind: 'retire' }));
     const car = s.cars.get('car-a')!;
     expect(activityOf(car, T0 + 10_000_000)).toBe('retired');
+  });
+});
+
+describe('freshnessOf', () => {
+  it.each([
+    [30_000, 'fresh'],
+    [30_001, 'quiet'],
+    [300_000, 'quiet'],
+    [300_001, 'stale'],
+  ] as const)('%dms receipt age is %s', (age, expected) => {
+    const car = applyEvent(emptyRaceState(T0), makeEvent()).cars.get('car-a')!;
+    expect(freshnessOf(car, T0 + age)).toBe(expected);
   });
 });
 

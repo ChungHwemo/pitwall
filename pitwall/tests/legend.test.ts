@@ -23,6 +23,14 @@ describe('Legend', () => {
     expect(text).toContain('한도');
   });
 
+  it('차량 freshness와 LIVE 상태를 글자로 설명한다', () => {
+    new Legend(host);
+    const text = host.textContent ?? '';
+    for (const key of ['FRESH', 'QUIET', 'STALE', 'CONNECTED', 'SYNCING']) {
+      expect(text).toContain(key);
+    }
+  });
+
   it('접었다 펼 수 있다 — 상시 노출 화면에서 늘 떠 있으면 방해다', () => {
     new Legend(host);
     const root = host.querySelector('.legend')!;

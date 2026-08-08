@@ -2,7 +2,9 @@ import type { RaceState } from './types';
 import { PRESETS, type PresetName } from './config/presets';
 import { SimulatorSource } from './source/SimulatorSource';
 import type { EventSource } from './source/EventSource';
-import { emptyRaceState, applyEvent, workOf } from './state/reducer';
+import {
+  emptyRaceState, applyEvent, workOf, FRESH_THRESHOLD_MS, IDLE_THRESHOLD_MS,
+} from './state/reducer';
 import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs, formatWallClock, liveWorkday } from './state/clock';
 import type { ActivitySample } from './state/clock';
 import { paceOf, formatPace } from './state/pace';
@@ -85,6 +87,7 @@ export class PitwallApp {
   private hudSalary: HTMLElement;
   private hudPhase: HTMLElement;
   private hudPace: HTMLElement;
+  private liveStatus: HTMLElement;
   /** 시간대별(0–23시) 작업 토큰 곡선. 근무일 타임라인 곁에 붙는 하루 모양. */
   private hudHourly: HTMLElement;
   private detail: HTMLElement;
@@ -118,6 +121,8 @@ export class PitwallApp {
   private lastPhase = phaseAt(new Date(), DEFAULT_WORKDAY);
   private lastRoutineAt = 0;
   private lastLiveSaveAt = 0;
+  private lastLiveEventAt: number | null = null;
+  private nextFreshnessAt = Number.POSITIVE_INFINITY;
 
   constructor(root: HTMLElement, private opts: AppOptions) {
     // 하한 강제는 resolveSettings에서 끝난다. 여기서는 결과를 쓰기만 한다.
@@ -150,6 +155,11 @@ export class PitwallApp {
     // 돈과 속도가 첫 줄이다 — 감사 F2·F3. 비교 대상들이 전부 여기서 시작한다.
     this.hudPace = document.createElement('div');
     this.hudPace.className = 'hud-item hud-pace';
+    this.liveStatus = document.createElement('div');
+    this.liveStatus.className = 'hud-item live-status';
+    this.liveStatus.setAttribute('role', 'status');
+    this.liveStatus.setAttribute('aria-live', 'polite');
+    this.liveStatus.style.display = 'none';
     /*
      * 데이터셋 칸은 설정보다 **앞**이다.
      *
@@ -163,7 +173,10 @@ export class PitwallApp {
     this.hudHourly = document.createElement('div');
     this.hudHourly.className = 'hud-item hud-hourly';
     this.hudHourly.title = '시간대별 작업 토큰 0–23시';
-    hud.append(this.hudTime, this.hudPace, this.hudPhase, this.hudSalary, this.hudHourly, datasetSlot);
+    hud.append(
+      this.hudTime, this.hudPace, this.hudPhase, this.liveStatus,
+      this.hudSalary, this.hudHourly, datasetSlot,
+    );
     this.hudSlot = datasetSlot;
 
     const svg = document.createElementNS(SVG_NS, 'svg');
@@ -244,6 +257,7 @@ export class PitwallApp {
     });
 
     this.source.start((event) => {
+      if (this.live) this.lastLiveEventAt = event.ts;
       const before = this.raceState.cars.get(event.car_id);
       this.raceState = applyEvent(this.raceState, event);
       const log = this.recent.get(event.car_id)
@@ -299,6 +313,7 @@ export class PitwallApp {
     this.live = true;
     this.demo = false;
     this.liveSamples = [];
+    this.lastLiveEventAt = null;
     if (this.running) this.wireSource();
   }
 
@@ -353,6 +368,7 @@ export class PitwallApp {
     this.liveSamples = samples;
     this.modelCars = null;
     this.lastLiveSaveAt = state.now;
+    this.lastLiveEventAt = Math.max(...[...state.cars.values()].map((car) => car.last_event_ts), 0) || null;
   }
 
   private emitRoutineRadio(now: number): void {
@@ -382,8 +398,7 @@ export class PitwallApp {
     this.lastPhase = phase;
     this.raceState = { ...this.raceState, phase, elapsed_ms: elapsedMs(wall, this.settings.workday) };
 
-    // 모델은 상태가 바뀔 때만 만든다. 프레임은 hot 보간만 한다.
-    if (this.modelCars !== this.raceState.cars) {
+    if (this.modelCars !== this.raceState.cars || now >= this.nextFreshnessAt) {
       this.modelCars = this.raceState.cars;
       this.trackModel = buildTrackModel(this.raceState, now, {
         highlightTypes: this.settings.highlightTypes,
@@ -391,6 +406,13 @@ export class PitwallApp {
         limitWarnPct: this.settings.limitWarnThresholdPct,
         pinned: this.pinned,
       });
+      this.nextFreshnessAt = Number.POSITIVE_INFINITY;
+      for (const car of this.raceState.cars.values()) {
+        const quietAt = car.last_event_ts + FRESH_THRESHOLD_MS + 1;
+        const staleAt = car.last_event_ts + IDLE_THRESHOLD_MS + 1;
+        const next = now < quietAt ? quietAt : now < staleAt ? staleAt : Number.POSITIVE_INFINITY;
+        this.nextFreshnessAt = Math.min(this.nextFreshnessAt, next);
+      }
     }
     this.trackRenderer.render(this.trackModel, now, this.selected);
     this.settingsPanel.setAccounts([...this.raceState.cars.values()]);
@@ -427,11 +449,9 @@ export class PitwallApp {
       formatPace(paceOf(this.raceState,
         { events: allRecent, now, windowMs: window_, speed: this.settings.speed })));
     setText(this.hudPhase,
-      // 배지는 출처를 말한다. LIVE는 실시간이 흐를 때만, DEMO는 데이터가
-      // 지어낸 것일 때(시뮬레이터 또는 지어낸 재생) — demoClock과 무관하다.
       `${phase.toUpperCase().replace('_', ' ')}`
-      + (this.live ? ' · LIVE' : '')
       + (this.demo ? ' · DEMO' : ''));
+    this.renderLiveStatus(now);
 
     /*
      * 연봉이 없으면 칸 자체를 안 그린다.
@@ -453,6 +473,20 @@ export class PitwallApp {
     const wantedHourly = curve ? '' : 'none';
     if (this.hudHourly.style.display !== wantedHourly) this.hudHourly.style.display = wantedHourly;
     if (curve) setText(this.hudHourly, curve);
+  }
+
+  private renderLiveStatus(now: number): void {
+    this.liveStatus.style.display = this.live ? '' : 'none';
+    if (!this.live) return;
+    const pending = this.source.pending ?? 0;
+    const age = this.lastLiveEventAt === null ? null : now - this.lastLiveEventAt;
+    const state = pending > 0 ? 'syncing' : age !== null && age > IDLE_THRESHOLD_MS ? 'stale' : 'connected';
+    this.liveStatus.setAttribute('data-live-state', state);
+    setText(this.liveStatus, state === 'syncing'
+      ? `LIVE · SYNCING +${pending}`
+      : state === 'stale'
+        ? `LIVE · STALE DATA ${formatElapsed(age ?? 0)}`
+        : `LIVE · ${age === null ? 'WAITING' : 'CONNECTED'}`);
   }
 
   /**

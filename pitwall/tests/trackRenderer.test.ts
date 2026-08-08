@@ -199,6 +199,19 @@ describe('TrackRenderer', () => {
     r.render(model([car('q', { last_event_ts: T - 600_000 })]), T);
     const g = svg.querySelector('g.cold, g.car') as SVGGElement;
     expect(g.getAttribute('data-idle')).toBe('true');
+    expect(g.getAttribute('data-freshness')).toBe('stale');
+  });
+
+  it('재사용한 그룹마다 freshness를 쓰고 fresh stopped 사유를 보존한다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([
+      car('cold-fresh', { last_event_ts: T }),
+      car('hot-stopped', { error_count: 1, last_event_ts: T }),
+    ]), T);
+    expect((svg.querySelector('g.cold') as SVGGElement).getAttribute('data-freshness')).toBe('fresh');
+    const hot = svg.querySelector('g.car') as SVGGElement;
+    expect(hot.getAttribute('data-freshness')).toBe('fresh');
+    expect(hot.getAttribute('data-reason')).toBe('error');
   });
 
   it('빈 상태에서도 예외 없이 렌더한다', () => {

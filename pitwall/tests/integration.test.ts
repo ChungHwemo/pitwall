@@ -223,6 +223,42 @@ describe('배지는 데이터의 출처를 말한다 — demoClock과 무관하�
     expect(hud()).toContain('LIVE');
     expect(hud()).not.toContain('DEMO');
   });
+
+  it('LIVE burst는 실제 backlog를 syncing으로 보인 뒤 connected로 돌아온다', () => {
+    const live = new LiveSource({ codexAccountId: 'qa-account' });
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.useSource(live, { speed: 1, demoClock: false });
+    live.ingest('codex', [CODEX_CTX, ...Array(65).fill(CODEX_USAGE)]);
+
+    app.frame(1_000);
+    const status = root.querySelector('.live-status')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status.getAttribute('data-live-state')).toBe('syncing');
+    expect(status.textContent).toContain('+1');
+    expect(root.querySelectorAll('[data-freshness="fresh"]')).toHaveLength(1);
+
+    app.frame(1_016);
+    expect(status.getAttribute('data-live-state')).toBe('connected');
+  });
+
+  it('LIVE without an event waits, then reports stale data without claiming disconnect', () => {
+    const live = new LiveSource({ codexAccountId: 'qa-account' });
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.useSource(live, { speed: 1, demoClock: false });
+    app.frame(100);
+    const status = root.querySelector('.live-status')!;
+    expect(status.getAttribute('data-live-state')).toBe('connected');
+    expect(status.textContent).toContain('WAITING');
+
+    live.ingest('codex', [CODEX_CTX, CODEX_USAGE]);
+    app.frame(1_000);
+    app.frame(301_001);
+    expect(status.getAttribute('data-live-state')).toBe('stale');
+    expect(status.textContent).toContain('STALE DATA');
+    expect(status.textContent).not.toContain('DISCONNECT');
+  });
 });
 
 describe('실시간 리로드 복원', () => {

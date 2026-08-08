@@ -7,7 +7,12 @@
  *
  * 기본은 접힘이다. 늘 떠 있으면 그 자체가 화면을 가린다.
  */
-const ROWS: [string, string][] = [
+const ROWS: [string, string, string?][] = [
+  ['FRESH', '30초까지 최근 수신', 'fresh'],
+  ['QUIET', '30초 초과, 5분까지 조용함', 'quiet'],
+  ['STALE', '5분 넘게 새 데이터가 없음', 'stale'],
+  ['CONNECTED', '실시간 소스가 최근 데이터를 처리함', 'connected'],
+  ['SYNCING', '실시간 소스가 실제 대기열을 처리 중', 'syncing'],
   ['RUN', '최근에 호출이 있었다'],
   ['IDLE', '5분 넘게 조용하다. 트랙에는 흐리게 남는다'],
   ['PIT · LIM', '한도 창이 바닥나 더 못 간다'],
@@ -36,9 +41,10 @@ export class Legend {
 
     const body = document.createElement('dl');
     body.className = 'legend-body';
-    for (const [term, meaning] of ROWS) {
+    for (const [term, meaning, sample] of ROWS) {
       const dt = document.createElement('dt');
       dt.textContent = term;
+      if (sample) dt.setAttribute('data-sample', sample);
       const dd = document.createElement('dd');
       dd.textContent = meaning;
       body.append(dt, dd);

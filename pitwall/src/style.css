@@ -23,6 +23,12 @@
   font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34px));
   /* 경계선. 해상도가 아니라 시야거리 문제라 Retina에서 얇아지면 안 된다. */
   --hair: max(1px, 0.0625rem);
+  --pw-accent: #4dc3ff;
+  --pw-positive: #4ade80;
+  --pw-text-muted: #9fb3c8;
+  --pw-quiet-graphic: #55636f;
+  --pw-caution: #ff5c5c;
+  --pw-space-5: 0.75rem;
   /*
    * 타워 한 줄이 실제로 차지하는 폭. `.tower-row`의 고정 칸 합이다.
    *
@@ -221,7 +227,7 @@ body {
  */
 .hud {
   grid-area: hud; display: flex; align-items: center; flex-wrap: nowrap;
-  gap: 1.1rem; padding: 0.25rem 0.75rem; min-height: 2.1rem; overflow: hidden;
+  gap: var(--pw-space-5); padding: 0.25rem 0.75rem; min-height: 2.1rem; overflow: hidden;
 }
 .hud-item {
   font-size: 1.05rem; letter-spacing: 0.04em;
@@ -245,6 +251,20 @@ body {
  * 사고 여부는 여기가 아니라 타워 줄의 색이 말한다.
  */
 .hud-pace { font-size: 1.35rem; font-weight: 700; }
+.live-status {
+  flex-shrink: 1;
+  padding-inline-start: 0.45rem;
+  border-inline-start: 0.18rem solid var(--pw-positive);
+}
+.live-status[data-live-state="syncing"] {
+  color: var(--pw-accent);
+  border-inline-start-style: double;
+}
+.live-status[data-live-state="stale"] {
+  color: var(--pw-text-muted);
+  border-inline-start-color: var(--pw-quiet-graphic);
+  border-inline-start-style: dotted;
+}
 
 /*
  * 시간대별(0–23시) 작업 토큰 곡선. 타워 스파크라인이 "최근 30분"이라면 이건
@@ -288,6 +308,14 @@ body {
   width: 26rem; display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem;
 }
 .legend-body dt { color: #e6edf3; white-space: nowrap; }
+.legend-body dt[data-sample]::before {
+  content: ''; display: inline-block; width: 0.45rem; height: 0.45rem;
+  margin-inline-end: 0.4rem; border: var(--hair) solid var(--pw-text-muted); border-radius: 50%;
+}
+.legend-body dt[data-sample="fresh"]::before,
+.legend-body dt[data-sample="syncing"]::before { border-color: var(--pw-accent); }
+.legend-body dt[data-sample="stale"]::before { border-color: var(--pw-quiet-graphic); border-style: dotted; }
+.legend-body dt[data-sample="connected"]::before { border-color: var(--pw-positive); }
 .legend-body dd { margin: 0; color: #9fb3c8; }
 /* 세로로 쌓는다. 가로로 두면 접은 이유(폭이 모자람)를 판 안에서 반복한다. */
 .settings-body { display: flex; flex-direction: column; gap: 0.55rem; }
@@ -526,7 +554,21 @@ svg.track [data-idle="true"]:not([data-reason]) .class-car-icon {
  */
 svg.track .car-hit {
   fill: transparent;
+  stroke-width: 1.5;
   pointer-events: all;
+}
+svg.track [data-freshness="fresh"]:not([data-reason="error"]):not([data-reason="limit"]) .car-hit {
+  stroke: var(--pw-accent);
+}
+svg.track [data-freshness="quiet"]:not([data-reason="error"]):not([data-reason="limit"]) .car-hit {
+  stroke: var(--pw-text-muted); stroke-dasharray: 3 2;
+}
+svg.track [data-freshness="stale"]:not([data-reason="error"]):not([data-reason="limit"]) .car-hit {
+  stroke: var(--pw-quiet-graphic); stroke-dasharray: 1 3;
+}
+svg.track [data-reason="error"] .car-hit,
+svg.track [data-reason="limit"] .car-hit {
+  stroke: var(--pw-caution); stroke-width: 3; stroke-dasharray: none;
 }
 
 /* 스타트/피니시 체커 스트립과 섹터 틱 (P0-2). 정적 표지 — 클릭 대상이 아니다. */

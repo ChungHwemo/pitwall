@@ -5,6 +5,7 @@ import { Projector } from './projection';
 import { CLASS_STYLE, TRACK_COLOR, BACKGROUND, EVENT_POLARITY_COLOR } from '../config/theme';
 import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
+import type { Freshness } from '../state/reducer';
 import { HOT_CAP } from '../track/trackModel';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -202,7 +203,9 @@ function idleSwayDelay(carId: string): number {
  * 음수 delay라 애니메이션이 시작 즉시 중간 위상에서 도는데, 이래야 유휴 차들이
  * 한 박자로 동기화돼 떨리지 않는다.
  */
-function applyHeat(el: SVGGElement, heat: number, idle: boolean, carId: string): void {
+function applyHeat(
+  el: SVGGElement, heat: number, idle: boolean, freshness: Freshness, carId: string,
+): void {
   const rounded = heat.toFixed(2);
   if (el.style.getPropertyValue('--pw-heat') !== rounded) {
     el.style.setProperty('--pw-heat', rounded);
@@ -211,6 +214,9 @@ function applyHeat(el: SVGGElement, heat: number, idle: boolean, carId: string):
   if (el.getAttribute('data-idle') !== flag) {
     el.setAttribute('data-idle', flag);
     if (idle) el.style.setProperty('--pw-idle-delay', `-${idleSwayDelay(carId).toFixed(2)}s`);
+  }
+  if (el.getAttribute('data-freshness') !== freshness) {
+    el.setAttribute('data-freshness', freshness);
   }
 }
 
@@ -570,7 +576,7 @@ export class TrackRenderer {
         node.carId = car.carId;
       }
 
-      applyHeat(node.group, car.heat, car.idle, car.carId);
+      applyHeat(node.group, car.heat, car.idle, car.freshness, car.carId);
       const next = this.projector.step(car.carId, car.progress, now);
       translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
@@ -636,7 +642,7 @@ export class TrackRenderer {
       // 주행선 위에 세우면 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인
       // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
-      applyHeat(node.group, car.heat, car.idle, car.carId);
+      applyHeat(node.group, car.heat, car.idle, car.freshness, car.carId);
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);

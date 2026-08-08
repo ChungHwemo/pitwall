@@ -1,6 +1,7 @@
 import type { CarClass, CarState, RaceState } from '../types';
 import { CAR_CLASSES } from '../types';
-import { activityOf } from '../state/reducer';
+import { activityOf, freshnessOf } from '../state/reducer';
+import type { Freshness } from '../state/reducer';
 import { LANE_RENDER_CAP, laneLineOf } from './layout';
 import { spreadProgress } from './spacing';
 
@@ -43,6 +44,7 @@ export interface RenderCar {
   heat: number;
   /** 오래 조용한 차. 트랙에는 남되 흐리게 그린다 */
   idle: boolean;
+  freshness: Freshness;
   /** 트랙 라벨용. 계정 식별자가 아니라 해시에서 나온 번호다 (PRIV-3) */
   carNumber: number;
   carClass: CarClass;
@@ -57,6 +59,7 @@ export interface HotCar {
   carNumber: number;
   heat: number;
   idle: boolean;
+  freshness: Freshness;
   carClass: CarClass;
   progress: number;
   laneLine: number;
@@ -172,6 +175,7 @@ export function buildTrackModel(
       carNumber: car.car_number,
       heat: heatOf(car.work_per_min),
       idle: isIdle(car),
+      freshness: freshnessOf(car, now),
       carClass: car.car_class,
       progress: progressOf(car),
       laneLine: laneLineOf(car.car_id),
@@ -218,6 +222,7 @@ export function buildTrackModel(
         carNumber: car.car_number,
         heat: heatOf(car.work_per_min),
         idle: isIdle(car),
+        freshness: freshnessOf(car, now),
         carClass: cls,
         progress: spread[i]!,
         laneLine: laneLineOf(car.car_id),

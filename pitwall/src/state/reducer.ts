@@ -12,6 +12,8 @@ import type { CarActivity, CarEvent, CarState, RaceState } from '../types';
  * 5분이면 같은 데이터에서 1.2%로 떨어진다.
  */
 export const IDLE_THRESHOLD_MS = 300_000;
+export const FRESH_THRESHOLD_MS = 30_000;
+export type Freshness = 'fresh' | 'quiet' | 'stale';
 
 /**
  * 실제 작업 토큰 = 입력에서 캐시 재전송을 뺀 값 + 출력 + 추론.
@@ -156,4 +158,11 @@ export function activityOf(car: CarState, now: number): CarActivity {
   if (car.activity === 'retired') return 'retired';
   if (now - car.last_event_ts > IDLE_THRESHOLD_MS) return 'pit';
   return 'running';
+}
+
+export function freshnessOf(car: CarState, now: number): Freshness {
+  const age = now - car.last_event_ts;
+  if (age <= FRESH_THRESHOLD_MS) return 'fresh';
+  if (age <= IDLE_THRESHOLD_MS) return 'quiet';
+  return 'stale';
 }
