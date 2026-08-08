@@ -48,7 +48,7 @@
 3. **유일한 지배적 방송 포커스:** 자동 Director가 실제 새 이벤트·정지·큰 변화에 따라 하나를 고르며, 사용자의 수동 선택은 이를 이긴다. 포커스에는 번호, 실제 상태, work rate/누적량, 마지막 이벤트 시각, 위험/정지 사유, freshness만 보인다. 포커스가 바뀌어도 레이더의 기하나 크기는 바뀌지 않는다.
 4. **보조 증거:** 타이밍 타워와 최근 실제 이벤트 스트립은 확인용이다. 포커스를 경쟁하거나 임의의 알림을 생성하지 않는다.
 
-자동 포커스의 우선순위는 `수동 선택 > error/limit > 새 실제 이벤트의 심각도 > 큰 실제 work-rate 변화 > freshest 후보 > 유지`다. 후보가 없으면 "방송 포커스 없음 — 새 이벤트 대기"를 보이고 추측으로 차량을 선정하지 않는다.
+자동 포커스는 매 render의 관측값만으로 결정한다. 수동 선택은 항상 별도 고정이며 아래 계산에 들어가지 않는다. 후보 점수는 (1) 지난 10초의 새 `error` 400, `limit` 300, (2) 지난 10초의 실제 이벤트 심각도 `critical` 200 / `warn` 100 / `info` 25, (3) 직전 관측과 비교 가능한 두 표본이 있을 때만 `work_per_min`의 절대 변화가 이전 값의 25% 이상인 50, (4) 그 외 fresh 1이다. 점수가 같으면 더 최근 `last_event_ts`, 그다음 익명 `car_id`의 코드포인트 오름차순으로 고른다. 현 포커스는 최소 5초 유지하며, 그 동안에는 새 후보가 **100점 이상** 높을 때만 즉시 전환한다; 5초가 지나면 위 정렬 결과로 갱신한다. stale/stopped는 새 진행을 만들지 않지만 실제 error/limit 점수는 유지한다. 후보가 없으면 "방송 포커스 없음 — 새 이벤트 대기"를 보이고 추측으로 차량을 선정하지 않는다.
 
 ## 5. 상태, 반응형, 실패 모드
 
@@ -82,7 +82,9 @@
 
 ## 8. 보존·롤백 경계
 
-`TrackRenderer` 원본 소스와 현재 테스트는 삭제하지 않는다. 교체 seam에서는 새 `BroadcastTrackRenderer`의 선택만 추가하고, 원래 호출은 정확히 이 **한 줄의** 날짜 든 주석으로 보존한다: `/* LEGACY/ROLLBACK 2026-08-08: this.trackRenderer = new TrackRenderer(svg, track); */`. 이 주석은 원본 호출 하나만 담으며 큰 주석 블록이나 죽은 구현을 덤프하지 않는다. SVG fallback은 그대로 기존 renderer를 인스턴스화한다. 이것만이 "comment it out"의 허용 해석이다.
+`TrackRenderer` 원본 소스와 현재 테스트는 삭제하지 않는다. 교체 seam에서는 새 `BroadcastTrackRenderer`의 선택만 추가하고, 원래 호출은 정확히 이 **한 줄의** 날짜 든 주석으로 보존한다: `/* LEGACY/ROLLBACK 2026-08-08: this.trackRenderer = new TrackRenderer(svg, track); */`. 이 주석은 원본 호출 하나만 담으며 큰 주석 블록이나 죽은 구현을 덤프하지 않는다.
+
+선택은 boot에서 한 번만 결정한다. `BroadcastTrackRenderer.isSupported()`가 `SVGSVGElement`, `document.createElementNS`, CSS `transform` 지원을 모두 확인하면 broadcast renderer를 쓴다. 하나라도 없거나 생성/첫 렌더가 throw하면 같은 `svg, track`으로 기존 `TrackRenderer`를 즉시 인스턴스화하고 세션 동안 되돌아가지 않는다. 첫 성공 뒤 fatal render 예외가 나면 다음 animation tick에 한 번만 같은 fallback으로 전환하고 오류를 literal `RENDER FALLBACK`으로 기록한다. `prefers-reduced-motion`은 fallback 조건이 아니라 broadcast 내부의 무동작 프로파일이다. B는 WebGL context를 요청·생성하지 않으므로 WebGL 지원 여부와 context loss는 선택 입력이 아니며, 테스트는 그 호출이 0회임을 잠근다. 이 조건과 `isSupported()` false/생성 throw/fatal render throw/reduced-motion의 네 경로를 TDD RED로 테스트한다. 이것만이 "comment it out"의 허용 해석이다.
 
 ## 9. 구현 전 TDD와 검증 순서
 
