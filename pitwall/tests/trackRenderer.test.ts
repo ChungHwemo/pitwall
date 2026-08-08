@@ -56,6 +56,22 @@ function visiblePositions(): { x: number; y: number }[] {
     });
 }
 
+function distanceToPolyline(point: { x: number; y: number }, line: readonly { x: number; y: number }[]): number {
+  let nearest = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1];
+    const b = line[i];
+    if (!a || !b) continue;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1,
+      ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
+    nearest = Math.min(nearest, Math.hypot(point.x - (a.x + dx * t), point.y - (a.y + dy * t)));
+  }
+  return nearest;
+}
+
 describe('TrackRenderer', () => {
   it('트랙 경로를 한 번만 그린다', () => {
     const r = new TrackRenderer(svg, track);
@@ -340,32 +356,7 @@ describe('모션', () => {
   });
 });
 
-describe('사건 차량 정지', () => {
-  it('에러 난 차량은 트랙에서 멈춘다', () => {
-    // 에러는 호출이 실패한 것이다 — 진전이 없었으므로 움직이면 거짓말이다.
-    const r = new TrackRenderer(svg, track);
-    const boom = car('boom', { error_count: 1, distance: 0 });
-    r.render(model([boom]), T);
-    const at0 = (svg.querySelector('g.car') as SVGGElement).style.transform;
-
-    // 목표가 멀어져도 따라가지 않는다.
-    const moved = car('boom', { error_count: 1, distance: 80_000 });
-    for (let f = 1; f < 200; f++) r.render(model([moved]), T + f * 16);
-    expect((svg.querySelector('g.car') as SVGGElement).style.transform).toBe(at0);
-  });
-
-  it('한도에 걸린 차량도 멈춘다', () => {
-    // 한도에 막히면 호출이 안 나간다. 굴러가면 화면이 거짓말한다.
-    // (의도 변경: 판정 근거를 fuel_pct에서 tyre_pct로 옮겼다 — 연료는 돈, 한도는 벽.)
-    const r = new TrackRenderer(svg, track);
-    r.render(model([car('low', { tyre_pct: 5, distance: 0 })]), T);
-    const at0 = (svg.querySelector('g.car') as SVGGElement).style.transform;
-
-    const moved = car('low', { tyre_pct: 5, distance: 80_000 });
-    for (let f = 1; f < 200; f++) r.render(model([moved]), T + f * 16);
-    expect((svg.querySelector('g.car') as SVGGElement).style.transform).toBe(at0);
-  });
-
+describe('사건 차량 피트', () => {
   it('핀 고정 차량은 멈추지 않는다 — 사건이 아니라 사용자 선택이다', () => {
     const r = new TrackRenderer(svg, track);
     const opts = { pinned: new Set(['watch']) };
@@ -535,11 +526,10 @@ describe('피트', () => {
   it('멈춘 차는 주행선이 아니라 피트에 선다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('stopped', { tyre_pct: 2, distance: 0 })]), T);
-    const g = svg.querySelector('g.car') as SVGGElement;
-    const at = g.style.transform;
-
+    const at = visiblePositions()[0];
     const box = pitBoxes(track, 1)[0]!;
-    expect(at).toBe(`translate(${box.x.toFixed(2)}px, ${box.y.toFixed(2)}px)`);
+    expect(at).toBeDefined();
+    expect(Math.hypot((at?.x ?? 0) - box.x, (at?.y ?? 0) - box.y)).toBeLessThan(GLYPH_DIAMETER);
   });
 
   it('여러 대가 멈추면 각자 다른 박스에 선다', () => {
@@ -599,8 +589,53 @@ describe('피트', () => {
     const lane = [...d.matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)]
       .map((m) => ({ x: +m[1]!, y: +m[2]! }));
     for (const spot of visiblePositions()) {
-      const near = Math.min(...lane.map((p) => Math.hypot(p.x - spot.x, p.y - spot.y)));
+      const near = distanceToPolyline(spot, lane);
       expect(near, `(${spot.x}, ${spot.y})`).toBeLessThan(1);
+    }
+  });
+
+  /*
+   * REVIEW #14 잔여: 한도 차량은 `HOT_CAP`을 넘어도 hot에서 전부 보존된다
+   * (`trackModel.ts`의 limit-먼저-보존). 렌더러가 그 전부를 서로 다른 피트
+   * 자리에 세우고, 그려진 레인도 그 자리까지 늘려야 한다 — 안 그러면 12대를
+   * 넘는 순간부터 겹치거나 레인 밖에 뜬 것처럼 보인다.
+   */
+  it('HOT_CAP을 넘는 한도 차량도 전부 서로 다른 피트 자리에 선다', () => {
+    const r = new TrackRenderer(svg, worst);
+    const count = HOT_CAP + 12;
+    const stopped = Array.from({ length: count }, (_, i) =>
+      car(`limit${i}`, { car_number: 200 + i, tyre_pct: 2, distance: i * 1000 }));
+    const m = model(stopped);
+    // 전제: 모델이 한도 차량을 하나도 안 버렸다.
+    expect(m.hot).toHaveLength(count);
+
+    r.render(m, T);
+
+    const spots = visiblePositions();
+    expect(spots).toHaveLength(count);
+
+    // 서로 다른 자리 — 어떤 두 대도 글리프 지름보다 가깝지 않다.
+    for (let i = 0; i < spots.length; i++) {
+      for (let j = i + 1; j < spots.length; j++) {
+        const dist = Math.hypot(spots[i]!.x - spots[j]!.x, spots[i]!.y - spots[j]!.y);
+        expect(dist, `slot ${i}·${j}`).toBeGreaterThanOrEqual(GLYPH_DIAMETER);
+      }
+    }
+
+    // 늘어난 피트 레인이 늘어난 자리 전부를 덮는다.
+    const d = svg.querySelector('path.pit-lane')!.getAttribute('d')!;
+    const lane = [...d.matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)]
+      .map((m2) => ({ x: +m2[1]!, y: +m2[2]! }));
+    for (const spot of spots) {
+      const near = distanceToPolyline(spot, lane);
+      expect(near, `(${spot.x}, ${spot.y})`).toBeLessThan(1);
+    }
+
+    // 트랙(주행선) 위에는 하나도 안 남는다.
+    for (const car of stopped) {
+      const onTrack = positionAt(worst, model([car]).hot[0]!.progress, 'P', 0);
+      const near = spots.some((s) => Math.hypot(s.x - onTrack.x, s.y - onTrack.y) < 1);
+      expect(near, car.car_id).toBe(false);
     }
   });
 });

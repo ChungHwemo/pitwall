@@ -1,6 +1,6 @@
 import { trackWidth, TRACK_STROKE } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
-import { positionAt, pitBoxes, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
+import { positionAt, pitBoxes, pitCreep, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
 import { Projector } from './projection';
 import { CLASS_STYLE, TRACK_COLOR, BACKGROUND, EVENT_POLARITY_COLOR } from '../config/theme';
 import type { CarClass } from '../types';
@@ -249,6 +249,36 @@ const AXIS_X: Point = { x: 1, y: 0 };
 const AXIS_Y: Point = { x: 0, y: 1 };
 
 /**
+ * 체커기(체커드 플래그) 표지의 `d` 값. 글자가 아니라 획으로 그린다 (§6.3: 트랙 위
+ * 텍스트 금지). 중심을 (cx, cy)에 두고 좌표는 path에 굽는다 — glyphPath와 같은
+ * 이유로 transform을 쓰지 않는다. 순수 함수라 피트 레인이 늘어나 표지가 옮겨갈
+ * 때도 DOM 노드를 새로 만들지 않고 기존 요소의 `d`만 갱신할 수 있다.
+ */
+function pitFlagPaths(cx: number, cy: number): { base: string; light: string } {
+  const q = 4.5;
+  const cols = 3;
+  const rows = 2;
+  const gx = cx - (cols * q) / 2 + 1;
+  const gy = cy - (rows * q) / 2;
+
+  // 깃대 + 천 바탕. 어두운 채움이라 밝은 칸이 대비로 뜬다.
+  const base =
+    vecRect({ x: gx - 3, y: gy - 3 }, AXIS_Y, AXIS_X, cols * q + 6, 1.6) + ' ' +
+    vecRect({ x: gx, y: gy }, AXIS_Y, AXIS_X, rows * q, cols * q);
+
+  // 밝은 칸만 그린다 — (행+열)이 짝수인 칸. 나머지는 바탕이 비쳐 체커 무늬가 된다.
+  let light = '';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if ((r + c) % 2 === 0) {
+        light += vecRect({ x: gx + c * q, y: gy + r * q }, AXIS_Y, AXIS_X, q, q) + ' ';
+      }
+    }
+  }
+  return { base, light: light.trim() };
+}
+
+/**
  * `TrackModel`을 SVG로 그린다. 무엇을 그릴지는 정하지 않는다 — 모델이 정한다.
  *
  * 프레임당 쓰기는 hot 차량 수로 제한된다. 클러스터는 빈 중앙에 고정이라
@@ -273,6 +303,17 @@ export class TrackRenderer {
   private carLayer: SVGGElement;
   private selectHandler: ((carId: string) => void) | null = null;
   private selected: string | null = null;
+  /** 지금 그려진 피트 레인이 감당하는 박스 수. 늘어나기만 한다 — 노드 풀과 같은 규율. */
+  private pitLaneCapacity = HOT_CAP;
+  private pitLanePath: SVGPathElement;
+  private pitFlagBase: SVGPathElement;
+  private pitFlagLight: SVGPathElement;
+  /**
+   * 정지 대수별 피트 박스 계산 캐시. `pitBoxes`는 정지 대수가 안 바뀌면 항상
+   * 같은 값을 낸다 — 매 프레임 다시 걷지 않고 대수가 바뀔 때만 다시 걷는다.
+   */
+  private pitBoxesForCount = -1;
+  private pitBoxesCache: Point[] = [];
 
   constructor(
     private container: SVGSVGElement,
@@ -285,6 +326,11 @@ export class TrackRenderer {
     // 위아래로 갈라 죽은 띠를 만든다 — 실측 4K에서 647px가 그렇게 죽어 있었다.
     this.container.style.aspectRatio = String(track.aspect);
     this.drawCenterline();
+    const pit = this.drawPitLane();
+    this.pitLanePath = pit.lane;
+    this.pitFlagBase = pit.flagBase;
+    this.pitFlagLight = pit.flagLight;
+    this.growPitLane(HOT_CAP);
     this.drawStartFinish();
     this.drawSectorMarkers();
     this.carLayer = document.createElementNS(SVG_NS, 'g');
@@ -304,68 +350,56 @@ export class TrackRenderer {
     path.setAttribute('stroke-width', String(TRACK_WIDTH));
     path.setAttribute('stroke-linejoin', 'round');
     this.container.appendChild(path);
-    this.drawPitLane();
   }
 
   /**
-   * 피트 레인. 멈춘 차만 인필드에 떠 있으면 "트랙을 벗어났다"로 읽힌다 —
+   * 피트 레인 DOM 뼈대. 멈춘 차만 인필드에 떠 있으면 "트랙을 벗어났다"로 읽힌다 —
    * 설 자리가 그려져 있어야 정지가 사고가 아니라 피트인으로 보인다.
+   *
+   * `d` 값은 아직 안 채운다 — `growPitLane`이 채운다. 한도 차량은 `HOT_CAP`을
+   * 넘어도 전부 hot으로 남으므로(REVIEW #14), 실제 정지 대수가 지금까지 그린
+   * 박스 수를 넘으면 레인을 늘려야 한다. 그때 새로 만들지 않고 이 요소들을
+   * 갱신한다 — 노드 풀과 같은 이유다.
    */
-  private drawPitLane(): void {
-    // 피트에 설 수 있는 최대만큼 그린다. 8칸 고정이던 시절에는 9번째 차부터
-    // 선 밖에 떠 있었고, 그러면 정지가 아니라 코스 이탈로 읽힌다.
-    const pts = pitLanePoints(this.track, HOT_CAP);
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('class', 'pit-lane');
-    path.setAttribute('d', pts
-      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' '));
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', TRACK_COLOR.pitLane);
-    path.setAttribute('stroke-width', String(PIT_LANE_STROKE));
-    path.setAttribute('stroke-linecap', 'round');
-    this.container.appendChild(path);
+  private drawPitLane(): { lane: SVGPathElement; flagBase: SVGPathElement; flagLight: SVGPathElement } {
+    const lane = document.createElementNS(SVG_NS, 'path');
+    lane.setAttribute('class', 'pit-lane');
+    lane.setAttribute('fill', 'none');
+    lane.setAttribute('stroke', TRACK_COLOR.pitLane);
+    lane.setAttribute('stroke-width', String(PIT_LANE_STROKE));
+    lane.setAttribute('stroke-linecap', 'round');
+    this.container.appendChild(lane);
 
     // 표지는 레인 끝에 둔다. 입구에 두면 첫 박스에 선 차가 그대로 덮는다.
     // 'PIT' 글자 대신 체커드 플래그 도형 — 트랙 위 텍스트 라벨 금지 (§6.3 하드 룰).
-    const tail = pts[pts.length - 1]!;
-    this.drawPitFlag(tail.x, tail.y + 34);
+    const flagBase = document.createElementNS(SVG_NS, 'path');
+    flagBase.setAttribute('class', 'pit-label');
+    flagBase.setAttribute('fill', TRACK_COLOR.markerDark);
+    this.container.appendChild(flagBase);
+
+    const flagLight = document.createElementNS(SVG_NS, 'path');
+    flagLight.setAttribute('class', 'pit-label');
+    flagLight.setAttribute('fill', TRACK_COLOR.markerLight);
+    this.container.appendChild(flagLight);
+
+    return { lane, flagBase, flagLight };
   }
 
   /**
-   * 체커기(체커드 플래그) 표지. 글자가 아니라 획으로 그린다 (§6.3: 트랙 위 텍스트 금지).
-   * 중심을 (cx, cy)에 두고, 좌표는 path에 굽는다 — glyphPath와 같은 이유로 transform을 쓰지 않는다.
-   * `vecRect`를 표준 x/y 기저로 호출하므로 좌표·크기는 예전과 완전히 같다.
+   * 그려진 피트 레인을 `boxes`칸까지 늘린다. 정지한 차 수가 지금 레인의
+   * 용량(`pitLaneCapacity`)을 넘을 때만 부른다 — 매 프레임 다시 그리지 않는다.
    */
-  private drawPitFlag(cx: number, cy: number): void {
-    const q = 4.5;
-    const cols = 3;
-    const rows = 2;
-    const gx = cx - (cols * q) / 2 + 1;
-    const gy = cy - (rows * q) / 2;
+  private growPitLane(boxes: number): void {
+    const pts = pitLanePoints(this.track, boxes);
+    this.pitLanePath.setAttribute('d', pts
+      .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' '));
 
-    // 깃대 + 천 바탕. 어두운 채움이라 밝은 칸이 대비로 뜬다.
-    const base = document.createElementNS(SVG_NS, 'path');
-    base.setAttribute('class', 'pit-label');
-    base.setAttribute('d',
-      vecRect({ x: gx - 3, y: gy - 3 }, AXIS_Y, AXIS_X, cols * q + 6, 1.6) + ' ' +
-      vecRect({ x: gx, y: gy }, AXIS_Y, AXIS_X, rows * q, cols * q));
-    base.setAttribute('fill', TRACK_COLOR.markerDark);
-    this.container.appendChild(base);
+    const tail = pts[pts.length - 1]!;
+    const flag = pitFlagPaths(tail.x, tail.y + 34);
+    this.pitFlagBase.setAttribute('d', flag.base);
+    this.pitFlagLight.setAttribute('d', flag.light);
 
-    // 밝은 칸만 그린다 — (행+열)이 짝수인 칸. 나머지는 바탕이 비쳐 체커 무늬가 된다.
-    let checker = '';
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if ((r + c) % 2 === 0) {
-          checker += vecRect({ x: gx + c * q, y: gy + r * q }, AXIS_Y, AXIS_X, q, q) + ' ';
-        }
-      }
-    }
-    const light = document.createElementNS(SVG_NS, 'path');
-    light.setAttribute('class', 'pit-label');
-    light.setAttribute('d', checker.trim());
-    light.setAttribute('fill', TRACK_COLOR.markerLight);
-    this.container.appendChild(light);
+    this.pitLaneCapacity = boxes;
   }
 
   /**
@@ -562,7 +596,16 @@ export class TrackRenderer {
      * 세울 자리를 먼저 만든다. 간격이 진행률이 아니라 **앞 박스와의 실제 거리**로
      * 정해지므로, 자리 하나를 따로 계산할 수 없고 몇 대가 서는지 알아야 한다.
      */
-    const boxes = pitBoxes(this.track, hot.filter((c) => STOPPED.has(c.reason)).length);
+    const stoppedCount = hot.filter((c) => STOPPED.has(c.reason)).length;
+    // 한도 차량은 HOT_CAP을 넘어도 전부 hot으로 남는다(REVIEW #14) — 그려둔
+    // 피트 레인이 지금 정지 대수를 못 덮으면 늘린다. 그려진 레인 밖에 서면
+    // 정지가 아니라 코스 이탈로 읽힌다.
+    if (stoppedCount > this.pitLaneCapacity) this.growPitLane(stoppedCount);
+    if (stoppedCount !== this.pitBoxesForCount) {
+      this.pitBoxesCache = pitBoxes(this.track, Math.max(2, stoppedCount));
+      this.pitBoxesForCount = stoppedCount;
+    }
+    const boxes = this.pitBoxesCache;
     let pitSlot = 0;
 
     hot.forEach((car, i) => {
@@ -597,8 +640,8 @@ export class TrackRenderer {
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);
-        // 자리가 모자라면 마지막 칸에 겹쳐 세운다 — 트랙 위에 두는 것보다 낫다.
-        translate(node.group, boxes[pitSlot] ?? boxes[boxes.length - 1]!);
+        // 레인을 이미 늘려서 정지 대수만큼 자리가 있다 — 겹쳐 세우지 않는다.
+        translate(node.group, pitCreep(boxes, pitSlot, now));
         pitSlot += 1;
       } else {
         const next = this.projector.step(car.carId, car.progress, now);

@@ -75,6 +75,18 @@ export const PIT_LANE_STROKE = TRACK_STROKE * 0.8;
  * 레인 길이는 최대 529다 (좌표계 세로 1000).
  */
 const PIT_BOX_SPACING = GLYPH_DIAMETER * 3;
+const PIT_CREEP_DISTANCE = GLYPH_DIAMETER * 0.6;
+const PIT_CREEP_PERIOD_MS = 8_000;
+
+/**
+ * 한 바퀴로 자리가 모자랄 때, 다음 링을 얼마나 더 안쪽으로 미는가.
+ *
+ * 한도 차량은 `HOT_CAP`을 넘어도 hot에서 전부 보존된다(REVIEW #14) — 그래서
+ * 정지 대수가 한 바퀴 용량(서킷마다 54~135대, `layout.test.ts` 실측)을 넘을 수
+ * 있다. 링 간격을 `PIT_BOX_SPACING`과 같게 둬 자리 사이 최소 간격 규율을
+ * 그대로 지킨다.
+ */
+const PIT_ROW_GAP = PIT_BOX_SPACING;
 
 /**
  * 정지한 차가 서는 자리.
@@ -86,6 +98,10 @@ const PIT_BOX_SPACING = GLYPH_DIAMETER * 3;
  * 박스는 피트 진입점부터 순서대로 늘어선다. 진행률을 일정하게 더하는 대신
  * **피트 레인을 실제로 걸어가며** 직전 박스에서 `PIT_BOX_SPACING`만큼 떨어진
  * 지점에 세운다. 그래서 코너에서는 자연히 더 멀리 간다.
+ *
+ * 한 바퀴로 `slots`를 못 채우면 더 안쪽 링으로 넘어간다 — 마지막 칸에 겹쳐
+ * 세우지 않는다. 링마다 오프셋을 `PIT_ROW_GAP`만큼 더 밀어 이전 링과 겹치지
+ * 않는다.
  */
 export function pitBoxes(track: Track, slots: number): Point[] {
   const out: Point[] = [];
@@ -93,22 +109,46 @@ export function pitBoxes(track: Track, slots: number): Point[] {
 
   const n = track.points.length;
   const step = 1 / n;                       // 폴리라인 한 마디
-  let progress = track.pitEntry / n;
-  out.push(pitPointAt(track, progress));
 
-  // 한 바퀴가 상한이다. 실측(서킷 40개 + 생성 시드 300개, 12대)에서는
-  // 한 바퀴를 다 쓰기 전에 전부 자리를 찾았다.
-  for (let k = 0; k < n && out.length < slots; k++) {
-    progress += step;
-    const here = pitPointAt(track, progress);
-    const last = out[out.length - 1]!;
-    if (Math.hypot(here.x - last.x, here.y - last.y) >= PIT_BOX_SPACING) out.push(here);
+  for (let ring = 0; out.length < slots; ring++) {
+    const lateral = PIT_LANE_OFFSET - ring * PIT_ROW_GAP;
+    const before = out.length;
+    let progress = track.pitEntry / n;
+    out.push(pitPointAt(track, progress, lateral));
+
+    // 한 바퀴가 이 링의 상한이다. 실측(서킷 40개 + 생성 시드 300개, 12대)에서는
+    // 한 바퀴를 다 쓰기 전에 전부 자리를 찾았다.
+    for (let k = 0; k < n && out.length < slots; k++) {
+      progress += step;
+      const here = pitPointAt(track, progress, lateral);
+      const last = out[out.length - 1]!;
+      if (Math.hypot(here.x - last.x, here.y - last.y) >= PIT_BOX_SPACING) out.push(here);
+    }
+
+    // 안전판 — 링이 자리를 하나도 못 늘리면(있을 수 없지만) 무한 루프를 막는다.
+    if (out.length === before) break;
   }
   return out;
 }
 
-function pitPointAt(track: Track, progress: number): Point {
-  return positionAt(track, progress, 'P', 0, PIT_LANE_OFFSET);
+/** 정지 상태는 유지하되 피트 박스 안에서만 천천히 왕복한다. */
+export function pitCreep(boxes: readonly Point[], slot: number, now: number): Point {
+  const anchor = boxes[slot];
+  const next = boxes[slot + 1] ?? boxes[slot - 1];
+  if (!anchor || !next) throw new RangeError('pit creep requires two boxes');
+  const dx = next.x - anchor.x;
+  const dy = next.y - anchor.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const distance = (Math.sin(now / PIT_CREEP_PERIOD_MS * Math.PI * 2) + 1)
+    * PIT_CREEP_DISTANCE / 2;
+  return {
+    x: anchor.x + dx / length * distance,
+    y: anchor.y + dy / length * distance,
+  };
+}
+
+function pitPointAt(track: Track, progress: number, lateral = PIT_LANE_OFFSET): Point {
+  return positionAt(track, progress, 'P', 0, lateral);
 }
 
 /**
