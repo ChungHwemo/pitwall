@@ -1,6 +1,6 @@
 # PITWALL 작업 인수인계
 
-> 완료 기록 (2026-08-08): 아래 인수인계의 slow-pit 버그와 미커밋 renderer/projection/docs 작업은 `cd7075c`, `da2d646`으로 완료했다. 전체 53 files / 858 tests, typecheck, production build, headed Chromium 검증을 통과했다. 이하 내용은 작업 시작 시점의 스냅샷으로 보존한다. native LIVE blocker는 별도이며 해결로 표시하지 않았다.
+> 완료 기록 (2026-08-08): 아래 인수인계의 slow-pit 버그와 미커밋 renderer/projection/docs 작업은 `cd7075c`, `da2d646`, `3b807c1`으로 완료했다. 전체 53 files / 858 tests, typecheck, production build, headed Chromium 검증을 통과했다. 이하 내용은 작업 시작 시점의 스냅샷으로 보존한다. native LIVE blocker는 별도이며 해결로 표시하지 않았다.
 
 ## 다음 세션의 목표
 
