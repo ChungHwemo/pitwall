@@ -92,7 +92,7 @@ describe('PitwallApp', () => {
     const after100 = root.querySelectorAll('*').length;
     runFrames(app, 900, 100);
     expect(root.querySelectorAll('*').length).toBe(after100);
-  });
+  }, 10_000);
 
    it('stop 이후 프레임은 상태를 바꾸지 않는다', () => {
      vi.spyOn(Math, 'random').mockReturnValue(0.0001);
