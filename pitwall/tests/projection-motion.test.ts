@@ -1,0 +1,100 @@
+import { describe, it, expect } from 'vitest';
+import { Projector, MAX_LEAD, MAX_FRAME_STEP } from '../src/render/projection';
+
+describe('투영의 시간 기반 움직임', () => {
+  it('샘플이 없는 동안에도 계속 나아간다 — 이게 없으면 호출 사이에 멈춰 선다', () => {
+    const p = new Projector();
+    p.step('a', 0.20, 1_000);
+    p.step('a', 0.30, 2_000);          // 1초에 0.10 → 초당 0.10
+    // 의도 축소: 프레임당 이동 상한이 생기면서 큰 걸음은 즉시 목표를 넘지 않는다.
+    // 확인해야 하는 것은 "목표를 지났는가"가 아니라 "샘플 없이도 계속 가는가"다.
+    const a = p.step('a', 0.30, 2_100); // 같은 목표, 100ms 뒤
+    const b = p.step('a', 0.30, 2_200);
+    expect(a).toBeGreaterThan(0.20);
+    expect(b).toBeGreaterThan(a);
+  });
+
+  it('데이터가 끊겨도 목표에서 너무 멀리 달아나지 않는다', () => {
+    const p = new Projector();
+    p.step('a', 0.20, 1_000);
+    p.step('a', 0.30, 2_000);
+    let last = 0;
+    for (let t = 2_100; t < 60_000; t += 100) last = p.step('a', 0.30, t);
+    expect(last - 0.30).toBeLessThanOrEqual(MAX_LEAD + 1e-9);
+  });
+
+  it('멈춘 차는 나아가지 않는다', () => {
+    const p = new Projector();
+    p.step('a', 0.20, 1_000);
+    p.step('a', 0.30, 2_000);
+    const held = p.hold('a', 2_100);
+    expect(p.hold('a', 9_000)).toBe(held);
+  });
+});
+
+describe('투영 한계는 샘플 간격을 따른다', () => {
+  it('샘플이 크게 뛰는 소스에서도 그 한 걸음만큼은 앞서 갈 수 있다', () => {
+    const p = new Projector();
+    p.step('a', 0.00, 1_000);
+    let last = p.step('a', 0.10, 2_000); // 한 샘플에 0.10 — 고정 3%보다 훨씬 크다
+    let grew = 0;
+    for (let t = 2_100; t < 3_000; t += 100) {
+      const now = p.step('a', 0.10, t);
+      if (now > last + 1e-9) grew++;
+      last = now;
+    }
+    // 고정 3%로 막으면 두세 프레임 만에 멈춘다. 한 걸음치는 나아가야 한다.
+    expect(grew).toBeGreaterThanOrEqual(7);
+  });
+});
+
+describe('고정점에 갇히지 않는다', () => {
+  it('샘플이 멈춰 있어도 프레임마다 계속 나아간다', () => {
+    const p = new Projector();
+    p.step('a', 0.00, 1_000);
+    p.step('a', 0.05, 2_000);          // 초당 0.05
+    const seen: number[] = [];
+    for (let t = 2_016; t < 2_500; t += 16) seen.push(p.step('a', 0.05, t));
+    // 밀고 당기기가 균형을 이뤄 서 버리면 뒤쪽 값들이 전부 같아진다.
+    const tail = seen.slice(-10);
+    const distinct = new Set(tail.map((v) => v.toFixed(6)));
+    expect(distinct.size).toBe(tail.length);
+  });
+
+  // 회귀 고정 (REVIEW #2): 앵커가 잠깐 멈춘 사이 차가 고정점에 얼어붙어 "스팟에서
+  // 스팟으로" 튄다. 전방투영(velocity*dt)과 정지 앵커로의 보간(LERP)이 앵커보다
+  // velocity*dt/LERP 앞선 지점에서 정확히 상쇄돼 멈춘다. 위 테스트는 30프레임만 봐서
+  // 이 정지(≈80프레임 뒤)를 놓친다 — 속도와 lead 여유가 있으면 계속 미끄러져야 한다.
+  it('앵커가 유지돼도 속도가 있으면 lead 한계까지 계속 미끄러진다 — 고정점에서 얼지 않는다', () => {
+    const p = new Projector();
+    p.step('a', 0.00, 1_000);
+    p.step('a', 0.02, 2_000);          // 전방 속도 0.02/초 확보, lead 한계 0.03
+    let atFrame40 = 0;
+    let atFrame80 = 0;
+    for (let f = 0, t = 2_016; f < 120; f++, t += 16) {
+      const v = p.step('a', 0.02, t);
+      if (f === 40) atFrame40 = v;
+      if (f === 80) atFrame80 = v;
+    }
+    // 고정점에 갇히면 이 구간은 사실상 정지(≈0.0001). 전방투영이 살아 있으면 눈에 띄게 나아간다.
+    expect(atFrame80 - atFrame40).toBeGreaterThan(0.005);
+  });
+});
+
+describe('한 프레임에 순간이동하지 않는다', () => {
+  it('앵커가 크게 뛰어도 여러 프레임에 걸쳐 따라간다', () => {
+    const p = new Projector();
+    p.step('a', 0.00, 1_000);
+    const steps: number[] = [];
+    let prev = 0;
+    // 랩의 10%를 한 번에 미는 샘플 — 랩 5만 토큰에서 호출 하나가 이 정도다.
+    for (let t = 1_016; t < 1_400; t += 16) {
+      const now = p.step('a', 0.10, t);
+      steps.push(Math.abs(now - prev));
+      prev = now;
+    }
+    expect(Math.max(...steps)).toBeLessThanOrEqual(MAX_FRAME_STEP + 1e-9);
+    // 그래도 결국 따라잡아야 한다.
+    expect(prev).toBeGreaterThan(0.05);
+  });
+});
