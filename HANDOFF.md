@@ -99,3 +99,49 @@ native 검증에서 **full relaunch restore는 PASS**였지만, 앱 안에서 We
 - `tdd` 또는 `superpowers:test-driven-development`: 실패 회귀부터 작성
 - `review-work`: 구현 후 최종 correctness, quality, security, QA 검토
 - `superpowers:verification-before-completion`: 완료 주장 전 테스트와 진단 증거 확인
+
+## 추가 (2026-08-09): 트랙 중복선 회귀 수정
+
+인수인계 이후 uncommitted broadcast renderer WIP(`bootBroadcastTrackRenderer`)가
+`main.ts`에서 기본 렌더러로 연결되어 있었다. `BroadcastTrackRenderer`가 하드코딩된
+`pitLanePoints(track, 40)`으로 피트 레인을 그리는데, 이 서킷 대부분을 도는 좌표
+개수라 화면에서 주행선과 거의 겹치는 두 번째 트랙처럼 보였다 (REVIEW #14가 이미
+정착시킨 얇은 피트 스퍼와 다름).
+
+**수정**: `src/main.ts`의 `bootBroadcastTrackRenderer` 호출에 `supported: () => false`를
+추가해 항상 기존에 검증된 legacy `TrackRenderer`를 쓰도록 강제했다. broadcast 관련
+파일(`broadcastTrackRenderer.ts`, `broadcastRendererSession.ts`, `broadcastDirector.ts`,
+`broadcastOverflow.ts`와 대응 테스트)은 건드리지 않았다 — 이 WIP은 그대로 보존된다.
+
+**검증**: `tests/broadcastTrackRenderer.test.ts`에 회귀 테스트 2건 추가(수정 없이는
+실패, 있으면 통과 확인함). 전체 `npx vitest run --no-file-parallelism` 57 files / 897
+tests 통과, `tsc --noEmit` 0 오류, `npm run build:single` 5,464.1 kB, `git diff --check`
+0. 개발 서버 + Chromium DOM 조사로 수정 전(`data-renderer="broadcast"`, 피트 레인
+d 속성 657자·40개 점)과 수정 후(`data-renderer="legacy"`, 피트 레인 194자)를
+직접 비교해 확인했다.
+
+## 추가 (2026-08-09): 피트 정지 · 유휴 주행선 이동 정정
+
+사용자가 REVIEW #14의 "한도/에러 차량이 피트 안에서 느리고 결정론적으로 이동" 결정을
+명시적으로 뒤집었다 — "데이터 없을시 멈춰있는게 아니고 천천히 이동이라고 오류와
+한도제한이 멈추는거고". 즉 **정지는 error/limit 몫, 느린 이동은 무통신(stale) 차량
+몫**으로 자리가 바뀌었다.
+
+**수정**: `pitwall/src/render/trackRenderer.ts`의 `renderHot()` STOPPED 분기에서
+`pitCreep()` 호출을 제거하고 `pitBoxesCache`의 정적 좌표로 바로 `translate()`한다 —
+피트에 선 차는 이제 완전히 정지한다. `pitwall/src/track/layout.ts`의 `pitCreep()`
+함수와 그 전용 상수(`PIT_CREEP_PERIOD_MS`)는 삭제했다. 피트 박스 간격 공식
+(`PIT_BOX_SPACING` 등 기하)은 그대로 보존했다 — 이번 정정과 무관한 값이다.
+
+대신 `trackRenderer.ts`에 `idleCreepOffset(carId, now)`를 추가해, 무통신(≥5분,
+`car.idle === true`) 차량이 주행선(`renderCold` 및 `renderHot`의 비-STOPPED 분기)에서
+`Projector.step()`의 반환값 위에 작은 결정론적 왕복(progress ±0.0006, 8초 주기)을
+얹는다. `Projector`의 내부 `visual` 상태는 건드리지 않으므로(`visualProgressOf` 불변),
+기존 "유휴 sway는 진행률을 바꾸지 않는다" 불변식(REVIEW #10, `trackRenderer.test.ts`
+434행)과 충돌하지 않는다.
+
+**검증**: `tests/trackRenderer-pit-motion.test.ts`를 새 계약(피트 정지)에 맞게 갱신하고,
+`tests/trackRenderer.test.ts`에 무통신 차량의 결정론적 저속 이동 회귀를 추가했다(수정
+전 실패 확인). 전체 `npx vitest run --no-file-parallelism` **57 files / 898 tests**
+통과, `tsc --noEmit` 0 오류, `npm run build:single` 5,464.0 kB, `git diff --check` 0.
+broadcast WIP 파일은 건드리지 않았다.
