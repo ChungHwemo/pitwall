@@ -84,14 +84,30 @@ export class SettingsPanel {
     toggle.type = 'button';
     toggle.textContent = '설정';
     toggle.title = '배속·하이라이트 같은 조작판';
+    toggle.setAttribute('aria-controls', 'settings-body');
+    toggle.setAttribute('aria-expanded', 'false');
+    const setOpen = (open: boolean): void => {
+      shell.setAttribute('data-open', String(open));
+      toggle.setAttribute('aria-expanded', String(open));
+    };
     toggle.addEventListener('click', () => {
       const open = shell.getAttribute('data-open') === 'true';
-      shell.setAttribute('data-open', open ? 'false' : 'true');
+      setOpen(!open);
       if (!open) opts.onOpen?.();
     });
 
     const root = document.createElement('div');
     root.className = 'settings-body';
+    root.id = 'settings-body';
+    new MutationObserver(() => {
+      toggle.setAttribute('aria-expanded', String(shell.getAttribute('data-open') === 'true'));
+    }).observe(shell, { attributes: true, attributeFilter: ['data-open'] });
+    shell.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && shell.getAttribute('data-open') === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
 
     // 프리셋은 시뮬레이터 전용이다. 기록을 재생 중일 때 띄워두면 아무 효과가
     // 없는 조작판이 되어, 눌러도 안 바뀌는 것을 고장으로 읽게 된다.

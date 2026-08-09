@@ -186,6 +186,43 @@ describe('설명과 노출', () => {
     expect(host.querySelector('.settings-body')).not.toBeNull();
   });
 
+  it('버튼이 본문과 열린 상태를 ARIA로 연결하고 외부 닫힘도 따라간다', async () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    const shell = host.querySelector<HTMLElement>('.settings');
+    const toggle = host.querySelector<HTMLButtonElement>('.settings-toggle');
+    const body = host.querySelector<HTMLElement>('.settings-body');
+    if (!shell || !toggle || !body) throw new Error('설정 토글 구조를 찾지 못했다');
+
+    expect(body.id).toBe('settings-body');
+    expect(toggle.getAttribute('aria-controls')).toBe(body.id);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    shell.setAttribute('data-open', 'true');
+    await Promise.resolve();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+    shell.setAttribute('data-open', 'false');
+    await Promise.resolve();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('Escape는 설정을 닫고 토글로 포커스를 돌린다', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    const shell = host.querySelector<HTMLElement>('.settings');
+    const toggle = host.querySelector<HTMLButtonElement>('.settings-toggle');
+    if (!shell || !toggle) throw new Error('설정 토글 구조를 찾지 못했다');
+
+    toggle.focus();
+    toggle.click();
+    toggle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    expect(shell.getAttribute('data-open')).toBe('false');
+    expect(document.activeElement).toBe(toggle);
+  });
+
   it('모든 조작에 설명이 붙는다 — 이름만으로는 뭘 하는지 모른다', () => {
     const host = document.createElement('div');
     new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });

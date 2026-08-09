@@ -19,8 +19,10 @@ const ROWS: [string, string, string?][] = [
   ['PIT · ERR', '방금 호출이 실패했다'],
   ['한 바퀴', '작업 토큰 5만. 캐시 재전송은 거리에 안 든다'],
   ['한도', '벤더가 거는 벽 (5시간·7일). 연료가 아니라 별개 축이다'],
-  ['막대 색', '모델 등급 — 빨강 상위 · 파랑 주력 · 노랑 경량'],
-  ['밝기', '지금 태우는 속도. 위치는 누적이라 속도를 못 말한다'],
+  ['H', '상위 · 빨간 삼각형', 'class-h'],
+  ['P', '주력 · 파란 원', 'class-p'],
+  ['GT', '경량 · 보라 사각형', 'class-gt'],
+  ['밝기', '밝기는 현재 속도. 위치는 누적값.'],
 ];
 
 export class Legend {
@@ -38,14 +40,21 @@ export class Legend {
     toggle.type = 'button';
     toggle.textContent = '범례';
     toggle.title = '화면의 표시가 무엇을 뜻하는지';
+    toggle.setAttribute('aria-controls', 'legend-body');
+    toggle.setAttribute('aria-expanded', 'false');
+    const setOpen = (open: boolean): void => {
+      root.setAttribute('data-open', String(open));
+      toggle.setAttribute('aria-expanded', String(open));
+    };
     toggle.addEventListener('click', () => {
       const open = root.getAttribute('data-open') === 'true';
-      root.setAttribute('data-open', open ? 'false' : 'true');
+      setOpen(!open);
       if (!open) onOpen?.();
     });
 
     const body = document.createElement('dl');
     body.className = 'legend-body';
+    body.id = 'legend-body';
     for (const [term, meaning, sample] of ROWS) {
       const dt = document.createElement('dt');
       dt.textContent = term;
@@ -54,6 +63,16 @@ export class Legend {
       dd.textContent = meaning;
       body.append(dt, dd);
     }
+
+    new MutationObserver(() => {
+      toggle.setAttribute('aria-expanded', String(root.getAttribute('data-open') === 'true'));
+    }).observe(root, { attributes: true, attributeFilter: ['data-open'] });
+    root.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && root.getAttribute('data-open') === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
 
     root.append(toggle, body);
     container.appendChild(root);

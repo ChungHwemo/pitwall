@@ -329,6 +329,22 @@ describe('설정·범례 패널은 화면에 고정되고 뷰포트를 넘지 �
     // right <= subtrahend  ⇔  left = subtrahend - right >= 0, 어떤 뷰포트 폭에서도.
     expect(rightRem).toBeLessThanOrEqual(maxWidthSubtrahendRem);
   });
+
+  it('901px 이상에서는 방송 포커스 카드 아래에서 연다', () => {
+    const desktop = mediaBlock('(min-width: 901px)');
+    const desktopBody = ruleBodyIn(desktop, '.legend-body, .settings-body');
+    expect(rem(decl(desktopBody, 'top'))).toBeGreaterThan(rem(decl(sharedBody, 'top')));
+  });
+});
+
+describe('설정·범례 토글은 텍스트와 장식 아이콘을 함께 보인다', () => {
+  it('기존 로컬 레이더·공구 자산만 CSS 마스크로 쓴다', () => {
+    expect(decl(ruleBody('.legend-toggle::before'), 'mask')).toContain('../assets/broadcast/radar.svg');
+    expect(decl(ruleBody('.settings-toggle::before'), 'mask')).toContain('../assets/f1/tabler/tool.svg');
+    expect(decl(ruleBody('.legend-toggle::before'), '-webkit-mask')).toContain('../assets/broadcast/radar.svg');
+    expect(decl(ruleBody('.settings-toggle::before'), '-webkit-mask')).toContain('../assets/f1/tabler/tool.svg');
+    expect(decl(ruleBody('.legend-body dt[data-sample="class-gt"]::before'), 'background')).toBe('var(--pw-class-gt)');
+  });
 });
 
 describe('망가진 저장 설정이 화면을 죽이지 않는다', () => {

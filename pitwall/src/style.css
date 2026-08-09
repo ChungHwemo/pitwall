@@ -33,6 +33,7 @@
   --pw-text-muted: #9fb3c8;
   --pw-quiet-graphic: #55636f;
   --pw-caution: #ff5c5c;
+  --pw-class-gt: #c084fc;
   --pw-space-5: 0.75rem;
   /*
    * 타워 한 줄이 실제로 차지하는 폭. `.tower-row`의 고정 칸 합이다.
@@ -314,6 +315,18 @@ body {
   cursor: pointer;
 }
 .legend-toggle:hover, .settings-toggle:hover { color: #e6edf3; border-color: #4dc3ff; }
+.legend-toggle::before, .settings-toggle::before {
+  content: ''; display: inline-block; width: 0.85rem; height: 0.85rem;
+  margin-inline-end: 0.3rem; vertical-align: -0.18em; background: currentColor;
+}
+.legend-toggle::before {
+  mask: url('../assets/broadcast/radar.svg') no-repeat center / contain;
+  -webkit-mask: url('../assets/broadcast/radar.svg') no-repeat center / contain;
+}
+.settings-toggle::before {
+  mask: url('../assets/f1/tabler/tool.svg') no-repeat center / contain;
+  -webkit-mask: url('../assets/f1/tabler/tool.svg') no-repeat center / contain;
+}
 .legend[data-open="false"] .legend-body,
 .settings[data-open="false"] .settings-body { display: none; }
 /*
@@ -334,6 +347,9 @@ body {
   font-size: 0.72rem; line-height: 1.45; backdrop-filter: blur(6px);
   max-width: calc(100vw - 1.2rem);
 }
+@media (min-width: 901px) {
+  .legend-body, .settings-body { top: 8rem; }
+}
 .legend-body {
   width: 26rem; display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem;
 }
@@ -346,7 +362,15 @@ body {
 .legend-body dt[data-sample="syncing"]::before { border-color: var(--pw-accent); }
 .legend-body dt[data-sample="stale"]::before { border-color: var(--pw-quiet-graphic); border-style: dotted; }
 .legend-body dt[data-sample="connected"]::before { border-color: var(--pw-positive); }
-.legend-body dd { margin: 0; color: #9fb3c8; }
+.legend-body dt[data-sample="class-h"]::before {
+  background: var(--pw-caution); border-color: var(--pw-caution); border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.legend-body dt[data-sample="class-p"]::before { background: var(--pw-accent); border-color: var(--pw-accent); }
+.legend-body dt[data-sample="class-gt"]::before {
+  background: var(--pw-class-gt); border-color: var(--pw-class-gt); border-radius: 0;
+}
+.legend-body dd { margin: 0; color: #9fb3c8; word-break: keep-all; }
 /* 세로로 쌓는다. 가로로 두면 접은 이유(폭이 모자람)를 판 안에서 반복한다. */
 .settings-body { display: flex; flex-direction: column; gap: 0.55rem; }
 
