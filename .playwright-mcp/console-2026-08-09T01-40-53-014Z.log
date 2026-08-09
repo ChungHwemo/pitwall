@@ -1,0 +1,7 @@
+[   78617ms] ReferenceError: carDisplayName is not defined
+    at http://127.0.0.1:5173/src/render/radioRenderer.ts?t=1786239731009:60:22
+    at Array.forEach (<anonymous>)
+    at RadioRenderer.render (http://127.0.0.1:5173/src/render/radioRenderer.ts?t=1786239731009:41:14)
+    at PitwallApp.render (http://127.0.0.1:5173/src/main.ts?t=1786239731009:447:22)
+    at PitwallApp.frame (http://127.0.0.1:5173/src/main.ts?t=1786239731009:330:8)
+    at loop (http://127.0.0.1:5173/src/browser.ts?t=1786239731009:129:8)

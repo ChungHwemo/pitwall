@@ -1,0 +1,228 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 13:03 ⏱ 01:03:00 / 04:00:00
+    - generic [ref=e6]: $33.36 · $66.7/시간 · 105.1k tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █▁
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모"
+        - option "데모 · 중규모"
+        - option "데모 · 대규모" [selected]
+      - generic [ref=e12]: 지어낸 데이터
+    - button "설정" [ref=e14] [cursor=pointer]
+    - button "범례" [ref=e16] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "82 ▁█▅▁ 52% · 5시간창 $1.89 RUN" [ref=e239] [cursor=pointer]:
+        - generic [ref=e21]: "82"
+        - generic [ref=e25]: ▁█▅▁
+        - generic [ref=e29]: 52% · 5시간창
+        - generic [ref=e31]: $1.89
+        - generic [ref=e33]: RUN
+      - button "135 █ 35% · 5시간창 $0.01 RUN" [ref=e240] [cursor=pointer]:
+        - generic [ref=e36]: "135"
+        - generic [ref=e40]: █
+        - generic [ref=e44]: 35% · 5시간창
+        - generic [ref=e46]: $0.01
+        - generic [ref=e48]: RUN
+      - button "289 ▁▇▆█ ▃▃ 56% · 5시간창 $4.34 RUN" [ref=e241] [cursor=pointer]:
+        - generic [ref=e51]: "289"
+        - generic [ref=e55]: ▁▇▆█ ▃▃
+        - generic [ref=e59]: 56% · 5시간창
+        - generic [ref=e61]: $4.34
+        - generic [ref=e63]: RUN
+      - button "364 █ ▃ 67% · 5시간창 $0.46 RUN" [ref=e242] [cursor=pointer]:
+        - generic [ref=e66]: "364"
+        - generic [ref=e70]: █ ▃
+        - generic [ref=e73]: 67% · 5시간창
+        - generic [ref=e75]: $0.46
+        - generic [ref=e77]: RUN
+      - button "481 ▅█▁ ▆ 78% · 5시간창 $4.68 RUN" [ref=e243] [cursor=pointer]:
+        - generic [ref=e80]: "481"
+        - generic [ref=e84]: ▅█▁ ▆
+        - generic [ref=e87]: 78% · 5시간창
+        - generic [ref=e89]: $4.68
+        - generic [ref=e91]: RUN
+      - button "503 ▃▁▁▃▃ ▁█ 59% · 7일창 $1.74 RUN" [ref=e244] [cursor=pointer]:
+        - generic [ref=e94]: "503"
+        - generic [ref=e98]: ▃▁▁▃▃ ▁█
+        - generic [ref=e102]: 59% · 7일창
+        - generic [ref=e104]: $1.74
+        - generic [ref=e106]: RUN
+      - button "540 ▁▃█▄▅ 0% · 7일창 $3.20 PIT · LIM" [pressed] [ref=e245] [cursor=pointer]:
+        - generic [ref=e165]: "540"
+        - generic [ref=e169]: ▁▃█▄▅
+        - generic [ref=e172]: 0% · 7일창
+        - generic [ref=e174]: $3.20
+        - generic [ref=e176]: PIT · LIM
+      - button "581 ▃█▂▆▁ 36% · 5시간창 $9.56 PIT · ERR" [ref=e246] [cursor=pointer]:
+        - generic [ref=e179]: "581"
+        - generic [ref=e183]: ▃█▂▆▁
+        - generic [ref=e187]: 36% · 5시간창
+        - generic [ref=e189]: $9.56
+        - generic [ref=e191]: PIT · ERR
+      - button "679 █▂▃▂▁▁▁ 0% · 7일창 $4.88 PIT · LIM" [ref=e247] [cursor=pointer]:
+        - generic [ref=e219]: "679"
+        - generic [ref=e223]: █▂▃▂▁▁▁
+        - generic [ref=e227]: 0% · 7일창
+        - generic [ref=e229]: $4.88
+        - generic [ref=e231]: PIT · LIM
+      - button "710 ▁█ ▅ 0% · 5시간창 $1.90 PIT · LIM" [ref=e248] [cursor=pointer]:
+        - generic [ref=e250]: "710"
+        - generic [ref=e251]: ▁█ ▅
+        - generic [ref=e254]: 0% · 5시간창
+        - generic [ref=e256]: $1.90
+        - generic [ref=e257]: PIT · LIM
+      - button "779 █ 53% · 5시간창 $0.09 RUN" [ref=e258] [cursor=pointer]:
+        - generic [ref=e260]: "779"
+        - generic [ref=e261]: █
+        - generic [ref=e265]: 53% · 5시간창
+        - generic [ref=e267]: $0.09
+        - generic [ref=e268]: RUN
+      - button "789 █▁ 4% · 7일창 $0.48 PIT · LIM" [ref=e269] [cursor=pointer]:
+        - generic [ref=e271]: "789"
+        - generic [ref=e272]: █▁
+        - generic [ref=e276]: 4% · 7일창
+        - generic [ref=e278]: $0.48
+        - generic [ref=e279]: PIT · LIM
+      - button "874 █ ▂ 85% · 5시간창 $0.13 RUN" [ref=e280] [cursor=pointer]:
+        - generic [ref=e282]: "874"
+        - generic [ref=e283]: █ ▂
+        - generic [ref=e287]: 85% · 5시간창
+        - generic [ref=e289]: $0.13
+        - generic [ref=e290]: RUN
+      - generic [ref=e107]: 계정 13 · 468콜 · 캐시 96% · $33.36 · $217.39 아낌
+    - generic [ref=e109]:
+      - generic [ref=e110]: 모델별 오늘
+      - generic [ref=e111]:
+        - generic [ref=e112]: claude-opus-5
+        - generic [ref=e115]: 119콜 · 708.6k · $14.29
+      - generic [ref=e116]:
+        - generic [ref=e117]: claude-sonnet-5
+        - generic [ref=e120]: 214콜 · 1.1M · $11.36
+      - generic [ref=e121]:
+        - generic [ref=e122]: gpt-5.6-luna
+        - generic [ref=e125]: 88콜 · 1.1M · $3.21
+      - generic [ref=e192]:
+        - generic [ref=e193]: claude-opus-4-8
+        - generic [ref=e196]: 20콜 · 77.9k · $1.84
+      - generic [ref=e232]:
+        - generic [ref=e233]: gpt-5.5
+        - generic [ref=e236]: 21콜 · 90.3k · $1.74
+      - generic [ref=e291]:
+        - generic [ref=e292]: claude-fable-5
+        - generic [ref=e295]: 4콜 · 9.6k · $0.59
+      - generic [ref=e296]: 그 외 1종 · $0.33
+  - generic [ref=e126]:
+    - generic [ref=e127]: FOCUS 540 · LIMIT · 666,235 tok/min · EVENT 00:00:10 · FRESH
+    - generic [ref=e128]:
+      - generic [ref=e297]:
+        - generic [ref=e298]: "#540"
+        - generic [ref=e299]: gpt-5.6-sol
+        - generic "openai" [ref=e300]: Op
+      - generic [ref=e301]:
+        - img [ref=e302]
+        - generic [ref=e306]: 12:57:37
+        - generic [ref=e307]: 5.6-sol
+        - generic [ref=e308]: —
+        - generic [ref=e309]: 3.8k · 443.5k
+      - generic [ref=e310]:
+        - img [ref=e311]
+        - generic [ref=e315]: 12:57:35
+        - generic [ref=e316]: sonnet-5
+        - generic [ref=e317]: —
+        - generic [ref=e318]: 298.75 · 56.3k
+      - generic [ref=e319]:
+        - img [ref=e320]
+        - generic [ref=e324]: 12:57:32
+        - generic [ref=e325]: sonnet-5
+        - generic [ref=e326]: —
+        - generic [ref=e327]: 3.2k · 45.4k
+      - generic [ref=e328]:
+        - img [ref=e329]
+        - generic [ref=e333]: 12:57:32
+        - generic [ref=e334]: sonnet-5
+        - generic [ref=e335]: —
+        - generic [ref=e336]: 4.5k · 255.4k
+      - generic [ref=e337]:
+        - img [ref=e338]
+        - generic [ref=e342]: 12:57:29
+        - generic [ref=e343]: sonnet-5
+        - generic [ref=e344]: deep-research
+        - generic [ref=e345]: 537.5 · 193.4k
+      - generic [ref=e346]:
+        - img [ref=e347]
+        - generic [ref=e351]: 12:57:21
+        - generic [ref=e352]: sonnet-5
+        - generic [ref=e353]: —
+        - generic [ref=e354]: 1.5k · 28.9k
+      - generic [ref=e355]:
+        - img [ref=e356]
+        - generic [ref=e360]: 12:56:55
+        - generic [ref=e361]: sonnet-5
+        - generic [ref=e362]: —
+        - generic [ref=e363]: 4.2k · 325.5k
+      - generic [ref=e364]:
+        - img [ref=e365]
+        - generic [ref=e369]: 12:56:44
+        - generic [ref=e370]: sonnet-5
+        - generic [ref=e371]: —
+        - generic [ref=e372]: 4.9k · 143.4k
+      - generic [ref=e373]:
+        - img [ref=e374]
+        - generic [ref=e378]: 12:56:43
+        - generic [ref=e379]: sonnet-5
+        - generic [ref=e380]: —
+        - generic [ref=e381]: 8.9k · 35.2k
+      - generic [ref=e382]:
+        - img [ref=e383]
+        - generic [ref=e387]: 12:56:41
+        - generic [ref=e388]: sonnet-5
+        - generic [ref=e389]: —
+        - generic [ref=e390]: 507.5 · 122.7k
+      - generic [ref=e391]:
+        - img [ref=e392]
+        - generic [ref=e396]: 12:56:39
+        - generic [ref=e397]: sonnet-5
+        - generic [ref=e398]: —
+        - generic [ref=e399]: 7.0k · 96.2k
+      - generic [ref=e400]:
+        - img [ref=e401]
+        - generic [ref=e405]: 12:56:37
+        - generic [ref=e406]: sonnet-5
+        - generic [ref=e407]: —
+        - generic [ref=e408]: 1.3k · 19.2k
+    - img [ref=e130]:
+      - generic [ref=e135]:
+        - generic [ref=e136] [cursor=pointer]:
+          - img
+        - generic [ref=e140] [cursor=pointer]:
+          - img
+        - generic [ref=e144] [cursor=pointer]:
+          - img
+        - generic [ref=e146] [cursor=pointer]:
+          - img
+        - generic [ref=e148] [cursor=pointer]:
+          - img
+        - generic [ref=e152] [cursor=pointer]:
+          - img
+        - generic [ref=e197] [cursor=pointer]:
+          - img
+        - generic [ref=e201] [cursor=pointer]:
+          - img
+        - generic [ref=e237] [cursor=pointer]:
+          - img
+        - generic [ref=e409] [cursor=pointer]:
+          - img
+        - generic [ref=e411] [cursor=pointer]:
+          - img
+        - generic [ref=e413] [cursor=pointer]:
+          - img
+        - generic [ref=e415] [cursor=pointer]:
+          - img
+  - generic [ref=e154]:
+    - generic [ref=e155]: "#710 — 스킬 — insane-search:insane-search"
+    - generic [ref=e204]: "#679 — 모델 교체 — gpt-5.6-luna → claude-sonnet-5"
+    - generic [ref=e205]: "#481 — 스킬 — cainz-project-context"

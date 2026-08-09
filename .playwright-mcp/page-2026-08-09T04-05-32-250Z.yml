@@ -1,0 +1,35 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 12:51 ⏱ 00:51:00 / 04:00:00
+    - generic [ref=e6]: $0.01 · $0.0/시간 · 167 tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모"
+        - option "데모 · 중규모"
+        - option "데모 · 대규모" [selected]
+      - generic [ref=e12]: 지어낸 데이터
+    - button "설정" [ref=e14] [cursor=pointer]
+    - button "범례" [ref=e16] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "540 0% · 7일창 $0.01 $0.0/시간 · 167 tok/분 PIT · LIM" [ref=e19] [cursor=pointer]:
+        - generic "540" [ref=e21]
+        - generic [ref=e24]: 0% · 7일창
+        - generic [ref=e25]:
+          - generic [ref=e26]: $0.01
+          - generic [ref=e27]: $0.0/시간 · 167 tok/분
+        - generic [ref=e28]: PIT · LIM
+      - generic [ref=e29]: 계정 1 · 1콜 · 캐시 70% · $0.01 · $0.02 아낌
+    - generic [ref=e31]:
+      - generic [ref=e32]: 모델별 오늘
+      - generic [ref=e33]:
+        - generic [ref=e34]: claude-sonnet-5
+        - generic [ref=e37]: 1콜 · 5.0k · $0.01
+  - generic [ref=e38]:
+    - generic [ref=e39]: FOCUS 540 · LIMIT · 0 tok/min · EVENT 00:00:00 · FRESH
+    - img [ref=e40]:
+      - generic [ref=e46] [cursor=pointer]:
+        - img

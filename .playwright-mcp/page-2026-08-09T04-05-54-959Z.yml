@@ -1,0 +1,210 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 13:02 ⏱ 01:02:00 / 04:00:00
+    - generic [ref=e6]: $32.07 · $64.1/시간 · 102.5k tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █▁
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모"
+        - option "데모 · 중규모"
+        - option "데모 · 대규모" [selected]
+      - generic [ref=e12]: 지어낸 데이터
+    - generic [ref=e13]:
+      - button "설정" [active] [ref=e14] [cursor=pointer]
+      - generic [ref=e279]:
+        - generic "재생 속도. 1× = 실제 시간, 20× = 72분에 하루, 30× = 48분에 하루, 100× = 14.4분에 하루." [ref=e280]:
+          - generic [ref=e281]: 배속
+          - combobox "배속" [ref=e282]:
+            - option "1×"
+            - option "20×"
+            - option "30×" [selected]
+            - option "100×"
+        - generic "어떤 사건을 개별 추적할지. 끄면 그 사건이 나도 차를 세우지 않는다." [ref=e283]:
+          - generic [ref=e284]: 하이라이트
+          - generic "호출이 실패한 차를 피트로 보낸다." [ref=e285] [cursor=pointer]:
+            - checkbox "에러" [checked] [ref=e286]
+            - generic [ref=e287]: 에러
+          - generic "한도 창이 바닥난 차를 피트로 보낸다." [ref=e288] [cursor=pointer]:
+            - checkbox "한도" [checked] [ref=e289]
+            - generic [ref=e290]: 한도
+        - generic "화면에 보이는 계정에 이름을 붙인다. 비우면 카넘버로 표시된다. 이 기기에만 저장된다 (PRIV-6)." [ref=e291]:
+          - generic [ref=e292]: 계정 이름
+          - generic [ref=e293]:
+            - generic [ref=e294]:
+              - generic [ref=e295]: "#082"
+              - textbox "#082" [ref=e296]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e297]:
+              - generic [ref=e298]: "#135"
+              - textbox "#135" [ref=e299]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e300]:
+              - generic [ref=e301]: "#289"
+              - textbox "#289" [ref=e302]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e303]:
+              - generic [ref=e304]: "#364"
+              - textbox "#364" [ref=e305]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e306]:
+              - generic [ref=e307]: "#481"
+              - textbox "#481" [ref=e308]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e309]:
+              - generic [ref=e310]: "#503"
+              - textbox "#503" [ref=e311]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e312]:
+              - generic [ref=e313]: "#540"
+              - textbox "#540" [ref=e314]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e315]:
+              - generic [ref=e316]: "#581"
+              - textbox "#581" [ref=e317]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e318]:
+              - generic [ref=e319]: "#679"
+              - textbox "#679" [ref=e320]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e321]:
+              - generic [ref=e322]: "#710"
+              - textbox "#710" [ref=e323]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e324]:
+              - generic [ref=e325]: "#779"
+              - textbox "#779" [ref=e326]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e327]:
+              - generic [ref=e328]: "#789"
+              - textbox "#789" [ref=e329]:
+                - /placeholder: 카넘버 표시
+            - generic [ref=e330]:
+              - generic [ref=e331]: "#874"
+              - textbox "#874" [ref=e332]:
+                - /placeholder: 카넘버 표시
+    - button "범례" [ref=e16] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "82 52% · 5시간창 $1.89 RUN" [ref=e230] [cursor=pointer]:
+        - generic "82" [ref=e52]
+        - generic [ref=e24]: 52% · 5시간창
+        - generic [ref=e26]: $1.89
+        - generic [ref=e28]: RUN
+      - button "135 35% · 5시간창 $0.01 RUN" [ref=e231] [cursor=pointer]:
+        - generic "135" [ref=e232]
+        - generic [ref=e60]: 35% · 5시간창
+        - generic [ref=e62]: $0.01
+        - generic [ref=e64]: RUN
+      - button "289 56% · 5시간창 $4.34 RUN" [ref=e333] [cursor=pointer]:
+        - generic "289" [ref=e234]
+        - generic [ref=e71]: 56% · 5시간창
+        - generic [ref=e73]: $4.34
+        - generic [ref=e75]: RUN
+      - button "364 67% · 5시간창 $0.46 RUN" [ref=e235] [cursor=pointer]:
+        - generic "364" [ref=e236]
+        - generic [ref=e82]: 67% · 5시간창
+        - generic [ref=e84]: $0.46
+        - generic [ref=e86]: RUN
+      - button "481 78% · 5시간창 $3.74 RUN" [ref=e334] [cursor=pointer]:
+        - generic "481" [ref=e238]
+        - generic [ref=e93]: 78% · 5시간창
+        - generic [ref=e95]: $3.74
+        - generic [ref=e97]: RUN
+      - button "503 59% · 7일창 $1.48 RUN" [ref=e335] [cursor=pointer]:
+        - generic "503" [ref=e240]
+        - generic [ref=e103]: 59% · 7일창
+        - generic [ref=e105]: $1.48
+        - generic [ref=e107]: RUN
+      - button "540 0% · 7일창 $3.20 PIT · LIM" [ref=e242] [cursor=pointer]:
+        - generic "540" [ref=e243]
+        - generic [ref=e114]: 0% · 7일창
+        - generic [ref=e116]: $3.20
+        - generic [ref=e118]: PIT · LIM
+      - button "581 36% · 5시간창 $9.56 PIT · ERR" [ref=e336] [cursor=pointer]:
+        - generic "581" [ref=e245]
+        - generic [ref=e124]: 36% · 5시간창
+        - generic [ref=e126]: $9.56
+        - generic [ref=e128]: PIT · ERR
+      - button "679 0% · 7일창 $4.88 PIT · LIM" [ref=e337] [cursor=pointer]:
+        - generic "679" [ref=e248]
+        - generic [ref=e134]: 0% · 7일창
+        - generic [ref=e136]: $4.88
+        - generic [ref=e138]: PIT · LIM
+      - button "710 0% · 5시간창 $1.80 PIT · LIM" [ref=e338] [cursor=pointer]:
+        - generic "710" [ref=e250]
+        - generic [ref=e145]: 0% · 5시간창
+        - generic [ref=e147]: $1.80
+        - generic [ref=e149]: PIT · LIM
+      - button "779 53% · 5시간창 $0.09 RUN" [ref=e339] [cursor=pointer]:
+        - generic "779" [ref=e340]
+        - generic [ref=e257]: 53% · 5시간창
+        - generic [ref=e259]: $0.09
+        - generic [ref=e260]: RUN
+      - button "789 4% · 7일창 $0.48 PIT · LIM" [ref=e341] [cursor=pointer]:
+        - generic "789" [ref=e342]
+        - generic [ref=e267]: 4% · 7일창
+        - generic [ref=e269]: $0.48
+        - generic [ref=e270]: PIT · LIM
+      - button "874 85% · 5시간창 $0.13 RUN" [ref=e343] [cursor=pointer]:
+        - generic "874" [ref=e345]
+        - generic [ref=e349]: 85% · 5시간창
+        - generic [ref=e351]: $0.13
+        - generic [ref=e352]: RUN
+      - generic [ref=e29]: 계정 13 · 459콜 · 캐시 96% · $32.07 · $208.51 아낌
+    - generic [ref=e31]:
+      - generic [ref=e32]: 모델별 오늘
+      - generic [ref=e33]:
+        - generic [ref=e34]: claude-opus-5
+        - generic [ref=e37]: 115콜 · 664.6k · $13.36
+      - generic [ref=e150]:
+        - generic [ref=e151]: claude-sonnet-5
+        - generic [ref=e154]: 212콜 · 1.1M · $11.27
+      - generic [ref=e155]:
+        - generic [ref=e156]: gpt-5.6-luna
+        - generic [ref=e159]: 88콜 · 1.1M · $3.21
+      - generic [ref=e160]:
+        - generic [ref=e161]: claude-opus-4-8
+        - generic [ref=e164]: 20콜 · 77.9k · $1.84
+      - generic [ref=e165]:
+        - generic [ref=e166]: gpt-5.5
+        - generic [ref=e169]: 18콜 · 83.8k · $1.48
+      - generic [ref=e170]:
+        - generic [ref=e171]: claude-fable-5
+        - generic [ref=e174]: 4콜 · 9.6k · $0.59
+      - generic [ref=e271]: 그 외 1종 · $0.33
+  - generic [ref=e38]:
+    - generic [ref=e39]: FOCUS 581 · ERROR · 730,454 tok/min · EVENT 00:00:05 · FRESH
+    - img [ref=e40]:
+      - generic [ref=e45]:
+        - generic [ref=e46] [cursor=pointer]:
+          - img
+        - generic [ref=e175] [cursor=pointer]:
+          - img
+        - generic [ref=e179] [cursor=pointer]:
+          - img
+        - generic [ref=e181] [cursor=pointer]:
+          - img
+        - generic [ref=e183] [cursor=pointer]:
+          - img
+        - generic [ref=e187] [cursor=pointer]:
+          - img
+        - generic [ref=e189] [cursor=pointer]:
+          - img
+        - generic [ref=e193] [cursor=pointer]:
+          - img
+        - generic [ref=e196] [cursor=pointer]:
+          - img
+        - generic [ref=e198] [cursor=pointer]:
+          - img
+        - generic [ref=e272] [cursor=pointer]:
+          - img
+        - generic [ref=e274] [cursor=pointer]:
+          - img
+        - generic [ref=e276] [cursor=pointer]:
+          - img
+  - generic [ref=e50]:
+    - generic [ref=e200]: "#710 — 스킬 — insane-search:insane-search"
+    - generic [ref=e201]: "#679 — 모델 교체 — gpt-5.6-luna → claude-sonnet-5"
+    - generic [ref=e202]: "#481 — 스킬 — cainz-project-context"

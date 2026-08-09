@@ -1,0 +1,161 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 12:59 ⏱ 00:59:00 / 04:00:00
+    - generic [ref=e6]: $28.74 · $57.5/시간 · 94.5k tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모"
+        - option "데모 · 중규모"
+        - option "데모 · 대규모" [selected]
+      - generic [ref=e12]: 지어낸 데이터
+    - button "설정" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - button "범례" [active] [ref=e16] [cursor=pointer]
+      - generic [ref=e203]:
+        - term [ref=e204]: FRESH
+        - definition [ref=e205]: 30초까지 최근 수신
+        - term [ref=e206]: QUIET
+        - definition [ref=e207]: 30초 초과, 5분까지 조용함
+        - term [ref=e208]: STALE
+        - definition [ref=e209]: 5분 넘게 새 데이터가 없음
+        - term [ref=e210]: CONNECTED
+        - definition [ref=e211]: 실시간 소스가 최근 데이터를 처리함
+        - term [ref=e212]: SYNCING
+        - definition [ref=e213]: 실시간 소스가 실제 대기열을 처리 중
+        - term [ref=e214]: RUN
+        - definition [ref=e215]: 최근에 호출이 있었다
+        - term [ref=e216]: IDLE
+        - definition [ref=e217]: 5분 넘게 조용하다. 트랙에는 흐리게 남는다
+        - term [ref=e218]: PIT · LIM
+        - definition [ref=e219]: 한도 창이 바닥나 더 못 간다
+        - term [ref=e220]: PIT · ERR
+        - definition [ref=e221]: 방금 호출이 실패했다
+        - term [ref=e222]: 한 바퀴
+        - definition [ref=e223]: 작업 토큰 5만. 캐시 재전송은 거리에 안 든다
+        - term [ref=e224]: 한도
+        - definition [ref=e225]: 벤더가 거는 벽 (5시간·7일). 연료가 아니라 별개 축이다
+        - term [ref=e226]: 막대 색
+        - definition [ref=e227]: 모델 등급 — 빨강 상위 · 파랑 주력 · 노랑 경량
+        - term [ref=e228]: 밝기
+        - definition [ref=e229]: 지금 태우는 속도. 위치는 누적이라 속도를 못 말한다
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "82 52% · 5시간창 $1.89 RUN" [ref=e230] [cursor=pointer]:
+        - generic "82" [ref=e52]
+        - generic [ref=e24]: 52% · 5시간창
+        - generic [ref=e26]: $1.89
+        - generic [ref=e28]: RUN
+      - button "135 35% · 5시간창 $0.01 RUN" [ref=e231] [cursor=pointer]:
+        - generic "135" [ref=e232]
+        - generic [ref=e60]: 35% · 5시간창
+        - generic [ref=e62]: $0.01
+        - generic [ref=e64]: RUN
+      - button "289 56% · 5시간창 $4.21 RUN" [ref=e233] [cursor=pointer]:
+        - generic "289" [ref=e234]
+        - generic [ref=e71]: 56% · 5시간창
+        - generic [ref=e73]: $4.21
+        - generic [ref=e75]: RUN
+      - button "364 67% · 5시간창 $0.46 RUN" [ref=e235] [cursor=pointer]:
+        - generic "364" [ref=e236]
+        - generic [ref=e82]: 67% · 5시간창
+        - generic [ref=e84]: $0.46
+        - generic [ref=e86]: RUN
+      - button "481 78% · 5시간창 $2.65 RUN" [ref=e237] [cursor=pointer]:
+        - generic "481" [ref=e238]
+        - generic [ref=e93]: 78% · 5시간창
+        - generic [ref=e95]: $2.65
+        - generic [ref=e97]: RUN
+      - button "503 59% · 7일창 $0.75 RUN" [ref=e239] [cursor=pointer]:
+        - generic "503" [ref=e240]
+        - generic [ref=e103]: 59% · 7일창
+        - generic [ref=e105]: $0.75
+        - generic [ref=e107]: RUN
+      - button "540 0% · 7일창 $3.20 PIT · LIM" [ref=e242] [cursor=pointer]:
+        - generic "540" [ref=e243]
+        - generic [ref=e114]: 0% · 7일창
+        - generic [ref=e116]: $3.20
+        - generic [ref=e118]: PIT · LIM
+      - button "581 36% · 5시간창 $9.48 PIT · ERR" [ref=e244] [cursor=pointer]:
+        - generic "581" [ref=e245]
+        - generic [ref=e124]: 36% · 5시간창
+        - generic [ref=e126]: $9.48
+        - generic [ref=e128]: PIT · ERR
+      - button "679 0% · 7일창 $4.23 PIT · ERR" [ref=e247] [cursor=pointer]:
+        - generic "679" [ref=e248]
+        - generic [ref=e134]: 0% · 7일창
+        - generic [ref=e136]: $4.23
+        - generic [ref=e138]: PIT · ERR
+      - button "710 0% · 5시간창 $1.30 PIT · LIM" [ref=e249] [cursor=pointer]:
+        - generic "710" [ref=e250]
+        - generic [ref=e145]: 0% · 5시간창
+        - generic [ref=e147]: $1.30
+        - generic [ref=e149]: PIT · LIM
+      - button "789 4% · 7일창 $0.48 PIT · LIM" [ref=e251] [cursor=pointer]:
+        - generic "789" [ref=e253]
+        - generic [ref=e257]: 4% · 7일창
+        - generic [ref=e259]: $0.48
+        - generic [ref=e260]: PIT · LIM
+      - button "874 85% · 5시간창 $0.08 RUN" [ref=e261] [cursor=pointer]:
+        - generic "874" [ref=e263]
+        - generic [ref=e267]: 85% · 5시간창
+        - generic [ref=e269]: $0.08
+        - generic [ref=e270]: RUN
+      - generic [ref=e29]: 계정 12 · 399콜 · 캐시 96% · $28.74 · $186.70 아낌
+    - generic [ref=e31]:
+      - generic [ref=e32]: 모델별 오늘
+      - generic [ref=e33]:
+        - generic [ref=e34]: claude-opus-5
+        - generic [ref=e37]: 101콜 · 607.8k · $12.19
+      - generic [ref=e150]:
+        - generic [ref=e151]: claude-sonnet-5
+        - generic [ref=e154]: 190콜 · 983.3k · $10.40
+      - generic [ref=e155]:
+        - generic [ref=e156]: gpt-5.6-luna
+        - generic [ref=e159]: 76콜 · 1.1M · $2.79
+      - generic [ref=e160]:
+        - generic [ref=e161]: claude-opus-4-8
+        - generic [ref=e164]: 20콜 · 77.9k · $1.84
+      - generic [ref=e165]:
+        - generic [ref=e166]: gpt-5.5
+        - generic [ref=e169]: 8콜 · 41.8k · $0.75
+      - generic [ref=e170]:
+        - generic [ref=e171]: claude-fable-5
+        - generic [ref=e174]: 3콜 · 9.4k · $0.54
+      - generic [ref=e271]: 그 외 1종 · $0.24
+  - generic [ref=e38]:
+    - generic [ref=e39]: FOCUS 581 · ERROR · 1,006,834 tok/min · EVENT 00:00:00 · FRESH
+    - img [ref=e40]:
+      - generic [ref=e45]:
+        - generic [ref=e46] [cursor=pointer]:
+          - img
+        - generic [ref=e175] [cursor=pointer]:
+          - img
+        - generic [ref=e179] [cursor=pointer]:
+          - img
+        - generic [ref=e181] [cursor=pointer]:
+          - img
+        - generic [ref=e183] [cursor=pointer]:
+          - img
+        - generic [ref=e187] [cursor=pointer]:
+          - img
+        - generic [ref=e189] [cursor=pointer]:
+          - img
+        - generic [ref=e193] [cursor=pointer]:
+          - img
+        - generic [ref=e196] [cursor=pointer]:
+          - img
+        - generic [ref=e198] [cursor=pointer]:
+          - img
+        - generic [ref=e272] [cursor=pointer]:
+          - img
+        - generic [ref=e274] [cursor=pointer]:
+          - img
+        - generic [ref=e276] [cursor=pointer]:
+          - img
+  - generic [ref=e50]:
+    - generic [ref=e200]: "#581 — 스킬 — cainz-project-context"
+    - generic [ref=e201]: "#581 — 스킬 — resolving-merge-conflicts"
+    - generic [ref=e202]: "#581 — 문제 발생 — 500"

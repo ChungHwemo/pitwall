@@ -1,0 +1,72 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 05:58 ⏱ 00:58:00 / 13:00:00
+    - generic [ref=e6]: $38.71 · $77.4/시간 · 50.0k tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모" [selected]
+        - option "데모 · 중규모"
+        - option "데모 · 대규모"
+      - generic [ref=e12]: 지어낸 데이터
+    - button "설정" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - button "범례" [active] [ref=e16] [cursor=pointer]
+      - generic [ref=e81]:
+        - term [ref=e82]: FRESH
+        - definition [ref=e83]: 30초까지 최근 수신
+        - term [ref=e84]: QUIET
+        - definition [ref=e85]: 30초 초과, 5분까지 조용함
+        - term [ref=e86]: STALE
+        - definition [ref=e87]: 5분 넘게 새 데이터가 없음
+        - term [ref=e88]: CONNECTED
+        - definition [ref=e89]: 실시간 소스가 최근 데이터를 처리함
+        - term [ref=e90]: SYNCING
+        - definition [ref=e91]: 실시간 소스가 실제 대기열을 처리 중
+        - term [ref=e92]: RUN
+        - definition [ref=e93]: 최근에 호출이 있었다
+        - term [ref=e94]: IDLE
+        - definition [ref=e95]: 5분 넘게 조용하다. 트랙에는 흐리게 남는다
+        - term [ref=e96]: PIT · LIM
+        - definition [ref=e97]: 한도 창이 바닥나 더 못 간다
+        - term [ref=e98]: PIT · ERR
+        - definition [ref=e99]: 방금 호출이 실패했다
+        - term [ref=e100]: 한 바퀴
+        - definition [ref=e101]: 작업 토큰 5만. 캐시 재전송은 거리에 안 든다
+        - term [ref=e102]: 한도
+        - definition [ref=e103]: 벤더가 거는 벽 (5시간·7일). 연료가 아니라 별개 축이다
+        - term [ref=e104]: 막대 색
+        - definition [ref=e105]: 모델 등급 — 빨강 상위 · 파랑 주력 · 노랑 경량
+        - term [ref=e106]: 밝기
+        - definition [ref=e107]: 지금 태우는 속도. 위치는 누적이라 속도를 못 말한다
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "290 An claude-fable-5 ▁▂▄▂█▂▁▁ 0% · 5시간창 $38.71 $77.4/시간 · 50.0k tok/분 PIT · LIM" [ref=e108] [cursor=pointer]:
+        - generic "290" [ref=e21]
+        - generic [ref=e22]:
+          - generic "anthropic" [ref=e23]: An
+          - generic "claude-fable-5" [ref=e24]
+        - generic [ref=e25]: ▁▂▄▂█▂▁▁
+        - generic [ref=e28]: 0% · 5시간창
+        - generic [ref=e29]:
+          - generic [ref=e30]: $38.71
+          - generic [ref=e31]: $77.4/시간 · 50.0k tok/분
+        - generic [ref=e32]: PIT · LIM
+      - generic [ref=e33]: 계정 1 · 143콜 · 캐시 93% · $38.71 · $189.87 아낌
+    - generic [ref=e35]:
+      - generic [ref=e36]: 모델별 오늘
+      - generic [ref=e37]:
+        - generic [ref=e38]: claude-fable-5
+        - generic [ref=e41]: 143콜 · 1.5M · $38.71
+  - generic [ref=e42]:
+    - generic [ref=e43]: FOCUS 290 · LIMIT · 476,375 tok/min · EVENT 00:00:03 · FRESH
+    - generic [ref=e45]: 트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다
+    - img [ref=e46]:
+      - generic [ref=e52] [cursor=pointer]:
+        - img
+  - generic [ref=e56]:
+    - generic [ref=e57]: "#290 — 스킬 — superpowers:brainstorming"
+    - generic [ref=e59]: "#290 — 스킬 — superpowers:systematic-debugging"
+    - generic [ref=e60]: "#290 — 스킬 — cainz-api-http"

@@ -1,0 +1,67 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 05:51 ⏱ 00:51:00 / 13:00:00
+    - generic [ref=e6]: $29.34 · $58.7/시간 · 40.7k tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모" [selected]
+        - option "데모 · 중규모"
+        - option "데모 · 대규모"
+      - generic [ref=e12]: 지어낸 데이터
+    - generic [ref=e13]:
+      - button "설정" [active] [ref=e14] [cursor=pointer]
+      - generic [ref=e61]:
+        - generic "재생 속도. 1× = 실제 시간, 20× = 72분에 하루, 30× = 48분에 하루, 100× = 14.4분에 하루." [ref=e62]:
+          - generic [ref=e63]: 배속
+          - combobox "배속" [ref=e64]:
+            - option "1×"
+            - option "20×"
+            - option "30×" [selected]
+            - option "100×"
+        - generic "어떤 사건을 개별 추적할지. 끄면 그 사건이 나도 차를 세우지 않는다." [ref=e65]:
+          - generic [ref=e66]: 하이라이트
+          - generic "호출이 실패한 차를 피트로 보낸다." [ref=e67] [cursor=pointer]:
+            - checkbox "에러" [checked] [ref=e68]
+            - generic [ref=e69]: 에러
+          - generic "한도 창이 바닥난 차를 피트로 보낸다." [ref=e70] [cursor=pointer]:
+            - checkbox "한도" [checked] [ref=e71]
+            - generic [ref=e72]: 한도
+        - generic "화면에 보이는 계정에 이름을 붙인다. 비우면 카넘버로 표시된다. 이 기기에만 저장된다 (PRIV-6)." [ref=e73]:
+          - generic [ref=e74]: 계정 이름
+          - generic [ref=e76]:
+            - generic [ref=e77]: "#290"
+            - textbox "#290" [ref=e78]:
+              - /placeholder: 카넘버 표시
+    - button "범례" [ref=e16] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "290 An claude-fable-5 ▁▂▄▂█ 0% · 5시간창 $29.34 $58.7/시간 · 40.7k tok/분 PIT · LIM" [ref=e79] [cursor=pointer]:
+        - generic "290" [ref=e21]
+        - generic [ref=e22]:
+          - generic "anthropic" [ref=e23]: An
+          - generic "claude-fable-5" [ref=e24]
+        - generic [ref=e25]: ▁▂▄▂█
+        - generic [ref=e28]: 0% · 5시간창
+        - generic [ref=e29]:
+          - generic [ref=e30]: $29.34
+          - generic [ref=e31]: $58.7/시간 · 40.7k tok/분
+        - generic [ref=e32]: PIT · LIM
+      - generic [ref=e33]: 계정 1 · 93콜 · 캐시 92% · $29.34 · $128.47 아낌
+    - generic [ref=e35]:
+      - generic [ref=e36]: 모델별 오늘
+      - generic [ref=e37]:
+        - generic [ref=e38]: claude-fable-5
+        - generic [ref=e41]: 93콜 · 1.2M · $29.34
+  - generic [ref=e42]:
+    - generic [ref=e43]: FOCUS 290 · LIMIT · 2,082,395 tok/min · EVENT 00:00:00 · FRESH
+    - generic [ref=e45]: 트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다
+    - img [ref=e46]:
+      - generic [ref=e52] [cursor=pointer]:
+        - img
+  - generic [ref=e56]:
+    - generic [ref=e57]: "#290 — 스킬 — deep-research"
+    - generic [ref=e59]: "#290 — 스킬 — cainz-project-context"
+    - generic [ref=e60]: "#290 — 스킬 — superpowers:brainstorming"

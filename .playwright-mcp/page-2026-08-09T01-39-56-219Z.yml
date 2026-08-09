@@ -1,0 +1,113 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 07/31 12:51 ⏱ 00:51:00 / 04:00:00
+    - generic [ref=e6]: $1.59 · $3.2/시간 · 7.0k tok/분
+    - generic [ref=e7]: RACING · DEMO
+    - generic "시간대별 작업 토큰 0–23시" [ref=e8]: █
+    - generic "화면이 무엇을 보여줄지 고른다. 실시간 — 지금 이 기기에서 나가는 호출. 네이티브 앱에서만 들어온다. 실기록 — 이 기기의 로그로 하루를 재생한다. 데모 — 지어낸 조직. 계정 수만 다르고 분포는 실측을 따랐다." [ref=e10]:
+      - combobox [ref=e11]:
+        - option "실시간"
+        - option "데모 · 소규모"
+        - option "데모 · 중규모"
+        - option "데모 · 대규모" [selected]
+      - generic [ref=e12]: 지어낸 데이터
+    - button "설정" [ref=e14] [cursor=pointer]
+    - button "범례" [ref=e16] [cursor=pointer]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - button "289 An claude-sonnet-5 █ 57% · 5시간창 $0.33 $0.7/시간 · 343 tok/분 RUN" [ref=e19] [cursor=pointer]:
+        - generic [ref=e21]: "289"
+        - generic [ref=e22]:
+          - generic "anthropic" [ref=e23]: An
+          - generic [ref=e24]: claude-sonnet-5
+        - generic [ref=e25]: █
+        - generic [ref=e29]: 57% · 5시간창
+        - generic [ref=e30]:
+          - generic [ref=e31]: $0.33
+          - generic [ref=e32]: $0.7/시간 · 343 tok/분
+        - generic [ref=e33]: RUN
+      - button "481 An claude-opus-5 █ 78% · 5시간창 $0.27 $0.5/시간 · 630 tok/분 RUN" [ref=e34] [cursor=pointer]:
+        - generic [ref=e36]: "481"
+        - generic [ref=e37]:
+          - generic "anthropic" [ref=e38]: An
+          - generic [ref=e39]: claude-opus-5
+        - generic [ref=e40]: █
+        - generic [ref=e44]: 78% · 5시간창
+        - generic [ref=e45]:
+          - generic [ref=e46]: $0.27
+          - generic [ref=e47]: $0.5/시간 · 630 tok/분
+        - generic [ref=e48]: RUN
+      - button "503 Op gpt-5.5 █ 42% · 7일창 $0.18 $0.4/시간 · 537 tok/분 RUN" [ref=e49] [cursor=pointer]:
+        - generic [ref=e51]: "503"
+        - generic [ref=e52]:
+          - generic "openai" [ref=e53]: Op
+          - generic [ref=e54]: gpt-5.5
+        - generic [ref=e55]: █
+        - generic [ref=e59]: 42% · 7일창
+        - generic [ref=e60]:
+          - generic [ref=e61]: $0.18
+          - generic [ref=e62]: $0.4/시간 · 537 tok/분
+        - generic [ref=e63]: RUN
+      - button "540 An claude-sonnet-5 █ 0% · 7일창 $0.14 $0.3/시간 · 610 tok/분 PIT · LIM" [ref=e64] [cursor=pointer]:
+        - generic [ref=e66]: "540"
+        - generic [ref=e67]:
+          - generic "anthropic" [ref=e68]: An
+          - generic [ref=e69]: claude-sonnet-5
+        - generic [ref=e70]: █
+        - generic [ref=e73]: 0% · 7일창
+        - generic [ref=e74]:
+          - generic [ref=e75]: $0.14
+          - generic [ref=e76]: $0.3/시간 · 610 tok/분
+        - generic [ref=e77]: PIT · LIM
+      - button "710 An claude-sonnet-5 █ 0% · 5시간창 $0.52 $1.0/시간 · 4.1k tok/분 PIT · LIM" [ref=e78] [cursor=pointer]:
+        - generic [ref=e80]: "710"
+        - generic [ref=e81]:
+          - generic "anthropic" [ref=e82]: An
+          - generic [ref=e83]: claude-sonnet-5
+        - generic [ref=e84]: █
+        - generic [ref=e87]: 0% · 5시간창
+        - generic [ref=e88]:
+          - generic [ref=e89]: $0.52
+          - generic [ref=e90]: $1.0/시간 · 4.1k tok/분
+        - generic [ref=e91]: PIT · LIM
+      - button "789 An claude-sonnet-5 █ 4% · 7일창 $0.15 $0.3/시간 · 851 tok/분 PIT · LIM" [ref=e92] [cursor=pointer]:
+        - generic [ref=e94]: "789"
+        - generic [ref=e95]:
+          - generic "anthropic" [ref=e96]: An
+          - generic [ref=e97]: claude-sonnet-5
+        - generic [ref=e98]: █
+        - generic [ref=e102]: 4% · 7일창
+        - generic [ref=e103]:
+          - generic [ref=e104]: $0.15
+          - generic [ref=e105]: $0.3/시간 · 851 tok/분
+        - generic [ref=e106]: PIT · LIM
+      - generic [ref=e107]: 계정 6 · 24콜 · 캐시 95% · $1.59 · $7.86 아낌
+    - generic [ref=e109]:
+      - generic [ref=e110]: 모델별 오늘
+      - generic [ref=e111]:
+        - generic [ref=e112]: claude-sonnet-5
+        - generic [ref=e115]: 20콜 · 176.4k · $1.14
+      - generic [ref=e116]:
+        - generic [ref=e117]: claude-opus-5
+        - generic [ref=e120]: 2콜 · 18.9k · $0.27
+      - generic [ref=e121]:
+        - generic [ref=e122]: gpt-5.5
+        - generic [ref=e125]: 2콜 · 16.1k · $0.18
+  - generic [ref=e126]:
+    - generic [ref=e127]: FOCUS 540 · LIMIT · 1,172,448 tok/min · EVENT 00:00:00 · FRESH
+    - generic [ref=e129]: 트랙에서 차를 선택하면 그 계정의 구동 내역이 여기 뜹니다
+    - img [ref=e130]:
+      - generic [ref=e135]:
+        - generic [ref=e136] [cursor=pointer]:
+          - img
+        - generic [ref=e140] [cursor=pointer]:
+          - img
+        - generic [ref=e144] [cursor=pointer]:
+          - img
+        - generic [ref=e146] [cursor=pointer]:
+          - img
+        - generic [ref=e148] [cursor=pointer]:
+          - img
+        - generic [ref=e152] [cursor=pointer]:
+          - img
+  - generic [ref=e155]: "#289 — 스킬 — insane-search:insane-search"
