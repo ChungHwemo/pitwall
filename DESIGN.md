@@ -30,7 +30,7 @@ Source: `README.md:3-10`, `PITWALL.md:124-185`, PRD §§1, 2, 6, and `pitwall/sr
 | Positive | `--pw-positive` | `#4ade80` | Connected/positive state with text or shape |
 | Caution | `--pw-caution` | `#ff5c5c` | Error, limit, and urgent event polarity |
 | Delta | `--pw-delta` | `#F2C744` | Numeric deltas and gaps only |
-| GT class | `--pw-class-gt` | `#c084fc` | GT square; never a text-only class cue |
+| GT class | `--pw-class-gt` | `#c084fc` | Purple square / lightweight; never a text-only class cue |
 
 ### Track and data ramps
 
@@ -163,9 +163,10 @@ Source: `pitwall/src/style.css:61-85,97-153,327-473`, `pitwall/src/main.ts:139-2
 
 ### Legend, Settings, and Summary Overlays
 
-- **Structure:** native toggle + fixed overlay; summary includes a bounded contribution grid.
+- **Structure:** native text-and-icon toggle + fixed overlay; summary includes a bounded contribution grid. Legend uses the visible contract “purple square · lightweight” for GT.
 - **States:** open/closed, keyboard focus, empty/large dataset.
-- **Rules:** overlays remain within the viewport and never leave a half-clipped control. Legend explains freshness and LIVE states with text plus shapes.
+- **Rules:** overlays remain within the viewport and never leave a half-clipped control. Legend explains freshness and LIVE states with text plus shapes. Settings and legend expose `aria-expanded` and `aria-controls`, stay mutually exclusive, and close on Escape with focus returned to the toggle that opened them.
+- **Benchmark-led disclosure note:** the GT7 single-slot and Grafana kiosk findings support keeping low-frequency detail behind two compact disclosures rather than adding persistent cards. The chosen controls pair visible text with the pinned local Tabler icons `radar.svg` (legend) and `tool.svg` (settings); see `docs/reference/2026-08-09-uiux-benchmark-expansion.md` §§2.4, 2.5, and 4.
 
 ### Provider Chip and Radio Event
 
@@ -205,7 +206,8 @@ Strategy: mixed tonal shift and borders, with restrained translucent overlays.
 - The 2.5D track uses the existing track/pit tonal hierarchy plus CSS transform/filter depth. The full track remains the stable context; detail focus is layered over it.
 - Selected/manual focus, stopped marks, broadcast focus, freshness ring, and heat are separate semantic layers governed by Section 5 precedence.
 - Exactly one new `BroadcastTrackRenderer` is permitted as the SVG/DOM broadcast renderer; it is selected at boot and falls back to the legacy `TrackRenderer` for the session under the documented seam. No additional renderer, runtime dependency, canvas, WebGL, or scene engine is permitted. No user camera controls. Depth remains static, CSS/SVG-native, and compatible with the offline single-HTML build.
-- Broadcast assets map only to the broadcast radar/focus/timeline surface: `pitwall/assets/broadcast/Kenney Future Narrow.ttf` (CC0) and the five pinned Tabler MIT SVGs listed in `pitwall/assets/broadcast/SOURCE.txt`; licenses are `LICENSE-CC0.txt` and `LICENSE-MIT.txt`. No external runtime fetch is permitted.
+- Broadcast assets map only to the broadcast radar/focus/timeline surface: `pitwall/assets/broadcast/Kenney Future Narrow.ttf` (CC0) and the pinned Tabler MIT SVGs listed in `pitwall/assets/broadcast/SOURCE.txt`; licenses are `LICENSE-CC0.txt` and `LICENSE-MIT.txt`.
+- Disclosure controls use exactly `pitwall/assets/broadcast/radar.svg` for legend and `pitwall/assets/f1/tabler/tool.svg` for settings. These local MIT assets remain paired with visible text and are CSS-inlined into the offline single HTML; no external runtime fetch is permitted.
 
 Source: `pitwall/src/style.css:268-364,422-473`, `pitwall/src/config/theme.ts:4-23`, and plan guardrails.
 
@@ -222,12 +224,12 @@ Source: `pitwall/src/style.css:268-364,422-473`, `pitwall/src/config/theme.ts:4-
 - Dense and sparse/empty datasets remain truthful. Silent truncation is forbidden; hidden/overflow counts must be explicit.
 - The SVG remains at most 800 nodes, uses pooled groups, and adds no freshness decoration node.
 - Privacy is part of accessibility and trust: no ranking, public sharing, prompt/response body, raw account identifier, outbound runtime telemetry, or fabricated connection/activity claim.
-- Preserve the exact rollback seam comment: `/* LEGACY/ROLLBACK 2026-08-08: this.trackRenderer = new TrackRenderer(svg, track); */`. Broadcast support checks SVG/DOM/CSS `transform`; unsupported, construction/first-render failure, and one post-success fatal render failure fall back for the session. Reduced motion is not a fallback condition; WebGL is never requested.
+- The active legacy-renderer seam is `bootBroadcastTrackRenderer(..., { supported: () => false, createLegacy: () => new TrackRenderer(...) })`; no exact rollback comment is required. When broadcast support is re-enabled, unsupported, construction/first-render failure, and one post-success fatal render failure still fall back for the session. Reduced motion is not a fallback condition; WebGL is never requested.
 
-### Blocking obligations before UI sign-off
+### Completed sign-off constraints
 
-- Current narrow-root sizing can reach 13px, and `--pw-text-subtle` is 4.43:1 on the base. Task 5 must raise required mobile body facts to at least 14px and keep essential small text on an AA-safe token. This is a blocking obligation, not accepted debt.
-- Current CSS has no 375/768 responsive shell. Task 5 must implement and visually verify the locked modes before sign-off. This is a blocking obligation, not accepted debt.
+- Required mobile body facts remain at least 14 CSS pixels; essential small text uses an AA-safe token, while `--pw-text-subtle` remains limited to nonessential or large text.
+- The 375/768 responsive shell modes are implemented and visually verified with document-only primary scrolling, no primary horizontal overflow, and the information order locked in Section 4.
 
 ### Accepted debt
 
