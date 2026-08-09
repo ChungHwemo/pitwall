@@ -16,6 +16,11 @@ describe('carNames 저장·로드', () => {
     expect(localStorage.getItem(CAR_NAMES_STORAGE_KEY)).not.toBeNull();
   });
 
+  it('저장 시 오염된 로컬카탄 이름을 제거한다', () => {
+    saveCarNames({ 'car-a': '로컬카탄', 'car-b': '  배치  ' });
+    expect(loadCarNames()).toEqual({ 'car-b': '배치' });
+  });
+
   it('아무것도 없으면 빈 표다', () => {
     expect(loadCarNames()).toEqual({});
   });
@@ -69,6 +74,15 @@ describe('carDisplayName', () => {
   it('표에 없는 계정은 폴백으로 떨어진다', () => {
     expect(carDisplayName({ 'car-b': '배치' }, 'car-a', 5, 'bare')).toBe('5');
     expect(carDisplayName({ 'car-b': '배치' }, 'car-a', 5, 'padded')).toBe('#005');
+  });
+
+  it('오염된 로컬카탄 이름은 기존 카넘버 라벨로 폴백한다', () => {
+    localStorage.setItem(CAR_NAMES_STORAGE_KEY, JSON.stringify({ 'car-a': '로컬카탄' }));
+    const names = loadCarNames();
+
+    expect(names).toEqual({});
+    expect(carDisplayName(names, 'car-a', 290, 'bare')).toBe('290');
+    expect(carDisplayName(names, 'car-a', 290, 'padded')).toBe('#290');
   });
 
   it('공백뿐인 이름은 폴백으로 떨어진다', () => {

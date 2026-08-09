@@ -39,7 +39,7 @@ export function loadCarNames(): Record<string, string> {
     for (const [carId, value] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof value !== 'string') continue;
       const trimmed = value.trim();
-      if (trimmed === '') continue;
+      if (trimmed === '' || trimmed === '로컬카탄') continue;
       out[carId] = trimmed;
     }
     return out;
@@ -53,7 +53,13 @@ export function loadCarNames(): Record<string, string> {
  * 이 파일에 네트워크 호출을 추가하면 안 된다.
  */
 export function saveCarNames(names: Record<string, string>): void {
-  localStorage.setItem(CAR_NAMES_STORAGE_KEY, JSON.stringify(names));
+  const sanitized = Object.fromEntries(
+    Object.entries(names)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([carId, value]) => [carId, value.trim()])
+      .filter(([, value]) => value !== '' && value !== '로컬카탄'),
+  );
+  localStorage.setItem(CAR_NAMES_STORAGE_KEY, JSON.stringify(sanitized));
 }
 
 /**
@@ -71,7 +77,7 @@ export function carDisplayName(
   const name = names[carId];
   if (name !== undefined) {
     const trimmed = name.trim();
-    if (trimmed !== '') return trimmed;
+    if (trimmed !== '' && trimmed !== '로컬카탄') return trimmed;
   }
   return format === 'padded'
     ? `#${String(carNumber).padStart(3, '0')}`

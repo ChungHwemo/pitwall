@@ -23,6 +23,8 @@ export function polarityOf(msg: RadioMessage): Polarity {
   return 'neutral';
 }
 
+import { carDisplayName } from '../config/carNames';
+
 export class RadioRenderer {
   private buffer = new RingBuffer<RadioMessage>(BUFFER_CAPACITY);
   private lines: HTMLElement[] = [];
@@ -64,8 +66,8 @@ export class RadioRenderer {
       // critical은 caution과 색이 같다 — 굵기로 한 단계 더 강하게 표시한다 (§4.3.1).
       const weight = msg.severity === 'critical' ? '700' : '400';
       if (line.style.fontWeight !== weight) line.style.fontWeight = weight;
-      const named = msg.carId ? names[msg.carId]?.trim() : undefined;
-      const who = named
+      const named = msg.carId ? carDisplayName(names, msg.carId, msg.carNumber, 'padded') : undefined;
+      const who = named && msg.carNumber !== 0
         ? named
         : msg.carNumber === 0 ? 'RACE CONTROL' : `#${String(msg.carNumber).padStart(3, '0')}`;
       setText(line, `${who} — ${msg.text}`);
