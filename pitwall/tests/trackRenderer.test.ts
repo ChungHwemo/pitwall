@@ -724,6 +724,49 @@ describe('샘플 사이 움직임', () => {
   });
 });
 
+describe('유휴(무통신) 주행선 이동 — 2026-08-09 사용자 정정', () => {
+  it('오래 무통신인 차량도 주행선에서 결정론적으로 계속 움직인다 — 완전히 멈추지 않는다', () => {
+    const stale = car('idle-a', { distance: 12_345, last_event_ts: T - 400_000 });
+    const built = model([stale]);
+    // 사건(error/limit/pinned)이 아니므로 여전히 cold(주행선)에 남는다 — 피트로 가지 않는다.
+    expect(built.cold.map((c) => c.carId)).toEqual(['idle-a']);
+    expect(built.cold[0]!.idle).toBe(true);
+
+    const settleFrames = 400;
+    const settledAt = T + settleFrames * 16;
+    const times = [settledAt, settledAt + 2_000, settledAt + 4_000, settledAt + 6_000];
+    const sequence = (container: SVGSVGElement): string[] => {
+      const renderer = new TrackRenderer(container, track);
+      // 실제 진행(progress)이 settle된 뒤의 유휴 왕복만 본다 — 초기 보간과 섞지 않는다.
+      for (let f = 0; f < settleFrames; f++) renderer.render(model([stale]), T + f * 16);
+      return times.map((now) => {
+        renderer.render(model([stale]), now);
+        return (container.querySelector('g.cold') as SVGGElement).style.transform;
+      });
+    };
+
+    const first = sequence(svg);
+    const mirror = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    document.body.appendChild(mirror);
+
+    // 움직인다 — 예전에는 target(progress)이 안 바뀌면 영원히 얼어붙었다.
+    expect(new Set(first).size).toBeGreaterThan(1);
+    // 결정론적이다 — 같은 입력을 두 번째 렌더러에 먹여도 같은 좌표열이 나온다.
+    expect(sequence(mirror)).toEqual(first);
+
+    // 느리다 — 프레임 사이 이동이 글리프 지름보다 훨씬 작다.
+    const points = first.map((t) => {
+      const parsed = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(t)!;
+      return { x: +parsed[1]!, y: +parsed[2]! };
+    });
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!;
+      const b = points[i]!;
+      expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThan(GLYPH_DIAMETER);
+    }
+  });
+});
+
 describe('트랙 색 토큰 (P0-2)', () => {
   it('중심선 stroke가 TRACK_COLOR.centerline이다', () => {
     new TrackRenderer(svg, track);

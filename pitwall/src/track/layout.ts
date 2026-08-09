@@ -73,10 +73,13 @@ export const PIT_LANE_STROKE = TRACK_STROKE * 0.8;
  *
  * 피트 왕복은 박스에서 최대 6씩 움직인다. 이웃 둘이 서로 가까워지는 최악의 경우
  * 12가 줄어드므로, 표식 안전 거리 30에 왕복 여유 12를 더한 42를 anchor 간격으로 쓴다.
+ *
+ * 사용자 정정(2026-08-09): 피트에 들어온 차는 이제 완전히 정지한다(왕복 폐기,
+ * `pitCreep` 삭제) — 그래도 이 여유분은 그대로 둔다. 기하(간격)는 이번 정정과
+ * 무관하게 보존 대상이고, 여유가 있다고 해가 되지 않는다.
  */
 const PIT_CREEP_DISTANCE = GLYPH_DIAMETER * 0.6;
 const PIT_BOX_SPACING = GLYPH_DIAMETER * 3 + PIT_CREEP_DISTANCE * 2;
-const PIT_CREEP_PERIOD_MS = 8_000;
 
 /**
  * 한 바퀴로 자리가 모자랄 때, 다음 링을 얼마나 더 안쪽으로 미는가.
@@ -123,22 +126,6 @@ export function pitBoxes(track: Track, slots: number): Point[] {
     }
   }
   return out;
-}
-
-/** 정지 상태는 유지하되 피트 박스 안에서만 천천히 왕복한다. */
-export function pitCreep(boxes: readonly Point[], slot: number, now: number): Point {
-  const anchor = boxes[slot];
-  const next = boxes[slot + 1] ?? boxes[slot - 1];
-  if (!anchor || !next) throw new RangeError('pit creep requires two boxes');
-  const dx = next.x - anchor.x;
-  const dy = next.y - anchor.y;
-  const length = Math.hypot(dx, dy) || 1;
-  const distance = (Math.sin(now / PIT_CREEP_PERIOD_MS * Math.PI * 2) + 1)
-    * PIT_CREEP_DISTANCE / 2;
-  return {
-    x: anchor.x + dx / length * distance,
-    y: anchor.y + dy / length * distance,
-  };
 }
 
 function pitPointAt(track: Track, progress: number, lateral = PIT_LANE_OFFSET): Point {

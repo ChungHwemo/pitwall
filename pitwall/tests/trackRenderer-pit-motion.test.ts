@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { TrackRenderer, GLYPH_DIAMETER } from '../src/render/trackRenderer';
+import { TrackRenderer } from '../src/render/trackRenderer';
 import { generateTrack } from '../src/track/generateTrack';
 import { pitBoxes, GLYPH_DIAMETER as PIT_GLYPH_DIAMETER } from '../src/track/layout';
 import { CIRCUITS } from '../src/track/circuitData';
@@ -60,8 +60,8 @@ beforeEach(() => {
   document.body.appendChild(svg);
 });
 
-describe('사건 차량 피트 이동', () => {
-  it('한도·에러 차량은 피트 안에서 느리고 결정론적으로 이동한다', () => {
+describe('사건 차량 피트 정지', () => {
+  it('한도·에러 차량은 피트 안에서 완전히 정지한다', () => {
     const cars = [
       car('boom', { error_count: 1, distance: 0 }),
       car('low', { tyre_pct: 5, distance: 80_000 }),
@@ -79,20 +79,23 @@ describe('사건 차량 피트 이동', () => {
     const mirror = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     document.body.appendChild(mirror);
 
-    expect(new Set(first.map((frame) => frame.join('|'))).size).toBeGreaterThan(1);
+    // 사용자 정정(2026-08-09): 더 못 가는 차는 왕복하지 않고 그대로 선다 —
+    // 세 프레임 모두 같은 transform 하나로 모인다.
+    expect(new Set(first.map((frame) => frame.join('|'))).size).toBe(1);
     expect(sequence(mirror)).toEqual(first);
     const anchors = pitBoxes(track, cars.length);
     first.forEach((frame) => frame.map(positionOf).forEach((position, index) => {
       const anchor = anchors[index];
       if (!anchor) throw new RangeError('pit anchor missing');
-      expect(Math.hypot(position.x - anchor.x, position.y - anchor.y))
-        .toBeLessThan(GLYPH_DIAMETER);
+      // translate()가 소수 둘째 자리로 반올림하므로 그 오차만 허용한다.
+      expect(position.x).toBeCloseTo(anchor.x, 1);
+      expect(position.y).toBeCloseTo(anchor.y, 1);
     }));
     expect([...svg.querySelectorAll('g.car')].map((node) => node.getAttribute('data-reason')))
       .toEqual(['limit', 'error']);
   });
 
-  it('여러 stopped 차량의 피트 간격을 유지한다', () => {
+  it('여러 stopped 차량도 피트 간격을 유지한 채 정지한다', () => {
     const cars = Array.from({ length: HOT_CAP + 12 }, (_, i) =>
       car(`stopped-${i}`, { tyre_pct: 2 }));
     const renderer = new TrackRenderer(svg, worstTrack);
@@ -112,6 +115,7 @@ describe('사건 차량 피트 이동', () => {
       }
     }
 
-    expect(seen.size).toBeGreaterThan(cars.length);
+    // 왕복이 없으니 프레임을 더 돌려도 차 수만큼의 좌표만 나온다.
+    expect(seen.size).toBe(cars.length);
   });
 });

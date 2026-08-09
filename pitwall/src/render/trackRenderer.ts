@@ -1,6 +1,6 @@
 import { trackWidth, TRACK_STROKE } from '../track/generateTrack';
 import type { Point, Track } from '../track/generateTrack';
-import { positionAt, pitBoxes, pitCreep, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
+import { positionAt, pitBoxes, pitLanePoints, PIT_LANE_STROKE } from '../track/layout';
 import { Projector } from './projection';
 import { CLASS_STYLE, TRACK_COLOR, BACKGROUND, EVENT_POLARITY_COLOR } from '../config/theme';
 import type { CarClass } from '../types';
@@ -187,6 +187,23 @@ function idleSwayDelay(carId: string): number {
     h = Math.imul(h, 0x01000193);
   }
   return (((h >>> 0) % 1000) / 1000) * 4;
+}
+
+/**
+ * 무통신(≥5분, `idle`) 주행선 차량의 결정론적 왕복 폭 (progress 단위).
+ *
+ * 사용자 정정(2026-08-09): "데이터 없을시 멈춰있는게 아니고 천천히 이동" — 없는
+ * 데이터를 지어내진 않되(§15), 진행률(`car.progress`, 토큰의 순수 함수)이 안 바뀌는
+ * 동안에도 화면이 완전히 죽어 보이지 않게 하는 절충이다. `Projector.step()`이
+ * 반환하는 값 위에 얹기만 하고, `visualProgressOf()`가 읽는 내부 상태는 건드리지
+ * 않는다 — 위 유휴 sway 불변식과 같은 규율이다.
+ */
+const IDLE_CREEP_PROGRESS = 0.0006;
+const IDLE_CREEP_PERIOD_MS = 8_000;
+
+function idleCreepOffset(carId: string, now: number): number {
+  const phaseMs = idleSwayDelay(carId) * 1000;
+  return Math.sin((now + phaseMs) / IDLE_CREEP_PERIOD_MS * Math.PI * 2) * IDLE_CREEP_PROGRESS;
 }
 
 /**
@@ -578,7 +595,9 @@ export class TrackRenderer {
 
       applyHeat(node.group, car.heat, car.idle, car.freshness, car.carId);
       const next = this.projector.step(car.carId, car.progress, now);
-      translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
+      // 무통신 차는 실제 진행이 멈춰도 주행선에서 완전히 얼어붙지 않는다 — idleCreepOffset 참고.
+      const draw = car.idle ? next + idleCreepOffset(car.carId, now) : next;
+      translate(node.group, positionAt(this.track, draw, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
     });
@@ -642,16 +661,21 @@ export class TrackRenderer {
       // 주행선 위에 세우면 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인
       // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
       // 핀은 사용자가 고른 것이지 사건이 아니므로 계속 달린다.
+      //
+      // 사용자 정정(2026-08-09): 피트에 들어온 차는 완전히 정지한다 — 더 못 가는
+      // 상태에 창작된 왕복 움직임(구 REVIEW #14 pitCreep)을 얹지 않는다. 화면이
+      // 죽어 보이지 않게 하는 몫은 아래 무통신 주행선 차량의 idleCreepOffset로 옮겼다.
       applyHeat(node.group, car.heat, car.idle, car.freshness, car.carId);
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);
         // 레인을 이미 늘려서 정지 대수만큼 자리가 있다 — 겹쳐 세우지 않는다.
-        translate(node.group, pitCreep(boxes, pitSlot, now));
+        translate(node.group, boxes[pitSlot]!);
         pitSlot += 1;
       } else {
         const next = this.projector.step(car.carId, car.progress, now);
-        translate(node.group, positionAt(this.track, next, car.carClass, car.laneLine));
+        const draw = car.idle ? next + idleCreepOffset(car.carId, now) : next;
+        translate(node.group, positionAt(this.track, draw, car.carClass, car.laneLine));
       }
       this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
