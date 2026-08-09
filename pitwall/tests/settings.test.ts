@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { SettingsPanel } from '../src/render/settingsPanel';
 import {
   resolveSettings, clampSettings, loadLocalSettings, saveLocalSettings, loadOrgSettings,
-  DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY,
+  DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, ORG_SETTINGS_URL,
 } from '../src/config/settings';
 
 beforeEach(() => localStorage.clear());
@@ -192,5 +194,57 @@ describe('설명과 노출', () => {
     for (const c of controls) {
       expect(c.getAttribute('title'), c.textContent ?? '').toBeTruthy();
     }
+  });
+});
+
+/*
+ * Task 5 — 범례와 설정은 서로 배타적으로 열린다. `onOpen`은 열릴 때만 불러
+ * main.ts가 상대 패널의 `data-open`을 닫는 신호로 쓴다. 패널 매니저를 새로
+ * 만들지 않고 기존 콜백 패턴(onChange, onNamesChange)에 하나를 더한다.
+ */
+describe('설정 패널은 열릴 때만 onOpen을 부른다 (Task 5)', () => {
+  it('토글로 열 때 한 번, 닫을 때는 부르지 않는다', () => {
+    const host = document.createElement('div');
+    const onOpen = vi.fn();
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true, onOpen });
+    const toggle = host.querySelector('.settings-toggle') as HTMLElement;
+
+    toggle.click();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    toggle.click();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('onOpen이 없어도 토글은 그대로 동작한다', () => {
+    const host = document.createElement('div');
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => {}, { simulated: true });
+    const shell = host.querySelector('.settings')!;
+    const toggle = host.querySelector('.settings-toggle') as HTMLElement;
+    toggle.click();
+    expect(shell.getAttribute('data-open')).toBe('true');
+  });
+});
+
+/*
+ * 프로덕션 빌드(`npm run build && npm run preview`)를 열 때마다
+ * `GET /pitwall.settings.json 404`가 콘솔에 남았다 — 조직 파일은 원래 없어도 되는
+ * 물건이지만(loadOrgSettings), Vite가 그 이름의 정적 자산을 한 번도 심은 적이
+ * 없어 매번 없는 것을 물으러 갔다. `public/`은 Vite가 그대로 dist 루트에
+ * 복사하는 기존 빌드 경로라, 중립적인 빈 객체 파일을 거기 둬서 요청이 항상
+ * 성공하게 만든다 — org/local 병합 결과는 그대로 기본값이라 폴백 의미는 안 바뀐다.
+ */
+describe('조직 설정 파일이 빌드 산출물 루트에 실제로 존재한다 (프로덕션 404 회귀)', () => {
+  const path = resolve(import.meta.dirname, '../public', ORG_SETTINGS_URL.replace(/^\.\//, ''));
+
+  it('public/ 아래 ORG_SETTINGS_URL과 같은 이름의 정적 파일이 있다 — Vite가 dist 루트로 그대로 복사한다', () => {
+    expect(existsSync(path)).toBe(true);
+  });
+
+  it('그 파일은 유효한 JSON 객체이고, 병합해도 기본값을 바꾸지 않는다 — 폴백 의미 보존', () => {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    expect(typeof parsed).toBe('object');
+    expect(parsed).not.toBeNull();
+    expect(resolveSettings(parsed as Record<string, unknown>, {}, {})).toEqual(DEFAULT_SETTINGS);
   });
 });

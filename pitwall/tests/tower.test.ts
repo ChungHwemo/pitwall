@@ -265,3 +265,57 @@ describe('타워 프로바이더 칩 (REVIEW #11)', () => {
     expect(chip.textContent).toBe('Xa');
   });
 });
+
+describe('타워 밀집 카드 가독성 — 세 자리 카넘버·상태·위험 표시 (Task 4)', () => {
+  it('세 자리 카넘버 세 대와 리터럴 상태·위험 표시가 밀집 모드 반복 렌더 후에도 유지된다', () => {
+    const r = new TowerRenderer(host, 16);
+    const many = Array.from({ length: 11 }, (_, i) => car(`c${i}`, { car_number: i + 200 }));
+    many[0] = car('err', { car_number: 907, error_count: 1, last_error_ts: T - 1_000 });
+    many[1] = car('lim', { car_number: 233, tyre_pct: 2 });
+    many[2] = car('idl', { car_number: 540, last_event_ts: T - 600_000 });
+
+    // 반복 렌더 후에도 유지되는지 본다 — 노드 재사용이 값을 잃지 않아야 한다.
+    for (let i = 0; i < 5; i++) r.render(state(many), T, T, null, () => []);
+
+    expect(host.querySelector('.tower')!.getAttribute('data-dense')).toBe('true');
+
+    const rows = [...host.querySelectorAll('.tower-row')].filter((n) => (n as HTMLElement).style.display !== 'none');
+    const numbers = rows.map((row) => row.querySelector('.tower-number')!.textContent);
+    expect(numbers).toEqual(expect.arrayContaining(['907', '233', '540']));
+
+    const errRow = rows.find((row) => row.getAttribute('data-state') === 'error')!;
+    expect(errRow.querySelector('.tower-state')!.textContent).toBe('PIT · ERR');
+    expect(errRow.querySelector('.tower-number')!.textContent).toBe('907');
+
+    const limRow = rows.find((row) => row.getAttribute('data-state') === 'limit')!;
+    expect(limRow.querySelector('.tower-state')!.textContent).toBe('PIT · LIM');
+    expect(limRow.querySelector('.tower-number')!.textContent).toBe('233');
+
+    const idleRow = rows.find((row) => row.getAttribute('data-state') === 'idle')!;
+    expect(idleRow.querySelector('.tower-state')!.textContent).toBe('IDLE');
+    expect(idleRow.querySelector('.tower-number')!.textContent).toBe('540');
+  });
+
+  it('긴 CJK 이름과 모델 텍스트가 시각적으로 잘려도 title 속성에 전체 값이 남는다', () => {
+    const r = new TowerRenderer(host, 8);
+    const longModel = 'gemini-3.1-flash-lite-extended-context-window-preview';
+    const longName = '결제팀 배치 자동화 스크립트';
+    r.render(state([car('a', { car_number: 118, model: longModel })]), T, T, null, () => [],
+      [], 1, { a: longName });
+
+    const row = host.querySelector('.tower-row')!;
+    const numberCell = row.querySelector('.tower-number') as HTMLElement;
+    expect(numberCell.textContent).toBe(longName);
+    expect(numberCell.title).toBe(longName);
+    expect((row.querySelector('.tower-model-text') as HTMLElement).title).toBe(longModel);
+  });
+
+  it('반복 렌더에도 밀집 모드 줄의 노드 수가 늘지 않는다', () => {
+    const r = new TowerRenderer(host, 16);
+    const many = Array.from({ length: 12 }, (_, i) => car(`c${i}`, { car_number: i + 300 }));
+    r.render(state(many), T, T, null, () => []);
+    const n = host.querySelectorAll('*').length;
+    for (let i = 0; i < 10; i++) r.render(state(many), T, T, null, () => []);
+    expect(host.querySelectorAll('*').length).toBe(n);
+  });
+});

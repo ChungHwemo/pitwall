@@ -268,3 +268,40 @@ describe('피드 행 generic 아이콘 (P1-1)', () => {
     expect(icon.outerHTML).not.toContain('secret-account-uuid');
   });
 });
+
+describe('피드 밀집 카드 가독성 — 긴 CJK 모델·스킬 문자열 (Task 4)', () => {
+  it('시간·모델·상태(스킬)·토큰과 캐시 값이 각자의 칸에 남고 car_id는 노출되지 않는다', () => {
+    const r = new FeedRenderer(host, 6);
+    const longSkill = '초장기컨텍스트:다국어검색및요약파이프라인운영';
+    const longModel = 'gemini-3.1-flash-lite-extended-context-window-preview';
+    r.render({ carId: 'car-secret-uuid', carNumber: 118, carClass: 'P', model: longModel }, [event({
+      car_id: 'car-secret-uuid', model: longModel, skill: longSkill,
+      tokens: { prompt: 250_000, completion: 500, cache_read: 240_000 },
+    })]);
+
+    const row = host.querySelector('.feed-row')!;
+    expect(host.textContent).not.toContain('car-secret-uuid');
+    expect((row.querySelector('.feed-time') as HTMLElement).textContent).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+
+    const modelCell = row.querySelector('.feed-model') as HTMLElement;
+    expect(modelCell.title).toBe(longModel);
+
+    const whoCell = row.querySelector('.feed-who') as HTMLElement;
+    expect(whoCell.textContent).toBe(longSkill);
+    expect(whoCell.title).toBe(longSkill);
+
+    const sizeText = (row.querySelector('.feed-size') as HTMLElement).textContent ?? '';
+    expect(sizeText).toContain('10.5k');   // (250,000 − 240,000) + 500
+    expect(sizeText).toContain('240.0k');
+  });
+
+  it('긴 에러 사유는 title에도 전체 값이 남는다', () => {
+    const r = new FeedRenderer(host, 6);
+    const longCode = 'rate_limit_exceeded_daily_budget_cap_v2';
+    r.render({ carId: 'car-a', carNumber: 1, carClass: 'P', model: 'claude-sonnet-5' },
+      [event({ status: 'error', kind: 'error', error_code: longCode })]);
+    const whoCell = host.querySelector('.feed-who') as HTMLElement;
+    expect(whoCell.textContent).toBe(longCode);
+    expect(whoCell.title).toBe(longCode);
+  });
+});

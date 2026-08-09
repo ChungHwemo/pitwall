@@ -2,7 +2,7 @@ import type { CarClass, CarEvent, EventKind } from '../types';
 import { CLASS_STYLE, EVENT_POLARITY_COLOR } from '../config/theme';
 import { carDisplayName } from '../config/carNames';
 import { workOf, cachedOf } from '../state/reducer';
-import { setText } from './setText';
+import { setText, setTitle } from './setText';
 import { createProviderChip, paintProviderChip } from './providerChip';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -269,11 +269,12 @@ export class FeedRenderer {
 
       setText(row.time, clockOf(e.wall_ts ?? e.ts));
       setText(row.model, shortModel(e.model));
+      setTitle(row.model, e.model);
       // 무엇을 쓰고 있었는지. 귀속이 붙는 호출은 실측 6.7%뿐이라 나머지는 `—`다 —
       // 빈칸을 지어내지 않는다.
-      setText(row.who, e.status === 'error'
-        ? (e.error_code ?? 'error')
-        : e.skill || '—');
+      const who = e.status === 'error' ? (e.error_code ?? 'error') : e.skill || '—';
+      setText(row.who, who);
+      setTitle(row.who, who);
       const size = `${compact(workOf(e))} · ${compact(cachedOf(e))}`;
       setText(row.size, entry.count > 1 ? `${size} ×${entry.count}` : size);
     });

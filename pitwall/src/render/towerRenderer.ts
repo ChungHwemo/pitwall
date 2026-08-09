@@ -2,7 +2,7 @@ import type { CarEvent, CarState, RaceState } from '../types';
 import { CLASS_STYLE } from '../config/theme';
 import { carDisplayName } from '../config/carNames';
 import { IDLE_THRESHOLD_MS } from '../state/reducer';
-import { setText } from './setText';
+import { setText, setTitle } from './setText';
 import { createProviderChip, paintProviderChip } from './providerChip';
 import { sparkline } from './spark';
 import { recentPace } from '../state/pace';
@@ -244,8 +244,11 @@ export class TowerRenderer {
 
       const style = CLASS_STYLE[car.car_class];
       if (row.bar.style.backgroundColor !== style.color) row.bar.style.backgroundColor = style.color;
-      setText(row.number, carDisplayName(names, car.car_id, car.car_number, 'bare'));
+      const displayNumber = carDisplayName(names, car.car_id, car.car_number, 'bare');
+      setText(row.number, displayNumber);
+      setTitle(row.number, displayNumber);
       setText(row.model, car.model);
+      setTitle(row.model, car.model);
       paintProviderChip(row.modelChip, car.model);
 
       // 한도는 막대가 먼저 읽히고 숫자가 뒤를 받친다. 소스가 없으면 둘 다 없다.

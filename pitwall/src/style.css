@@ -25,6 +25,11 @@
   --hair: max(1px, 0.0625rem);
   --pw-accent: #4dc3ff;
   --pw-positive: #4ade80;
+  --pw-bg: #0e1116;
+  --pw-surface: #161b22;
+  --pw-line: #1c222b;
+  --pw-border: #2a323d;
+  --pw-text: #e6edf3;
   --pw-text-muted: #9fb3c8;
   --pw-quiet-graphic: #55636f;
   --pw-caution: #ff5c5c;
@@ -159,7 +164,15 @@ body {
 .tower[data-dense="true"] .tower-limit-text { margin-top: 0.12rem; }
 
 .tower-bar { grid-area: bar; height: 62%; border-radius: 0.13rem; align-self: center; }
-.tower-number { grid-area: num; font-size: 1.875rem; font-weight: 700; text-align: right; }
+/*
+ * 이름을 붙이면 이 칸이 숫자 대신 임의 길이 문자열을 받는다. 세 자리 수는
+ * 절대 안 넘치지만 이름은 넘칠 수 있다 — 조용히 잘리면 안 되니 말줄임을 보이고,
+ * 렌더러가 `title`에 전체 값을 남긴다.
+ */
+.tower-number {
+  grid-area: num; font-size: 1.875rem; font-weight: 700; text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .tower-model {
   grid-area: model; font-size: 0.95rem; color: #e6edf3; align-self: end;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -252,7 +265,9 @@ body {
  */
 .hud-pace { font-size: 1.35rem; font-weight: 700; }
 .live-status {
-  flex-shrink: 1;
+  /* 필수 사실이라 다른 hud-item과 같은 비축소 계약을 쓴다 (G001 — 좁아지면
+   * 이 요소 혼자 줄어들어 `.hud-item`의 ellipsis가 STALE 나이를 잘라냈다). */
+  flex-shrink: 0;
   padding-inline-start: 0.45rem;
   border-inline-start: 0.18rem solid var(--pw-positive);
 }
@@ -274,7 +289,7 @@ body {
  */
 .hud-hourly {
   font-size: 0.95rem; line-height: 1; color: #9fb3c8;
-  letter-spacing: 0.02em; white-space: pre; flex-shrink: 0;
+  letter-spacing: 0.02em; white-space: pre; flex-shrink: 1; min-width: 0; overflow: hidden;
 }
 
 /*
@@ -287,6 +302,13 @@ body {
  */
 .legend, .settings { position: relative; flex-shrink: 0; }
 .legend-toggle, .settings-toggle {
+  /*
+   * z-index:21. `.legend-body`/`.settings-body`는 fixed + z-index:20이라 DOM
+   * 순서와 무관하게 위에 칠해진다 — 좁은 화면에서 패널이 자기 토글 버튼 위까지
+   * 덮으면 버튼이 눌러지지 않는다(Task 6: 범례를 연 뒤 설정 클릭이 막혔다).
+   * 토글은 패널보다 한 단계 높여 자기 패널이 열려 있어도 항상 눌린다.
+   */
+  position: relative; z-index: 21;
   background: #161b22; color: #9fb3c8; border: var(--hair) solid #2a323d;
   border-radius: 0.25rem; padding: 0.1rem 0.45rem; font: inherit; font-size: 0.75rem;
   cursor: pointer;
@@ -299,10 +321,18 @@ body {
  * 절대 위치로 띄우면 같이 잘린다 — 열어도 아무것도 안 보였다.
  */
 .legend-body, .settings-body {
+  /*
+   * content-box(기본값)였다면 max-width는 패딩·테두리를 뺀 content만 잡아서,
+   * 실측 375px에서 border-box 폭이 뷰포트를 넘어 왼쪽이 음수(x=-18.765)로
+   * 새고 설정 버튼을 덮었다 — border-box라야 max-width가 패딩·테두리까지
+   * 포함한 실제 렌더 폭을 뷰포트 안에 묶는다.
+   */
+  box-sizing: border-box;
   position: fixed; right: 0.6rem; top: 3rem; z-index: 20;
   margin: 0; padding: 0.7rem 0.9rem;
   background: #161b22f2; border: var(--hair) solid #2a323d; border-radius: 0.4rem;
   font-size: 0.72rem; line-height: 1.45; backdrop-filter: blur(6px);
+  max-width: calc(100vw - 1.2rem);
 }
 .legend-body {
   width: 26rem; display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.8rem;
@@ -341,7 +371,7 @@ body {
 /* 오른쪽 끝으로 민다. 자르지 않는다 — 버튼 하나라 자를 것이 없다. */
 .settings { margin-left: auto; }
 .settings-field, .settings-group {
-  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; flex-wrap: wrap;
 }
 .settings-label, .settings-check { white-space: nowrap; }
 .settings-label { color: #9fb3c8; letter-spacing: 0.06em; }
@@ -362,6 +392,14 @@ body {
  * 내역은 그 위에 겹쳐 띄운다.
  */
 .detail { grid-area: detail; position: relative; overflow: hidden; }
+.broadcast-focus {
+  position: absolute; z-index: 2; inset: var(--pw-space-5) var(--pw-space-5) auto;
+  min-height: 2.5rem; box-sizing: border-box;
+  padding: var(--pw-space-5); border: var(--hair) solid var(--pw-border);
+  background: #161b22f2; color: var(--pw-text); backdrop-filter: blur(6px);
+  font-size: 1rem; font-weight: 700; line-height: 1.4;
+  letter-spacing: 0.02em; font-variant-numeric: tabular-nums;
+}
 /*
  * 상자가 코스 비율을 따른다. `width/height: 100%`로 두면 SVG가 상자를 다 차지한
  * 뒤 `preserveAspectRatio`가 남는 폭을 위아래로 갈라 죽은 띠를 만든다 —
@@ -374,6 +412,10 @@ svg.track {
 }
 svg.track [data-selected="true"] path { stroke: #e6edf3; stroke-width: 2.5; paint-order: stroke; }
 svg.track g.cold, svg.track g.car { cursor: pointer; }
+svg.track .broadcast-cars g.car { transition: opacity 180ms ease, filter 180ms ease; }
+svg.track .broadcast-cars [data-freshness="stale"] { filter: saturate(0.25); }
+svg.track .broadcast-cars [data-reason="error"] path { stroke: var(--pw-caution); stroke-width: 3; }
+svg.track .broadcast-cars [data-reason="limit"] path { stroke: var(--pw-caution); stroke-width: 2; }
 
 .cams {
   position: absolute; inset: 0 0 auto 0; max-height: 58%;
@@ -385,11 +427,20 @@ svg.track g.cold, svg.track g.car { cursor: pointer; }
 }
 .cams > * { pointer-events: auto; }
 /* 고른 계정이 없으면 안내 한 줄만 남기고 지도를 가리지 않는다. */
-.detail[data-selected="false"] .cams {
+.detail[data-renderer="broadcast"] .cams {
+  display: none;
+}
+.detail[data-renderer="legacy"][data-selected="false"] .cams {
   max-height: 2.1rem; background: none; border-bottom: 0; padding-bottom: 0;
 }
+.detail[data-renderer="legacy"][data-selected="true"] .cams {
+  inset: auto 0 0; max-height: 8rem;
+}
+.detail[data-renderer="legacy"][data-selected="true"] svg.track {
+  inset: 4rem 0 8rem; max-height: calc(100% - 12rem);
+}
 /* 가릴 판이 없으면 코스를 가운데로 — 아래에 붙여 둘 이유가 사라진다. */
-.detail[data-selected="false"] svg.track { inset: 0; margin: auto; }
+.detail[data-renderer="legacy"][data-selected="false"] svg.track { inset: 0; margin: auto; }
 
 .feed { display: flex; flex-direction: column; gap: 0.12rem; overflow: hidden; }
 .feed-head { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.5rem; }
@@ -543,6 +594,53 @@ svg.track [data-idle="true"]:not([data-reason]) .class-car-icon {
 }
 @media (prefers-reduced-motion: reduce) {
   svg.track .class-car-icon { animation: none; }
+  svg.track .broadcast-cars g.car { transition: none; }
+}
+
+@media (max-width: 900px) {
+  :root { font-size: max(14px, calc(var(--pw-zoom) * min(100vw / 48, 100vh / 48))); }
+  .pitwall {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(24rem, 58vh) auto;
+    grid-template-areas: "hud" "tower" "detail" "radio";
+    min-height: 100dvh; height: auto;
+  }
+  .hud { flex-wrap: wrap; overflow: visible; }
+  .detail { min-width: 0; }
+  .tower-slot { overflow: visible; }
+}
+
+@media (max-width: 480px) {
+  .pitwall { padding: 0.25rem; gap: 0.25rem; }
+  .hud-item { max-width: 100%; white-space: normal; }
+  .hud-pace { font-size: 1.1rem; }
+  .broadcast-focus { inset: 0.25rem 0.25rem auto; font-size: 1rem; }
+  .detail { min-height: 24rem; }
+  .cams { display: none; }
+  svg.track { max-height: calc(100% - 4rem); }
+  /*
+   * 필수 사실(한도 창·소진 속도)이 375px에서 잘렸다 — 4번째 칸(money)이 5.5rem
+   * 고정폭이라 `state`/`limit`과 나눠 쓰던 1fr 칸이 더 좁아졌고, `.tower-row > *`의
+   * overflow:hidden + nowrap이 넘친 글자를 조용히 지웠다. 실측(scrollWidth 138 vs
+   * clientWidth 77) 확인. 고정 money 칸을 없애고 state·limit·money를 같은 1fr
+   * 칸의 세 줄로 세로 배치한다 — 잘림 대신 폭을 넓힌다.
+   */
+  .tower-row, .tower[data-dense="true"] .tower-row {
+    grid-template-columns: 0.3rem 4rem minmax(0, 1fr);
+    grid-template-areas: "bar num state" "bar num limit" "bar num money";
+    height: auto;
+  }
+  /*
+   * `.tower-row .tower-model` (파일 뒤쪽 프로바이더 칩 규칙, 이 파일 694번째 줄)이
+   * 소스 순서상 이 미디어 쿼리보다 늦게 나와 같은 특이도(class 1개)에서 이겨,
+   * `display:none`이 안 먹혀 모델명이 375px에서도 새며 새 3단 레이아웃에
+   * 암시적 칸을 만들었다 — 실측(grid-template-columns 5칸) 확인. 자손
+   * 결합자로 특이도를 하나 올려 이긴다.
+   */
+  .tower-row .tower-model, .tower-row .tower-spark { display: none; }
+  .tower-state { align-self: end; }
+  .tower-limit, .tower-money { align-self: start; }
+  .tower-money { overflow: visible; text-align: left; }
 }
 /* ── /유휴 sway (REVIEW #10) ── */
 

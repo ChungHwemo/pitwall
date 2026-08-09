@@ -68,6 +68,8 @@ export class SettingsPanel {
       onNamesChange?: () => void;
       /** 적용된 로컬 단가 보정. 있으면 적용 출처·판독 나이를 한 줄로 밝힌다. */
       pricingOverride?: PricingOverride;
+      /** 열릴 때만 불린다. main.ts가 이걸로 범례 패널을 닫아 겹침을 막는다. */
+      onOpen?: () => void;
     } = { simulated: true },
   ) {
     this.settings = initial;
@@ -83,7 +85,9 @@ export class SettingsPanel {
     toggle.textContent = '설정';
     toggle.title = '배속·하이라이트 같은 조작판';
     toggle.addEventListener('click', () => {
-      shell.setAttribute('data-open', shell.getAttribute('data-open') === 'true' ? 'false' : 'true');
+      const open = shell.getAttribute('data-open') === 'true';
+      shell.setAttribute('data-open', open ? 'false' : 'true');
+      if (!open) opts.onOpen?.();
     });
 
     const root = document.createElement('div');

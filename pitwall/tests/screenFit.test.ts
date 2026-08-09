@@ -98,6 +98,89 @@ describe('타워 줄은 자기 칸 안에 들어간다', () => {
   });
 });
 
+/*
+ * 375px 실측(scrollWidth 138 vs clientWidth 77)에서 한도 창·소진 속도가 잘렸다.
+ * 원인은 4번째 칸(money)이 5.5rem 고정폭이라 state·limit과 나눠 쓰던 1fr 칸이
+ * 더 좁아진 것 — `ruleBody`는 최상위(들여쓰기 없는) 줄만 찾으므로, `@media` 안의
+ * 2스페이스 들여쓴 규칙을 읽는 전용 헬퍼가 필요하다.
+ */
+function mediaBlock(query: string): string {
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = new RegExp(`@media ${escaped} \\{\\n([\\s\\S]*?)\\n\\}\\n`).exec(css);
+  if (!m) throw new Error(`미디어 쿼리를 찾지 못했다: ${query}`);
+  return m[1]!;
+}
+
+function ruleBodyIn(block: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = new RegExp(`^\\s*${escaped}\\s*\\{([^}]*)\\}`, 'm').exec(block);
+  if (!m) throw new Error(`규칙을 찾지 못했다: ${selector}`);
+  return m[1]!;
+}
+
+describe('375px 모바일 타워 줄에서 필수 사실이 잘리지 않는다 (블로커 A 회귀)', () => {
+  const mobile = mediaBlock('(max-width: 480px)');
+  const rowSelector = '.tower-row, .tower[data-dense="true"] .tower-row';
+  const mobileRow = ruleBodyIn(mobile, rowSelector);
+
+  it('money 전용 고정폭 칸이 없다 — bar·num·유연칸(1fr) 세 칸뿐이다', () => {
+    const cols = tracks(decl(mobileRow, 'grid-template-columns'));
+    expect(cols).toHaveLength(3);
+    expect(cols[2]).toContain('1fr');
+  });
+
+  it('state·limit·money가 유연칸 안에서 서로 다른 줄에 놓인다 — 한 줄을 나눠 쓰지 않는다', () => {
+    const areas = decl(mobileRow, 'grid-template-areas');
+    const moneyRow = /"bar num money"/.exec(areas);
+    expect(moneyRow, areas).not.toBeNull();
+    // money가 state·limit과 같은 줄 문자열에 함께 있으면 다시 좁아진다.
+    expect(areas).not.toMatch(/"bar num (state|limit) money"/);
+  });
+
+  it('행 높이가 고정이 아니다 — 세 줄 내용이 고정 높이에 눌려 잘리지 않는다', () => {
+    expect(decl(mobileRow, 'height')).toBe('auto');
+  });
+
+  it('.tower-model·.tower-spark 숨김 규칙이 후순위 프로바이더 칩 규칙(694번째 줄 부근, 특이도 동률)을 이긴다', () => {
+    // `.tower-model`만으로는 파일 뒤쪽 `.tower-model{display:flex}`(특이도 동률, 소스 순서 뒤)에 진다.
+    // 자손 결합자로 특이도를 하나 올린 선택자를 써야 실제로 숨는다 — 실측(computed display:flex) 확인.
+    const hideRuleSelectorPattern = /^\s*\.tower-row \.tower-model,\s*\.tower-row \.tower-spark\s*\{([^}]*)\}/m;
+    const m = hideRuleSelectorPattern.exec(mobile);
+    expect(m, mobile).not.toBeNull();
+    expect(decl(m![1]!, 'display')).toBe('none');
+  });
+
+  it('.tower-money가 넘쳐도 잘리지 않는다 — overflow:visible로 조용한 clipping을 막는다', () => {
+    const moneyBody = ruleBodyIn(mobile, '.tower-money');
+    expect(decl(moneyBody, 'overflow')).toBe('visible');
+  });
+});
+
+describe('.live-status는 필수 사실이라 축소·말줄임 대상이 아니다 (G001)', () => {
+  it('flex-shrink가 0이다 — 다른 hud-item과 같은 비축소 계약을 공유한다', () => {
+    expect(decl(ruleBody('.live-status'), 'flex-shrink')).toBe('0');
+  });
+});
+
+describe('밀집 타워의 카넘버 칸이 세 자리 수를 실제로 담는다 (Task 4)', () => {
+  // .tower-row 주석의 실측 근거와 같다: 등폭 폰트 자간 0.6em × 세 자리.
+  const MONO_DIGIT_ADVANCE_EM = 0.6;
+
+  it('밀집 카넘버 칸 폭이 세 자리 수 최소 폭(폰트 크기 × 0.6em × 3) 이상이다', () => {
+    const denseBody = ruleBody('.tower[data-dense="true"] .tower-row');
+    const numberCol = tracks(decl(denseBody, 'grid-template-columns'))[1]!;
+    const fontSizeRem = rem(decl(ruleBody('.tower-number'), 'font-size'));
+    const need = 3 * MONO_DIGIT_ADVANCE_EM * fontSizeRem;
+    expect(rem(numberCol)).toBeGreaterThanOrEqual(need);
+  });
+
+  it('.tower-number는 넘치면 잘림 대신 말줄임을 보인다 — 조용한 truncation 금지', () => {
+    const body = ruleBody('.tower-number');
+    expect(decl(body, 'white-space')).toBe('nowrap');
+    expect(decl(body, 'text-overflow')).toBe('ellipsis');
+  });
+});
+
 const SETS: Dataset[] = [
   { id: 'real', label: '실기록', synthetic: false, events: [] },
   { id: 'demo', label: '데모', synthetic: true, events: [] },
@@ -211,6 +294,41 @@ describe('정보를 나르는 색은 배경에서 보인다', () => {
       expect(contrastRatio(colorOf(selector), BACKGROUND)).toBeGreaterThanOrEqual(min);
     });
   }
+});
+
+describe('설정·범례 패널은 화면에 고정되고 뷰포트를 넘지 않는다 (Task 5)', () => {
+  // 두 셀렉터가 한 규칙을 공유한다 — CSS 원문 그대로 붙여 써야 ruleBody가 찾는다.
+  const sharedBody = ruleBody('.legend-body, .settings-body');
+
+  it('둘 다 화면에 고정되고 오른쪽 여백이 rem 단위다 — px면 확대 시 어긋난다', () => {
+    expect(decl(sharedBody, 'position')).toBe('fixed');
+    expect(decl(sharedBody, 'right')).toMatch(/rem$/);
+  });
+
+  it('둘 다 max-width로 뷰포트 폭 안에 묶인다 — 좁은 화면에서 잘리지 않는다', () => {
+    expect(decl(sharedBody, 'max-width')).toContain('100vw');
+  });
+
+  /*
+   * Task 6 회귀: box-sizing이 content-box(기본값)면 max-width가 패딩·테두리를
+   * 뺀 content만 잡아, 실제 border-box 폭이 max-width를 넘어선다. 375px 실측에서
+   * `.legend-body`가 x=-18.765로 새어 `.settings-toggle`을 덮었다 — 클릭이 막힌
+   * 원인이었다. border-box라면 `left = 100vw - right - min(width, maxWidthSub)`이고,
+   * `maxWidthSub`(calc의 뺄셈 항)가 `right`보다 크거나 같은 한 뷰포트 폭과 무관하게
+   * left는 항상 0 이상이다 — 실제 픽셀을 몰라도 대수적으로 증명된다.
+   */
+  it('border-box라서 max-width가 패딩·테두리까지 포함해 왼쪽 끝이 음수가 될 수 없다 (Task 6)', () => {
+    expect(decl(sharedBody, 'box-sizing')).toBe('border-box');
+
+    const rightRem = rem(decl(sharedBody, 'right'));
+    const maxWidth = decl(sharedBody, 'max-width');
+    const subtrahendMatch = /100vw\s*-\s*([\d.]+)rem/.exec(maxWidth);
+    if (!subtrahendMatch) throw new Error(`max-width 형태를 못 읽었다: ${maxWidth}`);
+    const maxWidthSubtrahendRem = Number(subtrahendMatch[1]);
+
+    // right <= subtrahend  ⇔  left = subtrahend - right >= 0, 어떤 뷰포트 폭에서도.
+    expect(rightRem).toBeLessThanOrEqual(maxWidthSubtrahendRem);
+  });
 });
 
 describe('망가진 저장 설정이 화면을 죽이지 않는다', () => {

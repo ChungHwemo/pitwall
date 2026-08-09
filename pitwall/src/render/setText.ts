@@ -11,3 +11,11 @@
 export function setText(el: { textContent: string | null }, value: string): void {
   if (el.textContent !== value) el.textContent = value;
 }
+
+/**
+ * 값이 바뀔 때만 title을 쓴다 — CSS가 말줄임한 밀집 카드 값의 전체 텍스트를
+ * 접근성 트리와 마우스오버에 남긴다 (§4.3.2 조용한 truncation 금지).
+ */
+export function setTitle(el: { title: string }, value: string): void {
+  if (el.title !== value) el.title = value;
+}

@@ -95,6 +95,18 @@ describe('RadioRenderer', () => {
   });
 });
 
+
+describe('RadioRenderer — 이름 정제', () => {
+  it('오염된 로컬카탄 이름은 카넘버로 폴백한다', () => {
+    const r = new RadioRenderer(host, 5);
+    r.push(msg('m1', { carId: 'car-a', carNumber: 17, text: 'BOX BOX' }));
+    r.render({ 'car-a': '로컬카탄' });
+    const line = host.querySelector('.radio-line')!;
+    expect(line.textContent).toContain('#017');
+    expect(line.textContent).not.toContain('로컬카탄');
+  });
+});
+
 describe('RadioRenderer — 이벤트 극성 (P0-3)', () => {
   it('warn/critical 심각도는 data-polarity="caution"이고 색이 EVENT_POLARITY_COLOR.caution이다', () => {
     const r = new RadioRenderer(host, 5);

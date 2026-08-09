@@ -3,7 +3,7 @@ import { LiveSource } from '../src/source/LiveSource';
 import { ReplaySource } from '../src/source/ReplaySource';
 import { PitwallApp } from '../src/main';
 import { resolveSettings } from '../src/config/settings';
-import { loadLiveSnapshot, LIVE_STORAGE_KEY } from '../src/session/liveStore';
+import { loadLiveSnapshot, LIVE_STORAGE_KEY, type LiveSnapshot } from '../src/session/liveStore';
 
 const CODEX_CTX = JSON.stringify({
   timestamp: '2026-07-30T21:00:01.000Z',
@@ -259,6 +259,22 @@ describe('배지는 데이터의 출처를 말한다 — demoClock과 무관하�
     expect(status.textContent).toContain('STALE DATA');
     expect(status.textContent).not.toContain('DISCONNECT');
   });
+
+  it('stale age is reported complete with hours, minutes, and seconds — never an ellipsis (G001)', () => {
+    // 5분 남짓이 아니라 1시간을 넘겨, 시·분·초가 전부 채워진 나이를 만든다.
+    // 짧은 나이는 이미 완전해서 CSS가 잘라내는 회귀를 못 잡는다.
+    const live = new LiveSource({ codexAccountId: 'qa-account' });
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    app.start();
+    app.useSource(live, { speed: 1, demoClock: false });
+    live.ingest('codex', [CODEX_CTX, CODEX_USAGE]);
+    app.frame(1_000);
+    app.frame(3_724_000);
+    const status = root.querySelector('.live-status')!;
+    expect(status.getAttribute('data-live-state')).toBe('stale');
+    expect(status.textContent).toBe('LIVE · STALE DATA 01:02:03');
+    expect(status.textContent).not.toMatch(/…|\.\.\./);
+  });
 });
 
 describe('실시간 리로드 복원', () => {
@@ -378,5 +394,88 @@ describe('실시간 리로드 복원', () => {
     expect(liveWrites).toBeGreaterThanOrEqual(2);
     expect(localStorage.getItem(LIVE_STORAGE_KEY)).not.toBeNull();
     expect(loadLiveSnapshot()).not.toBeNull();
+  });
+
+  it('수동으로 고른 방송 포커스는 자동 후보가 바뀌어도 그대로 유지된다', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.0001);
+    const app = new PitwallApp(root, { seed: 5, preset: 'busy', speed: 100 });
+    app.start();
+    runFrames(app, 20);
+
+    const row = root.querySelector<HTMLElement>('.tower-row[data-state]');
+    expect(row, '차량이 하나도 안 올라왔다').not.toBeNull();
+    const carNumber = Number(row!.querySelector('.tower-number')?.textContent);
+    row!.click();
+    app.frame(app.state.now + 100);
+
+    const focus = root.querySelector<HTMLElement>('.broadcast-focus')!;
+    expect(focus.dataset['source']).toBe('manual');
+    expect(focus.textContent).toMatch(new RegExp(`FOCUS ${String(carNumber).padStart(2, '0')}\\b`));
+
+    // 이후 프레임에서 자동 후보(다른 차량의 이벤트/한도)가 바뀌어도 수동 포커스는 안 밀린다.
+    runFrames(app, 60, 100);
+    expect(focus.dataset['source']).toBe('manual');
+    expect(focus.textContent).toMatch(new RegExp(`FOCUS ${String(carNumber).padStart(2, '0')}\\b`));
+  });
+
+  it('관측 차량이 없으면 방송 포커스는 빈 상태를 유지하고 후보를 지어내지 않는다', () => {
+    const live = new LiveSource();
+    const app = new PitwallApp(root, { seed: 7, preset: 'busy', speed: 1 });
+    app.useSource(live, { speed: 1, demoClock: false });
+    const emptySnapshot: LiveSnapshot = {
+      v: 1, savedAt: Date.now(), now: 1_000,
+      state: { cars: {}, byModel: {}, phase: 'racing', elapsed_ms: 0 },
+      samples: [],
+    };
+    app.restoreLiveState(emptySnapshot);
+    app.start();
+    app.frame(1_000);
+
+    const focus = root.querySelector<HTMLElement>('.broadcast-focus')!;
+    expect(focus.textContent).toBe('방송 포커스 없음 — 새 이벤트 대기 · 관측 차량 없음');
+    expect(focus.dataset['source']).toBeUndefined();
+  });
+});
+
+// Task 5 — 설정과 범례는 각자 고정 패널이고, 한쪽을 열면 다른 쪽은 닫힌다
+// (겹쳐서 서로를 가리는 것을 두 버튼짜리 DOM 규칙으로 막는다. 패널 매니저는 새로 만들지 않는다).
+describe('설정과 범례는 서로 배타적으로 열린다 (Task 5)', () => {
+  it('범례를 연 상태에서 설정을 열면 범례가 닫힌다', () => {
+    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    const legendShell = root.querySelector('.legend')!;
+    const settingsShell = root.querySelector('.settings')!;
+
+    (root.querySelector('.legend-toggle') as HTMLElement).click();
+    expect(legendShell.getAttribute('data-open')).toBe('true');
+
+    (root.querySelector('.settings-toggle') as HTMLElement).click();
+    expect(settingsShell.getAttribute('data-open')).toBe('true');
+    expect(legendShell.getAttribute('data-open')).toBe('false');
+  });
+
+  it('설정을 연 상태에서 범례를 열면 설정이 닫힌다', () => {
+    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    const legendShell = root.querySelector('.legend')!;
+    const settingsShell = root.querySelector('.settings')!;
+
+    (root.querySelector('.settings-toggle') as HTMLElement).click();
+    expect(settingsShell.getAttribute('data-open')).toBe('true');
+
+    (root.querySelector('.legend-toggle') as HTMLElement).click();
+    expect(legendShell.getAttribute('data-open')).toBe('true');
+    expect(settingsShell.getAttribute('data-open')).toBe('false');
+  });
+
+  it('각 버튼은 자기 패널 본문만 채운다 — 상대 패널 안에 컨트롤이 섞이지 않는다', () => {
+    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    (root.querySelector('.settings-toggle') as HTMLElement).click();
+    const settingsBody = root.querySelector('.settings-body')!;
+    expect(settingsBody.querySelector('select, input')).not.toBeNull();
+
+    (root.querySelector('.legend-toggle') as HTMLElement).click();
+    const legendBody = root.querySelector('.legend-body')!;
+    expect(legendBody.querySelector('select, input')).toBeNull();
+    expect(settingsBody.getAttribute('data-open')).toBeNull(); // settings-body 자체엔 data-open이 없다 — 껍데기에 있다
+    expect(root.querySelector('.settings')!.getAttribute('data-open')).toBe('false');
   });
 });

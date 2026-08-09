@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Legend } from '../src/render/legend';
 
 let host: HTMLElement;
@@ -37,5 +37,33 @@ describe('Legend', () => {
     expect(root.getAttribute('data-open')).toBe('false');
     (host.querySelector('.legend-toggle') as HTMLElement).click();
     expect(root.getAttribute('data-open')).toBe('true');
+  });
+});
+
+// Task 5 — settings와 상호 배타. onOpen은 열릴 때만 불려 main.ts가 상대 패널을 닫는다.
+describe('범례는 열릴 때만 onOpen을 부른다 (Task 5)', () => {
+  it('토글로 열 때 한 번, 닫을 때는 부르지 않는다', () => {
+    const onOpen = vi.fn();
+    new Legend(host, onOpen);
+    const toggle = host.querySelector('.legend-toggle') as HTMLElement;
+
+    toggle.click();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    toggle.click();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('onOpen이 없어도 토글은 그대로 동작한다', () => {
+    new Legend(host);
+    const root = host.querySelector('.legend')!;
+    (host.querySelector('.legend-toggle') as HTMLElement).click();
+    expect(root.getAttribute('data-open')).toBe('true');
+  });
+
+  it('범례 본문에는 설정 입력이 섞이지 않는다', () => {
+    new Legend(host);
+    const body = host.querySelector('.legend-body')!;
+    expect(body.querySelector('input, select')).toBeNull();
   });
 });

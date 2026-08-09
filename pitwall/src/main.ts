@@ -3,7 +3,7 @@ import { PRESETS, type PresetName } from './config/presets';
 import { SimulatorSource } from './source/SimulatorSource';
 import type { EventSource } from './source/EventSource';
 import {
-  emptyRaceState, applyEvent, workOf, FRESH_THRESHOLD_MS, IDLE_THRESHOLD_MS,
+  emptyRaceState, applyEvent, workOf, freshnessOf, FRESH_THRESHOLD_MS, IDLE_THRESHOLD_MS,
 } from './state/reducer';
 import { DEFAULT_WORKDAY, phaseAt, elapsedMs, raceDurationMs, formatWallClock, liveWorkday } from './state/clock';
 import type { ActivitySample } from './state/clock';
@@ -12,9 +12,17 @@ import { demoClock } from './state/demoClock';
 import { pickCircuit } from './track/circuits';
 import { buildTrackModel, type TrackModel } from './track/trackModel';
 import { Director } from './director/director';
+import {
+  BroadcastDirector, broadcastSeverityOf,
+  type BroadcastCandidate, type BroadcastSelection, type BroadcastSeverity,
+} from './director/broadcastDirector';
 import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
 import { RoutineRadio } from './radio/routineRadio';
 import { TrackRenderer } from './render/trackRenderer';
+import {
+  bootBroadcastTrackRenderer,
+  type BroadcastRendererSession,
+} from './render/broadcastRendererSession';
 import { TowerRenderer } from './render/towerRenderer';
 import { ModelPanel } from './render/modelPanel';
 import { RadioRenderer } from './render/radioRenderer';
@@ -77,9 +85,10 @@ export interface AppOptions {
 export class PitwallApp {
   private source: EventSource & { setSpeed(speed: number): void };
   private director: Director;
+  private broadcastDirector = new BroadcastDirector();
   settings: PitwallSettings;
   private routine = new RoutineRadio();
-  private trackRenderer: TrackRenderer;
+  private trackRenderer: BroadcastRendererSession;
   private towerRenderer: TowerRenderer;
   private modelPanel: ModelPanel;
   private radioRenderer: RadioRenderer;
@@ -91,6 +100,8 @@ export class PitwallApp {
   /** 시간대별(0–23시) 작업 토큰 곡선. 근무일 타임라인 곁에 붙는 하루 모양. */
   private hudHourly: HTMLElement;
   private detail: HTMLElement;
+  private broadcastFocus: HTMLElement;
+  private broadcastFocusCarId: string | null = null;
   /** 데이터셋 선택기가 붙는 자리. 무엇을 보는지 화면이 늘 말해야 한다. */
   private hudSlot: HTMLElement;
   private live = false;
@@ -110,6 +121,9 @@ export class PitwallApp {
    * 리듀서는 집계만 들고 있다. 계정마다 링버퍼 하나면 충분하다.
    */
   private recent = new Map<string, RingBuffer<CarEvent>>();
+  private lastBroadcastEvent = new Map<string, { readonly ts: number; readonly severity: BroadcastSeverity }>();
+  private previousWorkRates = new Map<string, number>();
+  private broadcastCandidates: readonly BroadcastCandidate[] = [];
 
   private raceState: RaceState = emptyRaceState(0);
   /** 마지막으로 모델을 만든 cars 참조. 리듀서가 이벤트마다 새 Map을 만들므로
@@ -190,11 +204,15 @@ export class PitwallApp {
 
     const cams = document.createElement('div');
     cams.className = 'cams';
+    this.broadcastFocus = document.createElement('section');
+    this.broadcastFocus.className = 'broadcast-focus';
+    this.broadcastFocus.setAttribute('aria-live', 'polite');
+    this.broadcastFocus.textContent = '방송 포커스 없음 — 새 이벤트 대기';
 
     // 오른쪽 한 칸: 위는 선택한 계정 내역, 아래는 줄어든 트랙.
     const detail = document.createElement('div');
     detail.className = 'detail';
-    detail.append(cams, svg);
+    detail.append(this.broadcastFocus, cams, svg);
     this.detail = detail;
 
     const radio = document.createElement('div');
@@ -205,21 +223,32 @@ export class PitwallApp {
 
     this.summaryRenderer = new SummaryRenderer(shell);
     this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
+    // 설정과 범례는 같은 자리에 고정된 별개 판이다. 하나를 열면 다른 하나를
+    // 닫아 겹치는 것을 막는다 — 새 패널 매니저 대신 onOpen 콜백 하나로 짠다.
+    let legendShell: HTMLElement | undefined;
     this.settingsPanel = new SettingsPanel(hud, this.settings, (next) => this.applySettings(next),
       {
         simulated: opts.source === undefined,
         onNamesChange: (): void => { this.carNames = loadCarNames(); this.render(this.raceState.now); },
         pricingOverride: opts.pricingOverride,
+        onOpen: () => legendShell?.setAttribute('data-open', 'false'),
       });
-    // 화면의 말이 대부분 이 안에서만 통한다. 접힌 채로 곁에 둔다.
-    new Legend(hud);
+    const settingsShell = hud.querySelector('.settings') as HTMLElement;
+    new Legend(hud, () => settingsShell.setAttribute('data-open', 'false'));
+    legendShell = hud.querySelector('.legend') as HTMLElement;
 
     this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
     this.modelPanel = new ModelPanel(models, MODEL_ROWS);
     // 모델 판은 타워 **아래**다. 타워 렌더러가 자기 노드를 붙인 뒤에 이어 붙여야
     // 순서가 맞는다 — 먼저 붙이면 모델 판이 위로 올라간다.
     tower.appendChild(models);
-    this.trackRenderer = new TrackRenderer(svg, track);
+    // ROLLBACK 2026-08-09: broadcast pit lane spans most of the circuit and
+    // renders as a second track loop. Force legacy until fixed; broadcast files untouched.
+    this.trackRenderer = bootBroadcastTrackRenderer(svg, track, {
+      supported: () => false,
+      createLegacy: () => new TrackRenderer(svg, track),
+    });
+    this.detail.dataset['renderer'] = this.trackRenderer.mode;
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed, opts.pricingOverride?.entries);
 
@@ -252,6 +281,9 @@ export class PitwallApp {
     this.source.onWrap?.(() => {
       this.raceState = { ...emptyRaceState(this.raceState.now), phase: this.raceState.phase };
       this.recent.clear();
+      this.lastBroadcastEvent.clear();
+      this.previousWorkRates.clear();
+      this.broadcastCandidates = [];
       this.modelCars = null;
       this.selected = null;
     });
@@ -263,6 +295,10 @@ export class PitwallApp {
       const log = this.recent.get(event.car_id)
         ?? this.recent.set(event.car_id, new RingBuffer<CarEvent>(FEED_HISTORY)).get(event.car_id)!;
       log.push(event);
+      const broadcastSeverity = broadcastSeverityOf(event.kind);
+      if (broadcastSeverity) {
+        this.lastBroadcastEvent.set(event.car_id, { ts: event.ts, severity: broadcastSeverity });
+      }
       // 실시간에서는 창이 활동을 따라 자란다. 창 밖으로 나가면 화면이 멈춘다.
       if (this.live) {
         this.liveSamples.push({ ts: event.wall_ts ?? event.ts, work: workOf(event) });
@@ -305,6 +341,9 @@ export class PitwallApp {
     this.source.stop();
     this.raceState = emptyRaceState(this.raceState.now);
     this.recent.clear();
+    this.lastBroadcastEvent.clear();
+    this.previousWorkRates.clear();
+    this.broadcastCandidates = [];
     this.modelCars = null;
     this.selected = null;
     this.source = source;
@@ -368,7 +407,8 @@ export class PitwallApp {
     this.liveSamples = samples;
     this.modelCars = null;
     this.lastLiveSaveAt = state.now;
-    this.lastLiveEventAt = Math.max(...[...state.cars.values()].map((car) => car.last_event_ts), 0) || null;
+    const lastEventAt = Math.max(...[...state.cars.values()].map((car) => car.last_event_ts));
+    this.lastLiveEventAt = Number.isFinite(lastEventAt) ? lastEventAt : null;
   }
 
   private emitRoutineRadio(now: number): void {
@@ -406,6 +446,7 @@ export class PitwallApp {
         limitWarnPct: this.settings.limitWarnThresholdPct,
         pinned: this.pinned,
       });
+      this.broadcastCandidates = this.buildBroadcastCandidates(now);
       this.nextFreshnessAt = Number.POSITIVE_INFINITY;
       for (const car of this.raceState.cars.values()) {
         const quietAt = car.last_event_ts + FRESH_THRESHOLD_MS + 1;
@@ -414,7 +455,16 @@ export class PitwallApp {
         this.nextFreshnessAt = Math.min(this.nextFreshnessAt, next);
       }
     }
-    this.trackRenderer.render(this.trackModel, now, this.selected);
+    const broadcastSelection = this.broadcastDirector.select(
+      this.broadcastCandidates, now, this.selected,
+    );
+    this.trackRenderer.render(
+      this.trackModel,
+      now,
+      broadcastSelection.kind === 'selected' ? broadcastSelection.carId : null,
+    );
+    this.detail.dataset['renderer'] = this.trackRenderer.mode;
+    this.renderBroadcastFocus(broadcastSelection, now);
     this.settingsPanel.setAccounts([...this.raceState.cars.values()]);
     this.towerRenderer.render(
       this.raceState, now, real.getTime(), this.selected,
@@ -473,6 +523,66 @@ export class PitwallApp {
     const wantedHourly = curve ? '' : 'none';
     if (this.hudHourly.style.display !== wantedHourly) this.hudHourly.style.display = wantedHourly;
     if (curve) setText(this.hudHourly, curve);
+  }
+
+  private buildBroadcastCandidates(now: number): readonly BroadcastCandidate[] {
+    const candidates: BroadcastCandidate[] = [];
+    for (const car of this.raceState.cars.values()) {
+      if (car.activity === 'retired') continue;
+      const recentEvent = this.lastBroadcastEvent.get(car.car_id) ?? null;
+      const previousWorkPerMin = this.previousWorkRates.get(car.car_id) ?? null;
+      const stoppedReason = car.last_error_ts !== undefined && now - car.last_error_ts <= 10_000
+        ? 'error'
+        : car.tyre_pct !== undefined && car.tyre_pct < this.settings.limitWarnThresholdPct
+          ? 'limit' : null;
+      candidates.push({
+        carId: car.car_id,
+        lastEventTs: car.last_event_ts,
+        fresh: freshnessOf(car, now) === 'fresh',
+        stoppedReason,
+        recentEvent,
+        workPerMin: car.work_per_min,
+        previousWorkPerMin,
+      });
+      this.previousWorkRates.set(car.car_id, car.work_per_min);
+    }
+    return candidates;
+  }
+
+  private renderBroadcastFocus(selection: BroadcastSelection, now: number): void {
+    const nextCarId = selection.kind === 'selected' ? selection.carId : null;
+    if (nextCarId !== this.broadcastFocusCarId
+      && typeof this.broadcastFocus.animate === 'function'
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.broadcastFocus.animate(
+        [
+          { opacity: 0.55, transform: 'translateY(-4px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ],
+        { duration: 200, easing: 'ease-out' },
+      );
+    }
+    this.broadcastFocusCarId = nextCarId;
+    if (selection.kind === 'empty') {
+      setText(this.broadcastFocus, this.raceState.cars.size === 0
+        ? '방송 포커스 없음 — 새 이벤트 대기 · 관측 차량 없음'
+        : '방송 포커스 없음 — 새 이벤트 대기');
+      return;
+    }
+    const car = this.raceState.cars.get(selection.carId);
+    if (!car) {
+      setText(this.broadcastFocus, '방송 포커스 없음 — 새 이벤트 대기');
+      return;
+    }
+    const candidate = this.broadcastCandidates.find((entry) => entry.carId === car.car_id);
+    const reason = candidate?.stoppedReason?.toUpperCase() ?? car.activity.toUpperCase();
+    const freshness = freshnessOf(car, now).toUpperCase();
+    const age = Math.max(0, now - car.last_event_ts);
+    this.broadcastFocus.dataset['source'] = selection.source;
+    setText(this.broadcastFocus,
+      `FOCUS ${String(car.car_number).padStart(2, '0')} · ${reason} · `
+      + `${Math.round(car.work_per_min).toLocaleString('ko-KR')} tok/min · `
+      + `EVENT ${formatElapsed(age)} · ${freshness}`);
   }
 
   private renderLiveStatus(now: number): void {

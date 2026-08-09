@@ -24,7 +24,11 @@ const ROWS: [string, string, string?][] = [
 ];
 
 export class Legend {
-  constructor(container: HTMLElement) {
+  /**
+   * @param onOpen 열릴 때만 불린다 (닫힐 때는 안 부름). main.ts가 이걸로
+   * 설정 패널을 닫아 두 고정 판이 같은 자리에서 겹치는 것을 막는다.
+   */
+  constructor(container: HTMLElement, onOpen?: () => void) {
     const root = document.createElement('div');
     root.className = 'legend';
     root.setAttribute('data-open', 'false');
@@ -37,6 +41,7 @@ export class Legend {
     toggle.addEventListener('click', () => {
       const open = root.getAttribute('data-open') === 'true';
       root.setAttribute('data-open', open ? 'false' : 'true');
+      if (!open) onOpen?.();
     });
 
     const body = document.createElement('dl');
