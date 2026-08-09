@@ -98,14 +98,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
         if let data = try? JSONSerialization.data(withJSONObject: accounts),
            let json = String(data: data, encoding: .utf8) {
-            // 식별자는 화면 안에서 즉시 해시된다. 로그로 남기지 않는다.
-            webView.evaluateJavaScript("window.pitwallLive && window.pitwallLive(\(json))")
+            sendLiveAccounts(json)
         }
 
         pageReady = true
         let queued = pendingLines
         pendingLines = []
         for (vendor, lines) in queued { push(vendor, lines) }
+    }
+
+    /// `didFinish`는 메인 프레임 로드 완료 시점이라, 번들된 모듈의 top-level async
+    /// 초기화(설정 로드 등)가 `window.pitwallLive`를 아직 대입하기 전일 수 있다.
+    /// 그 순간 한 번만 호출하면 조용히 사라지고 화면은 영영 LIVE로 못 바뀐다
+    /// (관측: 3회 중 1회 재현) — 함수가 실제로 나타날 때까지 짧게 재시도한다.
+    private func sendLiveAccounts(_ json: String, attempt: Int = 0) {
+        let maxAttempts = 20   // 100ms 간격 20회 = 최대 2초. 관찰된 초기화 지연보다 넉넉히 크다.
+        webView.evaluateJavaScript(
+            "typeof window.pitwallLive === 'function' ? (window.pitwallLive(\(json)), true) : false"
+        ) { [weak self] result, _ in
+            guard let self, (result as? Bool) != true, attempt < maxAttempts else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.sendLiveAccounts(json, attempt: attempt + 1)
+            }
+        }
     }
 
     private func buildMenu() {
