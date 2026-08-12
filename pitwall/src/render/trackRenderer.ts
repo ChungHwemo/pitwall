@@ -593,7 +593,7 @@ export class TrackRenderer {
         node.carId = car.carId;
       }
 
-      applyHeat(node.group, car.heat, car.idle, car.freshness, car.carId);
+      applyHeat(node.group, this.projector.heat(car.carId, car.heat, now), car.idle, car.freshness, car.carId);
       const next = this.projector.step(car.carId, car.progress, now);
       // 무통신 차는 실제 진행이 멈춰도 주행선에서 완전히 얼어붙지 않는다 — idleCreepOffset 참고.
       const draw = car.idle ? next + idleCreepOffset(car.carId, now) : next;
@@ -665,7 +665,7 @@ export class TrackRenderer {
       // 사용자 정정(2026-08-09): 피트에 들어온 차는 완전히 정지한다 — 더 못 가는
       // 상태에 창작된 왕복 움직임(구 REVIEW #14 pitCreep)을 얹지 않는다. 화면이
       // 죽어 보이지 않게 하는 몫은 아래 무통신 주행선 차량의 idleCreepOffset로 옮겼다.
-      applyHeat(node.group, car.heat, car.idle, car.freshness, car.carId);
+      applyHeat(node.group, this.projector.heat(car.carId, car.heat, now), car.idle, car.freshness, car.carId);
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
         this.projector.hold(car.carId, now);

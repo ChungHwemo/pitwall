@@ -37,6 +37,8 @@ export const MAX_FRAME_STEP = 0.004;
 
 /** 속도 추정의 지수 평활 계수. 한 샘플이 튀어도 화면이 덜컥이지 않게 한다. */
 const VELOCITY_SMOOTHING = 0.35;
+const HEAT_ATTACK_MS = 350;
+const HEAT_RELEASE_MS = 1_400;
 
 /** 이보다 오래 샘플이 없으면 속도를 죽인다 (ms, 내부 시계). */
 const STALE_MS = 30_000;
@@ -64,6 +66,20 @@ function wrap(p: number): number {
 
 export class Projector {
   private cars = new Map<string, Track>();
+  private heatByCar = new Map<string, { value: number; at: number }>();
+
+  heat(carId: string, target: number, now: number): number {
+    const previous = this.heatByCar.get(carId);
+    if (!previous) {
+      this.heatByCar.set(carId, { value: target, at: now });
+      return target;
+    }
+    const elapsed = Math.max(0, now - previous.at);
+    const duration = target > previous.value ? HEAT_ATTACK_MS : HEAT_RELEASE_MS;
+    const value = previous.value + (target - previous.value) * (1 - Math.exp(-elapsed / duration));
+    this.heatByCar.set(carId, { value, at: now });
+    return value;
+  }
 
   /**
    * 이번 프레임에 그릴 진행률.

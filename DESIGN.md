@@ -182,6 +182,7 @@ Source: `pitwall/src/main.ts:139-224`, renderers under `pitwall/src/render/`, `p
 |---|---:|---|
 | Idle sway | `4s ease-in-out infinite` | Local engine-idle presence only; never progress |
 | Projection | `requestAnimationFrame`, elapsed-time anchors | Smooths between observed anchors without overtaking them; H1’s call-count-clock diagnosis is refuted |
+| Heat attack / release | `350ms` / `1,400ms` exponential response | Activity becomes visible quickly and cools gradually; brightness only, never position |
 | Broadcast cut | `160–240ms` | One interruptible opacity/transform cross-fade for a real Director subject change |
 
 The beui animated-badge reference contributes one mechanism only: stable semantic status with keyed text/shape, optional state-only pulse, and an equivalent reduced-motion result. PITWALL implements that mechanism through existing attributes, pooled nodes, and CSS; it does not import the reference’s component or animation stack.
@@ -190,6 +191,7 @@ Rules:
 
 - Animate only `transform`, `opacity`, and `filter`. Never animate layout properties or write SVG `transform` attributes.
 - Motion serves actual state: syncing/freshness transition, automatic broadcast cut, projection, or idle presence. No decorative hover motion.
+- Heat follows the acceleration-control reference mechanism: fast attack and slower release toward the observed `work_per_min` signal. It is elapsed-time based, cannot overshoot, and never changes token-derived progress.
 - `prefers-reduced-motion: reduce` disables idle sway, freshness pulse, and broadcast transition while leaving state text, shapes, focus, selection, and live attributes unchanged.
 - Manual selection persists until the user toggles it off. Automatic focus may not steal it or change pin state.
 - No user-controlled camera movement. The product keeps the complete circuit visible and uses a fixed-depth broadcast detail cut; a three-dimensional scene engine is outside the product contract.

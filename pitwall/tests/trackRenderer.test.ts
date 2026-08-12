@@ -80,6 +80,28 @@ describe('TrackRenderer', () => {
     expect(svg.querySelectorAll('path.track-centerline').length).toBe(1);
   });
 
+  it('활동 상승은 빠르게, 하강은 느리게 반응하고 목표를 넘지 않는다', () => {
+    const r = new TrackRenderer(svg, track);
+    const quiet = model([car('a', { work_per_min: 0 })]);
+    const busy = model([car('a', { work_per_min: 200_000 })]);
+    const heat = () => Number((svg.querySelector('g.cold') as SVGGElement)
+      .style.getPropertyValue('--pw-heat'));
+
+    r.render(quiet, T);
+    r.render(busy, T + 100);
+    const firstRise = heat();
+
+    for (let elapsed = 200; elapsed <= 3_000; elapsed += 100) r.render(busy, T + elapsed);
+    const peak = heat();
+    r.render(quiet, T + 3_100);
+    const firstFall = peak - heat();
+
+    expect(firstRise).toBeGreaterThan(firstFall);
+    expect(firstRise).toBeGreaterThan(0);
+    expect(firstRise).toBeLessThan(peak);
+    expect(peak).toBeLessThanOrEqual(1);
+  });
+
   it('사건 없는 차량은 강조 없이 그린다', () => {
     const r = new TrackRenderer(svg, track);
     r.render(model([car('a'), car('b'), car('c')]), T);
