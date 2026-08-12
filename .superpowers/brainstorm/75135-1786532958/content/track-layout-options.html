@@ -1,0 +1,76 @@
+<style>
+  :root {
+    --ink: #09090b;
+    --panel: #111113;
+    --panel-2: #18181b;
+    --line: #27272a;
+    --muted: #a1a1aa;
+    --quiet: #71717a;
+    --white: #fafafa;
+    --accent: #4dc3ff;
+    --warn: #ff5c5c;
+  }
+  body { background: var(--ink); color: var(--white); }
+  .intro { max-width: 980px; margin: 0 auto 18px; }
+  .intro h2 { margin-bottom: 4px; }
+  .intro p { color: var(--muted); margin-top: 0; }
+  .options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .option { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0; overflow: hidden; cursor: pointer; }
+  .option:hover { border-color: #52525b; }
+  .option[data-selected="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .mockup { margin: 0; border: 0; border-radius: 0; background: #0e1116; }
+  .mockup-header { background: #18181b; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .mockup-body { min-height: 290px; padding: 10px; }
+  .title { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; }
+  .title b { font-size: 14px; }
+  .status { color: #4ade80; font-size: 10px; }
+  .track { position: relative; min-height: 180px; border: 2px solid #3f5963; border-radius: 45% 55% 50% 48%; transform: rotate(-7deg); margin: 22px 12px 18px; }
+  .track::before { content: ''; position: absolute; inset: 26px 34px; border: 2px solid #334b55; border-radius: 45% 55% 50% 48%; }
+  .car { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px #4dc3ff33; }
+  .car:nth-child(1) { top: 17%; left: 66%; } .car:nth-child(2) { bottom: 22%; left: 27%; background: #ff5c5c; } .car:nth-child(3) { top: 42%; right: 12%; background: #c084fc; } .car:nth-child(4) { top: 11%; left: 21%; background: #4ade80; }
+  .rail { display: flex; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; color: var(--muted); font-size: 10px; }
+  .rail span { border: 1px solid var(--line); background: var(--panel-2); padding: 5px 7px; border-radius: 6px; }
+  .tower { display: grid; gap: 3px; }
+  .row { display: grid; grid-template-columns: 16px 28px 1fr auto; gap: 6px; align-items: center; min-height: 28px; border-bottom: 1px solid var(--line); font-size: 10px; }
+  .bar { height: 18px; background: var(--accent); border-radius: 2px; } .bar.warn { background: var(--warn); }
+  .num { font-size: 13px; font-weight: 700; } .sub { color: var(--muted); } .metric { text-align: right; }
+  .badge { border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 3px 6px; font-size: 9px; }
+  .option-copy { padding: 12px 14px 15px; }
+  .option-copy h3 { margin: 0 0 5px; font-size: 15px; }
+  .option-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  @media (max-width: 900px) { .options { grid-template-columns: 1fr; } .mockup-body { min-height: 220px; } }
+</style>
+
+<div class="intro">
+  <h2>트랙 중심 레이아웃 방향</h2>
+  <p>현재 문제: 트랙이 정보 패널에 눌리고, 타워의 숫자·상태·모델이 같은 시각적 무게로 충돌합니다. 아래 중 기본 방향을 골라주세요.</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="mockup"><div class="mockup-header">A · Track-first / Radar wall</div><div class="mockup-body">
+      <div class="title"><b>PITWALL</b><span class="status">● LIVE · connected</span></div>
+      <div class="track"><i class="car"></i><i class="car"></i><i class="car"></i><i class="car"></i></div>
+      <div class="rail"><span>실시간</span><span>차량 24</span><span>최근 30분</span><span>설정</span></div>
+    </div></div>
+    <div class="option-copy"><h3>트랙을 주인공으로</h3><p>큰 고정 트랙 + 하단 요약 rail. 타워는 오른쪽 보조 패널로 압축하고, 선택한 차량만 상세를 띄웁니다. 3초 훑기에 가장 좋습니다.</p></div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="mockup"><div class="mockup-header">B · Split / Timing tower</div><div class="mockup-body">
+      <div class="title"><b>관측 차량</b><span class="badge">실시간</span></div>
+      <div class="tower"><div class="row"><i class="bar"></i><b class="num">07</b><span class="sub">claude-opus · fresh</span><b class="metric">$2.40</b></div><div class="row"><i class="bar warn"></i><b class="num">12</b><span class="sub">gpt-5.6 · limit</span><b class="metric">$1.10</b></div><div class="row"><i class="bar"></i><b class="num">31</b><span class="sub">grok-4.5 · quiet</span><b class="metric">$0.42</b></div></div>
+      <div class="track" style="min-height:105px;margin-top:16px"><i class="car"></i><i class="car"></i><i class="car"></i></div>
+    </div></div>
+    <div class="option-copy"><h3>현재 구조를 정돈</h3><p>타워 우선은 유지합니다. shadcn의 background/card/muted/border/accent 계층을 적용해 행의 숫자·상태·보조정보를 분리합니다. 변경량이 가장 작습니다.</p></div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="mockup"><div class="mockup-header">C · Responsive / Course canvas</div><div class="mockup-body">
+      <div class="title"><b>실측 · 24대</b><span class="status">정상</span></div>
+      <div class="track" style="min-height:190px;margin:8px 8px 12px"><i class="car"></i><i class="car"></i><i class="car"></i><i class="car"></i></div>
+      <div class="rail"><span>07 · $2.40</span><span>12 · 한도</span><span>31 · 유휴</span></div>
+    </div></div>
+    <div class="option-copy"><h3>모든 폭에서 하나의 캔버스</h3><p>데스크톱·모바일 모두 트랙 캔버스가 먼저이고, 차량 목록은 하단 disclosure로 엽니다. 가장 ambient하지만 전체 계정 비교는 느립니다.</p></div>
+  </div>
+</div>
