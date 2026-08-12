@@ -182,10 +182,18 @@ export function providerOfModel(id: string): ProviderId | null {
 
 export function costUsd(
   model: ModelSpec,
-  promptTokens: number,
+  newInputTokens: number,
+  cacheReadTokens: number,
   completionTokens: number,
-  cacheHit: boolean,
 ): number {
-  const inputRate = cacheHit ? model.cachedInputPerMtok : model.inputPerMtok;
-  return (promptTokens * inputRate + completionTokens * model.outputPerMtok) / 1_000_000;
+  // 3-way 분리: 신규 입력은 입력 단가, 캐시 재전송은 캐시 단가, 출력은 출력 단가.
+  // 히트 여부로 prompt 전체를 한쪽 단가로 청구하면 실측 계약과 어긋난다 — 모든
+  // 파서의 prompt는 캐시를 포함하므로 cacheReadTokens를 떼서 따로 곱한다
+  // (Codex 실측 1시간: 구식 계산이 진짜 비용의 약 1/8이었다).
+  const guard = (n: number) => Math.max(0, n);
+  return (
+    guard(newInputTokens) * model.inputPerMtok
+    + guard(cacheReadTokens) * model.cachedInputPerMtok
+    + guard(completionTokens) * model.outputPerMtok
+  ) / 1_000_000;
 }

@@ -51,7 +51,7 @@ describe('codexEvent', () => {
 
   it('추론 토큰을 출력과 분리해 담는다 — 둘 다 과금되지만 다른 몫이다', () => {
     const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
-    expect(e.tokens.completion).toBe(520);
+    expect(e.tokens.completion).toBe(319);
     expect(e.tokens.reasoning).toBe(201);
   });
 
@@ -59,7 +59,7 @@ describe('codexEvent', () => {
     const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
     expect(e.tokens.cache_read).toBe(6912);
     // 거리는 분리 전과 같다 — workOf가 추론을 도로 더한다.
-    expect(workOf(e)).toBe(25153 - 6912 + 721);
+    expect(workOf(e)).toBe(18761);
     expect(cachedOf(e)).toBe(6912);
   });
 
@@ -86,33 +86,48 @@ describe('codexEvent', () => {
 
 describe('grokEvent', () => {
   const row = {
-    ts: '2026-07-10T14:40:56.321Z',
-    msg: 'shell.turn.inference_done',
-    sid: 'sess-9',
-    ctx: {
-      prompt_tokens: 48229, cached_prompt_tokens: 26368,
-      completion_tokens: 541, reasoning_tokens: 427,
-      ttft_ms: 4842, model_elapsed_ms: 22393,
+    timestamp: 1786085851,
+    method: '_x.ai/session/update',
+    params: {
+      sessionId: 'sess-9',
+      update: {
+        sessionUpdate: 'turn_completed',
+        usage: {
+          inputTokens: 117477, outputTokens: 2377,
+          cachedReadTokens: 82432, reasoningTokens: 938,
+          modelCalls: 4, apiDurationMs: 45908,
+          modelUsage: { 'grok-4.5-build': {} },
+        },
+      },
     },
   };
 
-  it('추론 완료를 CarEvent로 옮긴다', () => {
-    const e = grokEvent(row, { car: CAR, model: 'grok-4.5' })!;
-    expect(e.model).toBe('grok-4.5');
-    expect(e.tokens.prompt).toBe(48229);
-    expect(e.tokens.cache_read).toBe(26368);
-    expect(e.tokens.completion).toBe(541);
-    expect(e.tokens.reasoning).toBe(427);
+  it('턴 완료 사용량을 CarEvent로 옮긴다', () => {
+    const e = grokEvent(row, { car: CAR })!;
+    expect(e.session_id).toBe('sess-9');
+    expect(e.model).toBe('grok-4.5-build');
+    expect(e.tokens.prompt).toBe(117477);
+    expect(e.tokens.cache_read).toBe(82432);
+    expect(e.tokens.completion).toBe(1439);
+    expect(e.tokens.reasoning).toBe(938);
+    expect(workOf(e)).toBe(37422);
   });
 
-  it('지연과 TTFT를 담는다', () => {
-    const e = grokEvent(row, { car: CAR, model: 'grok-4.5' })!;
-    expect(e.latency_ms).toBe(22393);
-    expect(e.ttft_ms).toBe(4842);
+  it('지연을 담는다', () => {
+    const e = grokEvent(row, { car: CAR })!;
+    expect(e.latency_ms).toBe(45908);
+  });
+
+  it('모델이 없으면 ctx.model을 쓴다', () => {
+    const noModelUsage = JSON.parse(JSON.stringify(row));
+    delete noModelUsage.params.update.usage.modelUsage;
+    const e = grokEvent(noModelUsage, { car: CAR, model: 'grok-4.5' })!;
+    expect(e.model).toBe('grok-4.5');
   });
 
   it('다른 이벤트는 건너뛴다', () => {
-    expect(grokEvent({ msg: 'turn.phase_transition', ts: row.ts }, { car: CAR })).toBeNull();
+    expect(grokEvent({ msg: 'shell.turn.inference_done' }, { car: CAR })).toBeNull();
+    expect(grokEvent({ method: '_x.ai/session/update' }, { car: CAR })).toBeNull();
   });
 });
 

@@ -188,7 +188,8 @@ describe('SimulatorSource', () => {
       const spec = MODEL_CATALOG.find((m) => m.id === e.model)!;
       // 추론도 출력처럼 과금된다 — completion에 도로 합쳐 단가를 잰다.
       const output = e.tokens.completion + (e.tokens.reasoning ?? 0);
-      const expected = costUsd(spec, e.tokens.prompt, output, e.cache_hit);
+      const cached = e.tokens.cache_read ?? 0;
+      const expected = costUsd(spec, e.tokens.prompt - cached, cached, output);
       expect(e.cost_usd).toBeCloseTo(expected, 12);
     }
   });

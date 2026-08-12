@@ -132,6 +132,8 @@ export class SimulatorSource implements EventSource {
 
     const latency = Math.max(1, Math.round(logNormal(p.latencyMedianMs, p.latencySigma)));
     const prompt = Math.max(1, Math.round(logNormal(2_400, 0.7)));
+    // 캐시 히트면 프롬프트 대부분이 재전송이다 — 실측 분포를 따른다.
+    const cacheRead = cacheHit ? Math.round(prompt * 0.965) : 0;
     const outputSide = isError ? 0 : Math.max(0, Math.round(logNormal(600, 0.8)));
     // 추론 토큰은 출력 과금의 일부다 — 실측상 출력의 의미 있는 몫이라 20%를 떼어
     // 별도로 담는다. completion에서 나눠 담을 뿐이라 작업량·비용은 그대로다.
@@ -145,15 +147,14 @@ export class SimulatorSource implements EventSource {
       car_class: profile.car_class,
       model: profile.model.id,
       kind: isError ? 'error' : profile.fuel_pct <= 0 ? 'retire' : 'call',
-      // 캐시 히트면 프롬프트 대부분이 재전송이다 — 실측 분포를 따른다.
       tokens: {
         prompt,
         completion,
-        cache_read: cacheHit ? Math.round(prompt * 0.965) : 0,
+        cache_read: cacheRead,
         reasoning,
       },
       cache_hit: cacheHit,
-      cost_usd: costUsd(profile.model, prompt, completion + reasoning, cacheHit),
+      cost_usd: costUsd(profile.model, prompt - cacheRead, cacheRead, completion + reasoning),
       latency_ms: latency,
       ttft_ms: Math.max(1, Math.round(latency * 0.3)),
       status: isError ? 'error' : 'ok',

@@ -42,6 +42,8 @@ const DEFAULT_DRAIN = 64;
 export class LiveSource implements EventSource {
   private onEvent: ((event: CarEvent) => void) | null = null;
   private queue: CarEvent[] = [];
+  /** message.id별 최신 이벤트. 같은 id는 스트림 누적(부분→완전)이라 마지막 행이 이긴다. */
+  private claudeById = new Map<string, CarEvent>();
   /** 벤더별 현재 모델. tail은 줄을 나눠 주므로 상태를 여기서 들고 있어야 한다. */
   private model: Partial<Record<LiveVendor, string>> = {};
   private limits = new Map<string, { utilization: number; window_minutes: number; resets_at: string | null; fetchedAt: number }>();
@@ -97,11 +99,20 @@ export class LiveSource implements EventSource {
 
   private parse(vendor: LiveVendor, row: unknown): CarEvent[] {
     if (vendor === 'claude') {
+      const raw = row as Record<string, unknown>;
+      const message = raw.message as Record<string, unknown> | undefined;
+      const messageId = typeof message?.id === 'string' ? message.id : undefined;
       const account = this.accounts.claudeAccountUuid === undefined
         ? undefined
         : { accountUuid: this.accounts.claudeAccountUuid };
       const e = toCarEvent(
         typeof row === 'object' && row !== null ? { ...row, account } : row);
+      if (e && messageId !== undefined) {
+        // 같은 id의 진행 누적 행은 최신이 이긴다. 첫 행(부분 사용량)이 남으면
+        // 최종 토큰이 영원히 버려진다 — 실측 output 1→577이 그 증거다.
+        this.claudeById.set(messageId, this.withLimit('claude', e));
+        return [];
+      }
       return e ? [e] : [];
     }
 
@@ -144,10 +155,19 @@ export class LiveSource implements EventSource {
     const emit = this.onEvent;
     if (!emit) return;
 
-    const batch = this.queue.splice(0, this.drainPerTick);
-    for (const e of batch) {
+    let budget = this.drainPerTick;
+    for (const e of this.queue.splice(0, budget)) {
       // 리듀서의 유휴 판정은 내부 시계를 쓴다. 표시용 원본 시각은 따로 남긴다.
       emit({ ...e, ts: nowMs, wall_ts: e.wall_ts ?? e.ts });
+      budget--;
+    }
+    // 클로드 메시지는 최신 행 하나만 이벤트가 된다 — 부분 행이 다이렉트로
+    // 나가면 리듀서가 같은 id를 두 번 더한다.
+    for (const [id, e] of this.claudeById) {
+      if (budget <= 0) break;
+      this.claudeById.delete(id);
+      emit({ ...e, ts: nowMs, wall_ts: e.wall_ts ?? e.ts });
+      budget--;
     }
   }
 
@@ -158,6 +178,6 @@ export class LiveSource implements EventSource {
 
   /** 대기 중인 줄 수. 껍데기가 너무 빨리 밀어 넣는지 보는 용도. */
   get pending(): number {
-    return this.queue.length;
+    return this.queue.length + this.claudeById.size;
   }
 }

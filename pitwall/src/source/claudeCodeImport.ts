@@ -57,11 +57,10 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
   // Claude Code가 API를 부르지 않고 자체 생성한 줄이다. 호출로 세면 차가
   // 존재하지 않은 일을 한 것이 된다.
   if (model === '<synthetic>') return null;
-  const prompt = (usage.input_tokens ?? 0)
-    + (usage.cache_read_input_tokens ?? 0)
-    + (usage.cache_creation_input_tokens ?? 0);
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const prompt = (usage.input_tokens ?? 0) + cacheRead + (usage.cache_creation_input_tokens ?? 0);
   const completion = usage.output_tokens ?? 0;
-  const cacheHit = (usage.cache_read_input_tokens ?? 0) > 0;
+  const cacheHit = cacheRead > 0;
 
   // 계정 uuid는 여기서 끝난다. 해시만 밖으로 나간다. 이메일은 읽지도 않는다.
   const account = row.account as Record<string, unknown> | undefined;
@@ -91,8 +90,8 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
     skill: typeof row.attributionSkill === 'string' ? row.attributionSkill : undefined,
     tokens: { prompt, completion, cache_read: usage.cache_read_input_tokens ?? 0 },
     cache_hit: cacheHit,
-    // 단가를 모르면 0이다. 지어내지 않는다.
-    cost_usd: spec ? costUsd(spec, prompt, completion, cacheHit) : 0,
+    // 단가를 모르면 0이다. 지어내지 않는다. 캐시 읽기는 캐시 단가로만 청구한다.
+    cost_usd: spec ? costUsd(spec, prompt - cacheRead, cacheRead, completion) : 0,
     latency_ms: 0,
     status: failed ? 'error' : 'ok',
     error_code: errorCode,

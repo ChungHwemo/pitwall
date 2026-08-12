@@ -52,8 +52,9 @@ describe.each(FIXTURES)('fixtures/events.%s.jsonl', (name) => {
   it('비용이 그 모델의 단가와 맞는다', () => {
     for (const e of events) {
       const spec = specOf(e.model)!;
+      const cached = e.tokens.cache_read ?? 0;
       expect(e.cost_usd).toBeCloseTo(
-        costUsd(spec, e.tokens.prompt, e.tokens.completion, e.cache_hit), 10);
+        costUsd(spec, e.tokens.prompt - cached, cached, e.tokens.completion), 10);
     }
   });
 

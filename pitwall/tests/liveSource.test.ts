@@ -6,7 +6,7 @@ import type { CarEvent } from '../src/types';
 const CLAUDE_LINE = JSON.stringify({
   timestamp: '2026-07-30T21:00:00.000Z',
   sessionId: 's1',
-  message: { model: 'claude-opus-5', usage: { input_tokens: 1_000, output_tokens: 200, cache_read_input_tokens: 800 } },
+  message: { id: 'msg-1', model: 'claude-opus-5', usage: { input_tokens: 1_000, output_tokens: 200, cache_read_input_tokens: 800 } },
   attributionSkill: 'superpowers:test-driven-development',
 });
 const CODEX_CTX = JSON.stringify({
@@ -24,14 +24,19 @@ const CODEX_USAGE = JSON.stringify({
 
 // 실측 형태: 최상위 model_id + shell.turn.inference_done, ctx엔 모델 필드 없음.
 const GROK_BUILD_LINE = JSON.stringify({
-  ts: '2026-07-30T21:00:03.000Z',
-  msg: 'shell.turn.inference_done',
-  sid: 'grok-sess-1',
-  model_id: 'grok-4.5-build',
-  ctx: {
-    prompt_tokens: 1_200, cached_prompt_tokens: 400,
-    completion_tokens: 88, reasoning_tokens: 20,
-    ttft_ms: 500, model_elapsed_ms: 2_200,
+  timestamp: 1786085851,
+  method: '_x.ai/session/update',
+  params: {
+    sessionId: 'grok-sess-1',
+    update: {
+      sessionUpdate: 'turn_completed',
+      usage: {
+        inputTokens: 1_200, outputTokens: 88,
+        cachedReadTokens: 400, reasoningTokens: 20,
+        modelCalls: 1, apiDurationMs: 2_200,
+        modelUsage: { 'grok-4.5-build': {} },
+      },
+    },
   },
 });
 
@@ -50,6 +55,35 @@ describe('LiveSource', () => {
     expect(out).toHaveLength(1);
     expect(out[0]!.model).toBe('claude-opus-5');
     expect(out[0]!.skill).toBe('superpowers:test-driven-development');
+  });
+
+  it('같은 Claude 응답이 트랜스크립트에 반복돼도 사용량은 한 번만 센다', () => {
+    const src = new LiveSource({ claudeAccountUuid: 'uuid-a' });
+    src.ingest('claude', [CLAUDE_LINE, CLAUDE_LINE]);
+    expect(collect(src)).toHaveLength(1);
+  });
+
+  it('같은 id가 부분 사용량으로 시작해 완전 사용량으로 끝나면 최종 행이 이긴다', () => {
+    // 실측 계약: Claude Code는 같은 message.id를 스트림 누적으로 여러 번 쓴다 (output 1→577).
+    const src = new LiveSource({ claudeAccountUuid: 'uuid-a' });
+    const partial = JSON.stringify({
+      timestamp: '2026-07-30T21:00:00.000Z',
+      sessionId: 's1',
+      message: { id: 'msg-1', model: 'claude-opus-5', usage: { input_tokens: 1_000, output_tokens: 1, cache_read_input_tokens: 800 } },
+      attributionSkill: 'superpowers:test-driven-development',
+    });
+    src.ingest('claude', [partial, CLAUDE_LINE]);
+    const out = collect(src);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.tokens.completion).toBe(200);
+    expect(out[0]!.tokens.prompt).toBe(1_800);
+  });
+
+  it('사용량 없는 같은 id 줄은 뒤의 유효한 Claude 응답을 막지 않는다', () => {
+    const src = new LiveSource({ claudeAccountUuid: 'uuid-a' });
+    const metadata = JSON.stringify({ message: { id: 'msg-1', model: 'claude-opus-5' } });
+    src.ingest('claude', [metadata, CLAUDE_LINE]);
+    expect(collect(src)).toHaveLength(1);
   });
 
   it('계정 uuid는 해시로만 나간다 — 원문이 이벤트에 남으면 안 된다', () => {
@@ -93,7 +127,8 @@ describe('LiveSource', () => {
 
   it('한 프레임에 쏟아붓지 않는다 — 밀린 줄은 다음 프레임으로 넘긴다', () => {
     const src = new LiveSource({ claudeAccountUuid: 'uuid-a' }, 2);
-    src.ingest('claude', [CLAUDE_LINE, CLAUDE_LINE, CLAUDE_LINE]);
+    const claude = (id: string) => CLAUDE_LINE.replace('msg-1', id);
+    src.ingest('claude', [claude('msg-1'), claude('msg-2'), claude('msg-3')]);
     const out: CarEvent[] = [];
     src.start((e) => out.push(e));
     src.tick(1_000);

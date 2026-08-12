@@ -167,27 +167,40 @@ const files = walk(root)
   .map(({ f }) => f);
 
 const events: CarEvent[] = [];
+/** message.id별 최신 이벤트. 같은 id는 스트림 누적(부분→완전)이라 마지막 행이 이긴다. */
+const claudeById = new Map<string, CarEvent>();
+const withClaudeLimit = (event: CarEvent): CarEvent => {
+  if (!claudeLimit) return event;
+  event.tyre_pct = Math.max(0, 100 - claudeLimit.utilization);
+  event.limit_window_minutes = claudeLimit.window_minutes;
+  const resets = claudeLimit.resets_at ? Date.parse(claudeLimit.resets_at) : NaN;
+  event.limit_resets_at = Number.isFinite(resets) ? resets : undefined;
+  event.limit_observed_at = claudeLimit.fetchedAt;
+  return event;
+};
 for (const file of files) {
   for (const line of readFileSync(file, 'utf8').split('\n')) {
     if (!line.trim()) continue;
     let parsed: unknown;
     try { parsed = JSON.parse(line); } catch { continue; }
+    const message = (parsed as Record<string, unknown>)?.message as Record<string, unknown> | undefined;
+    const messageId = typeof message?.id === 'string' ? message.id : undefined;
     // 계정은 줄마다 없으므로 여기서 붙여 넣는다.
     const event = toCarEvent(
       typeof parsed === 'object' && parsed !== null ? { ...parsed, account } : parsed);
     if (event) {
-      if (claudeLimit) {
-        event.tyre_pct = Math.max(0, 100 - claudeLimit.utilization);
-        event.limit_window_minutes = claudeLimit.window_minutes;
-        const resets = claudeLimit.resets_at ? Date.parse(claudeLimit.resets_at) : NaN;
-        event.limit_resets_at = Number.isFinite(resets) ? resets : undefined;
-        event.limit_observed_at = claudeLimit.fetchedAt;
+      if (messageId !== undefined) {
+        claudeById.set(messageId, withClaudeLimit(event));
+        continue;
       }
-      events.push(event);
+      events.push(withClaudeLimit(event));
     }
   }
 }
-
+// 같은 id의 진행 누적 행은 최신이 이긴다 — 부분 행을 심으면 최종 토큰이 사라진다.
+for (const event of claudeById.values()) {
+  events.push(withClaudeLimit(event));
+}
 // 다른 벤더 계정들을 같은 트랙에 올린다.
 /**
  * 한도는 **지금** 축이다. 이벤트마다 로그에 박힌 과거 수치를 쓰면 재생 중인 하루의

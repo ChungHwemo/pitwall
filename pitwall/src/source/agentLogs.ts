@@ -85,7 +85,10 @@ function build(
     },
     cache_hit: cacheHit,
     // 단가를 모르면 0이다. 지어내지 않는다. 추론도 출력처럼 과금되므로 비용에 넣는다.
-    cost_usd: spec ? costUsd(spec, tokens.prompt, tokens.completion + tokens.reasoning, cacheHit) : 0,
+    // prompt는 캐시를 포함하므로 신규 입력만 입력 단가로, 캐시 재전송은 캐시 단가로 친다.
+    cost_usd: spec
+      ? costUsd(spec, tokens.prompt - tokens.cacheRead, tokens.cacheRead, tokens.completion + tokens.reasoning)
+      : 0,
     latency_ms: 0,
     status: 'ok',
     fuel_pct: 100,
@@ -142,7 +145,7 @@ export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
     prompt: u.input_tokens ?? 0,
     // 추론 토큰은 출력과 나눠 담는다 — 둘 다 출력으로 과금되지만 하나는 전달된
     // 응답이고 하나는 내부 추론이라 섞으면 무엇을 돌려받았는지 흐려진다.
-    completion: u.output_tokens ?? 0,
+    completion: Math.max(0, (u.output_tokens ?? 0) - (u.reasoning_output_tokens ?? 0)),
     reasoning: u.reasoning_output_tokens ?? 0,
     cacheRead: u.cached_input_tokens ?? 0,
   }, limit === null ? {} : {
@@ -151,28 +154,48 @@ export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
   });
 }
 
-/** Grok — `shell.turn.inference_done`. 호출 하나당 한 줄이고 지연·TTFT까지 있다. */
+/**
+ * Grok — `_x.ai/session/update` (`params.update.usage`).
+ *
+ * 공식 grok CLI의 실시간 로그(`~/.grok/sessions/` 아래 `updates.jsonl`)이다. 턴이
+ * 끝날 때 한 줄씩 쓰이고, `modelCalls`만큼의 모델 호출이 **한 줄에 합쳐져** 있다
+ * — 토큰·비용은 정확하지만 이벤트 하나가 곧 호출 하나는 아니다 (CallEvent 셈에서
+ * Grok 호출 수는 과소 집계된다. Copilot과 같은 한계).
+ *
+ * `inputTokens`는 캐시 읽기를 포함하고 `outputTokens`는 추론을 포함한다. 화면 계약은
+ * 캐시·추론을 별도 축으로 보여주므로 둘을 각각 원래 합계에서 빼서 나눠 담는다.
+ */
 export function grokEvent(raw: unknown, ctx: LogContext): CarEvent | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const row = raw as Record<string, unknown>;
-  if (row.msg !== 'shell.turn.inference_done') return null;
+  if (row.method !== '_x.ai/session/update') return null;
 
-  const c = row.ctx as Record<string, number> | undefined;
-  if (!c) return null;
+  const params = row.params as Record<string, unknown> | undefined;
+  const usage = (params?.update as Record<string, unknown> | undefined)?.usage as
+    Record<string, number> | undefined;
+  if (!usage) return null;
 
-  const ts = Date.parse(String(row.ts ?? ''));
+  const ts = Number(row.timestamp) * 1000;
   if (!Number.isFinite(ts)) return null;
 
+  // 이 턴에 실제 쓴 모델이 usage.modelUsage에 있다. ctx.model보다 정확하다.
+  const modelUsage = usage.modelUsage as Record<string, unknown> | undefined;
+  const usedModel = modelUsage ? Object.keys(modelUsage)[0] : undefined;
+
   return build(
-    { ...ctx, sessionId: typeof row.sid === 'string' ? row.sid : ctx.sessionId },
+    {
+      ...ctx,
+      model: typeof usedModel === 'string' ? usedModel : ctx.model,
+      sessionId: typeof params?.sessionId === 'string' ? params.sessionId : ctx.sessionId,
+    },
     ts,
     {
-      prompt: c.prompt_tokens ?? 0,
-      completion: c.completion_tokens ?? 0,
-      reasoning: c.reasoning_tokens ?? 0,
-      cacheRead: c.cached_prompt_tokens ?? 0,
+      prompt: usage.inputTokens ?? 0,
+      completion: Math.max(0, (usage.outputTokens ?? 0) - (usage.reasoningTokens ?? 0)),
+      reasoning: usage.reasoningTokens ?? 0,
+      cacheRead: usage.cachedReadTokens ?? 0,
     },
-    { latency_ms: c.model_elapsed_ms ?? 0, ttft_ms: c.ttft_ms },
+    { latency_ms: usage.apiDurationMs ?? 0 },
   );
 }
 

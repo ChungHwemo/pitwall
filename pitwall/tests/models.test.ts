@@ -107,25 +107,26 @@ describe('providerOfModel — Grok build 채널', () => {
 });
 
 describe('costUsd', () => {
-  it('입력·출력 토큰을 각 단가로 계산한다', () => {
+  it('신규 입력·캐시·출력을 각 단가로 계산한다', () => {
     const m = MODEL_CATALOG.find((x) => x.id === 'claude-opus-5')!;
-    // 1M prompt + 1M completion = input + output 단가 합
-    expect(costUsd(m, 1_000_000, 1_000_000, false))
-      .toBeCloseTo(m.inputPerMtok + m.outputPerMtok, 9);
+    // 1M 신규 입력 + 1M 캐시 + 1M 출력 = 입력·캐시·출력 단가 합
+    expect(costUsd(m, 1_000_000, 1_000_000, 1_000_000))
+      .toBeCloseTo(m.inputPerMtok + m.cachedInputPerMtok + m.outputPerMtok, 9);
   });
 
-  it('캐시 히트면 입력에 캐시 단가를 쓴다', () => {
+  it('캐시 읽기는 캐시 단가만으로 계산한다', () => {
     const m = MODEL_CATALOG.find((x) => x.id === 'claude-opus-5')!;
-    expect(costUsd(m, 1_000_000, 0, true)).toBeCloseTo(m.cachedInputPerMtok, 9);
+    expect(costUsd(m, 0, 1_000_000, 0)).toBeCloseTo(m.cachedInputPerMtok, 9);
   });
 
   it('토큰 0이면 비용 0이다', () => {
-    expect(costUsd(MODEL_CATALOG[0]!, 0, 0, false)).toBe(0);
+    expect(costUsd(MODEL_CATALOG[0]!, 0, 0, 0)).toBe(0);
   });
 
-  it('캐시 히트가 미스보다 항상 싸다', () => {
+  it('캐시로 읽은 몫은 신규 입력보다 항상 싸다', () => {
     for (const m of MODEL_CATALOG) {
-      expect(costUsd(m, 500_000, 1000, true)).toBeLessThan(costUsd(m, 500_000, 1000, false));
+      // 같은 500k 입력도 400k 신규 + 100k 캐시가 전부 신규보다 싸다
+      expect(costUsd(m, 400_000, 100_000, 1000)).toBeLessThan(costUsd(m, 500_000, 0, 1000));
     }
   });
 });

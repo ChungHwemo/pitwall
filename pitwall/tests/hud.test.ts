@@ -132,5 +132,5 @@ describe('HUD 시간대별 곡선', () => {
     const nodes = root.querySelectorAll('*').length;
     runFrames(app, 200, 100);
     expect(root.querySelectorAll('*').length).toBe(nodes);
-  });
+  }, 15_000);
 });

@@ -239,7 +239,7 @@ for (const account of accounts) {
         session_id: `demo-${account.carNumber}`,
         tokens: { prompt, completion, cache_read: cacheRead, reasoning },
         cache_hit: true,
-        cost_usd: costUsd(spec, prompt, completion + reasoning, true),
+        cost_usd: costUsd(spec, prompt - cacheRead, cacheRead, completion + reasoning),
         latency_ms: heavyTail(3_200, 1.4),
         status: failed ? 'error' : 'ok',
         error_code: failed ? ERROR_CODES[rng.int(0, ERROR_CODES.length - 1)] : undefined,
