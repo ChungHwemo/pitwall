@@ -54,7 +54,8 @@ describe.each(FIXTURES)('fixtures/events.%s.jsonl', (name) => {
       const spec = specOf(e.model)!;
       const cached = e.tokens.cache_read ?? 0;
       expect(e.cost_usd).toBeCloseTo(
-        costUsd(spec, e.tokens.prompt - cached, cached, e.tokens.completion), 10);
+        costUsd(spec, e.tokens.prompt - cached, cached,
+          e.tokens.completion + (e.tokens.reasoning ?? 0)), 10);
     }
   });
 
@@ -201,11 +202,11 @@ describe('데이터가 화면 경로를 밟는가', () => {
     expect(maxLane(lane), '같은 클래스 동시 최대').toBeGreaterThanOrEqual(2);
   });
 
-  it('real은 레인 분리가 안 일어난다 — real-busy와의 차이가 곧 존재 이유', () => {
-    // 오늘은 계정 둘이 클래스가 갈렸다. 어떤 클래스도 동시 2대가 안 된다 —
-    // real-busy와의 차이가 곧 이 파일의 존재 이유라 양쪽을 같이 못박는다.
-    const lane = maxConcurrent(built('real')).byClass;
-    expect(maxLane(lane), '같은 클래스 동시 최대').toBe(1);
+  it('real은 누적 계정이 real-busy보다 적다 — 그래서 두 벌을 둔다', () => {
+    // 예전에는 opus-4-6을 P로 잘못 붙여 "클래스가 갈려 레인 분리가 없다"고
+    // 못박았다. 공식 단가($25 출력)는 H다. 솔과 opus가 둘 다 H면 같은 클래스
+    // 동시 2대가 생긴다. 두 벌의 진짜 차이는 밀도다.
+    expect(seen('real'), '누적 차량').toBeLessThan(seen('real-busy'));
   });
 
   /*

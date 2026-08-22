@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import { PER_SET, busiestWindow } from './scripts/pickWindow';
+import { chooseEmbeddedSources } from './scripts/embeddedSources';
 
 /**
  * 화면에서 고를 수 있는 데이터셋.
@@ -11,15 +12,10 @@ import { PER_SET, busiestWindow } from './scripts/pickWindow';
  * 데이터셋마다 상한을 둔다 — 전부 심으면 번들이 수십 MB가 된다. 상한과 잘라낼
  * 구간을 고르는 규칙은 `scripts/pickWindow`에 있다 (테스트가 같은 함수를 밟는다).
  * 잘랐다는 사실은 빌드 로그에 남긴다.
+ *
+ * 어떤 벌을 심을지는 `scripts/embeddedSources.ts`가 정한다. 공개 게이트가 다른
+ * 목록을 보면 검사는 통과하고 페이지는 실기록을 말한다.
  */
-const SOURCES = [
-  { id: 'real', label: '실기록', file: 'fixtures/events.real.jsonl' },
-  // 계정이 셋 겹친 실제 하루. 오늘은 둘뿐이라 레인이 갈리는 경로가 안 밟힌다.
-  { id: 'real-busy', label: '실기록 · 붐빈 날', file: 'fixtures/events.real-busy.jsonl' },
-  { id: 'demo-small', label: '데모 · 소규모', file: 'fixtures/events.demo-small.jsonl' },
-  { id: 'demo', label: '데모 · 중규모', file: 'fixtures/events.demo.jsonl' },
-  { id: 'demo-large', label: '데모 · 대규모', file: 'fixtures/events.demo-large.jsonl' },
-];
 
 /** 벤더 한도 스냅샷. 실시간 모드에서 Claude 게이지가 비지 않게 같이 심는다. */
 const limitsPath = 'fixtures/limits.json';
@@ -30,7 +26,7 @@ const limits = existsSync(limitsPath) ? JSON.parse(readFileSync(limitsPath, 'utf
  * 고를 수 있는 데모가 있어야 한다. 실기록 두 벌은 `PITWALL_REAL=1`일 때만 심는다.
  */
 const wantReal = process.env.PITWALL_REAL === '1';
-const chosen = wantReal ? SOURCES : SOURCES.filter((src) => src.id.startsWith('demo'));
+const chosen = chooseEmbeddedSources(wantReal);
 
 const datasets = chosen.flatMap((src) => {
   if (!existsSync(src.file)) return [];

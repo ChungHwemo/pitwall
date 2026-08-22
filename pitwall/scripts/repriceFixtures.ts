@@ -21,6 +21,7 @@ for (const f of files) {
     const spec = specOf(e.model);
     if (!spec) return l; // 단가를 모르는 행은 건드리지 않는다
     const cached = e.tokens.cache_read ?? 0;
+    e.car_class = spec.carClass;
     e.cost_usd = costUsd(spec, e.tokens.prompt - cached, cached,
       e.tokens.completion + (e.tokens.reasoning ?? 0));
     rows++;

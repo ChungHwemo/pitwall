@@ -2,6 +2,7 @@
 .codegraph
 .codegraph-rust
 .omo/
+.playwright-mcp/
 corpus.jsonl
 node_modules/
 dist/

@@ -40,7 +40,7 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 
 | 공급자 | 모델 |
 |---|---|
-| Anthropic | `claude-fable-5` · `claude-opus-5` · `claude-opus-4-8` · `claude-sonnet-5` · `claude-haiku-4-5` |
+| Anthropic | `claude-fable-5` · `claude-opus-5` · `claude-opus-4-8` · `claude-opus-4-6` · `claude-sonnet-5` · `claude-haiku-4-5` |
 | OpenAI | `gpt-5.6-sol` · `gpt-5.5` · `gpt-5.6-terra` · `gpt-5.6-luna` · `gpt-5.4-mini` · `gpt-5.4-nano` |
 | Google | `gemini-3.1-pro-preview` · `gemini-3.5-flash` · `gemini-3.1-flash-lite` |
 | xAI | `grok-4.5` · `grok-4.3` |
@@ -120,6 +120,14 @@ Vite · TypeScript · Vitest · SVG · `requestAnimationFrame`. UI 프레임워�
 
 이유는 하나다. 이 화면이 노동 감시 도구로 읽히는 순간 제품은 죽는다.
 
+## 공개 배포
+
+데모 전용 단일 HTML. 주소: <https://chunghwemo.github.io/pitwall/>
+
+`main` 푸시가 테스트·타입·`build:single`·실기록 혼입 게이트를 통과한 뒤에만 Pages에 올린다. `PITWALL_REAL=1` 산출물은 올리지 않는다. GitHub Pages는 공개다.
+
+macOS 앱은 이 기기 로컬이다. 다른 Mac에서 ad-hoc 서명이 막히면 Apple 안내대로 시스템 설정 → 개인정보 보호 및 보안 → **그래도 열기**다. Developer ID 공증은 이 버전에 없다.
+
 ## 라이선스
 
-미정.
+MIT. 서드파티 자산 표시는 [LICENSE](LICENSE)와 `pitwall/assets/*/SOURCE.txt`.

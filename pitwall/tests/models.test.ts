@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODEL_CATALOG, modelsOfClass, classOfModel, costUsd, providerOfModel } from '../src/config/models';
+import { MODEL_CATALOG, modelsOfClass, classOfModel, costUsd, providerOfModel, specOf } from '../src/config/models';
 import { CAR_CLASSES } from '../src/types';
 
 describe('MODEL_CATALOG', () => {
@@ -67,6 +67,17 @@ describe('MODEL_CATALOG', () => {
 });
 
 describe('classOfModel', () => {
+  it('실기록에 등장하는 claude-opus-4-6은 H다 — 공식 출력 $25', () => {
+    // platform.claude.com/docs/en/about-claude/pricing : Opus 4.6 = $5 / $0.50 / $25
+    const spec = specOf('claude-opus-4-6');
+    expect(spec).toBeDefined();
+    expect(spec!.carClass).toBe('H');
+    expect(spec!.inputPerMtok).toBe(5);
+    expect(spec!.cachedInputPerMtok).toBe(0.5);
+    expect(spec!.outputPerMtok).toBe(25);
+    expect(spec!.priceSource).toBe('verified');
+  });
+
   it('카탈로그에 있는 모델의 클래스를 돌려준다', () => {
     expect(classOfModel('claude-opus-5')).toBe('H');
   });

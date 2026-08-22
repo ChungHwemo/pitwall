@@ -329,13 +329,13 @@ REVIEW.md               다른 작성자 의견
 - 프로젝트 단위 분해 — `cwd`가 PRIV와 충돌
 
 ### 서버
-없다. v1은 전부 로컬.
+없다. v1은 전부 로컬. 공개 면은 GitHub Pages 데모 HTML (`https://chunghwemo.github.io/pitwall/`). 실기록은 `PITWALL_REAL=1` 로컬 빌드에만 심고, CI가 공개 산출물에서 걸러낸다.
 
 ---
 
 ## 12. 커밋 규칙
 
 - 작성자·커미터 `정휘모 <tolaria@naver.com>`, 공동작성자 `bart.lee <bart.lee@kakao.com>`
-- 푸시 전 `gh auth switch --user Hwemo-Chung`
+- 푸시 전 `gh auth switch --user ChungHwemo`
 - 원격 SHA를 `gh api`로 받아 `git push --force-with-lease=main:<SHA>`
-- 저장소 `Hwemo-Chung/pitwall` (private) · 협업자 `kakao-bart-lee` (admin, 초대 대기)
+- 저장소 `ChungHwemo/pitwall` (**public**) · Pages `https://chunghwemo.github.io/pitwall/`

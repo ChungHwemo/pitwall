@@ -16,6 +16,7 @@
 | 타입 검사 | `tsc --noEmit` 오류 0 | ✅ **exit 0** |
 | 프로덕션 빌드 | 성공 | ✅ **JS 24.7 kB (gzip 9.0) · CSS 1.12 kB** |
 | 런타임 의존성 | 0개 | ✅ **zero runtime dependencies** |
+| 공개 산출물 실기록 혼입 | `release:check` 실패 0 | 2026-08-22 게이트 추가. Pages는 데모만 |
 
 ## 설정 레이어 — Task 19
 
