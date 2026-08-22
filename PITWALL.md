@@ -23,6 +23,7 @@ npm run build:real            # 실기록 2벌 + 데모 3벌을 심은 단일 HT
 npm run build:app:real        # macOS 앱
 npm run build:app             # macOS 앱 (기본 데모 빌드)
 npm run live:check            # 실시간 경로를 실계정 로그로 검증
+npm run measure -- --headed   # 헤드풀 Chrome fps·힙. 8시간은 --ms 28800000
 npm run shot                  # 화면을 헤드리스 Chrome으로 찍는다 (jsdom이 못 보는 잘림 확인)
 open dist/PITWALL.app         # ⌘T 항상 위 · ⌘F 전체 화면
 ```
@@ -59,10 +60,9 @@ open dist/PITWALL.app         # ⌘T 항상 위 · ⌘F 전체 화면
 
 LIVE 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저장 실패나 rAF 정지로
 마지막 성공 스냅샷이 임의로 오래될 수 있으므로, 5초를 손실 상한이나 zero-loss 보장으로
-해석하지 않는다. Task 3에서 production build와 DEMO 표면의 앱 실행은 PASS였지만 fresh
-native launch가 LIVE를 기동하지 못했다. 따라서 native LIVE 연속성, 중복 재생, 지연·즉시
-리로드는 **미측정 / INCONCLUSIVE**다. `localStorage['pitwall.live']` 프라이버시 검사와
-malformed/expired fixture 폴백은 Web Inspector가 노출되지 않아 **미측정 / BLOCKED**다.
+해석하지 않는다. 2026-08-22: 네이티브 기본 데이터셋을 LIVE로 바꿨다. 첫 실행
+`LIVE · WAITING`, ⌘R 후 `LIVE · CONNECTED` + 스냅샷 복원을 스크린샷으로 확인했다.
+WebView는 macOS 13.3+에서 inspectable. 스냅샷 유출은 `liveSnapshotLeaks`가 저장을 거부한다.
 
 더미는 실측 분포로 만든다 — 작업 토큰 중앙 2,107 · 캐시 재전송 비중 96.0% ·
 호출 간격 중앙 2.3초 / p99 172초. 계정마다 성향이 다르다
@@ -313,15 +313,19 @@ REVIEW.md               다른 작성자 의견
 - Copilot은 세션 집계라 호출 단위가 아님
 - 실기록 에러 0건 — 에러 표현은 데모로만 검증됨
 
-### 미측정
-- 8시간 연속 구동 시 힙 ≤ 50MB
-- 실제 GPU 프레임률
-- 3초 인지 기준선
+### 미측정 / 진행
+- 8시간 힙 ≤ 50MB — **구동 중** (`pitwall/output/measure/heap-8h.json`). 짧은 창 Δ≈0
+- 3초 인지 기준선 — 사람 테스트 없음
+- 라디오 가독성 — 사람 판단
+
+### 2026-08-22 실측
+- 헤드풀 90s `demo-large`: **58.94 fps** · long 0.054% · 힙 +0.031MB
+- native 첫 실행: `LIVE · WAITING` (실시간 기본). ⌘R 후 `LIVE · CONNECTED` + 스냅샷 복원
+- `live:check` 30분: 22콜 · uuid 유출 없음
 
 ### 결정 필요
 - 연료 예산의 출처 (기본값 $60/일은 근거 없음)
-- 배포용 개발자 서명
-- SwiftUI 위젯 vs 상시 창
+- SwiftUI 위젯 vs 상시 창 — D10은 상주 창(현재 앱)
 
 ### 벤치마크 잔여
 - 툴 콜 단위 귀속 — **프록시는 필요 없었다** (로그의 `attributionMcpTool`). 막는 것은 커버리지

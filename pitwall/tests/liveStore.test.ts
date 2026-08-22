@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   serializeLiveState, saveLiveSnapshot, loadLiveSnapshot, clearLiveSnapshot,
-  rebaseLiveSnapshot, LIVE_STORAGE_KEY, LIVE_SNAPSHOT_TTL_MS, type LiveSnapshot,
+  rebaseLiveSnapshot, liveSnapshotLeaks, LIVE_STORAGE_KEY, LIVE_SNAPSHOT_TTL_MS, type LiveSnapshot,
 } from '../src/session/liveStore';
 import { emptyRaceState } from '../src/state/reducer';
 import type { CarState, ModelTally, RaceState } from '../src/types';
@@ -160,5 +160,25 @@ describe('실시간 스냅샷 미래·형태 거부', () => {
     localStorage.setItem(LIVE_STORAGE_KEY, JSON.stringify({ ...snap, now: 'soon' }));
     // When/Then: 잘못된 타입은 rebase가 손대기 전에 null로 떨어진다.
     expect(loadLiveSnapshot()).toBeNull();
+  });
+});
+
+describe('실시간 스냅샷 프라이버시', () => {
+  it('정상 스냅샷은 유출로 보지 않는다', () => {
+    const snap = serializeLiveState(stateWith([['car-1', car()]], [], 2_000), [], Date.now());
+    expect(liveSnapshotLeaks(JSON.stringify(snap))).toBe(false);
+  });
+
+  it('이메일·계정 uuid·본문 필드가 있으면 유출이다', () => {
+    expect(liveSnapshotLeaks('{"car_id":"a@b.com"}')).toBe(true);
+    expect(liveSnapshotLeaks('{"accountUuid":"abc"}')).toBe(true);
+    expect(liveSnapshotLeaks('{"messages":"hi"}')).toBe(true);
+    expect(liveSnapshotLeaks('{"response":"hi"}')).toBe(true);
+  });
+
+  it('유출 스냅샷은 저장하지 않는다', () => {
+    const snap = serializeLiveState(stateWith([['car-1', car({ car_id: 'user@cainz.co.jp' })]], [], 2_000), [], Date.now());
+    saveLiveSnapshot(snap);
+    expect(localStorage.getItem(LIVE_STORAGE_KEY)).toBeNull();
   });
 });

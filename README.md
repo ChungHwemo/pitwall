@@ -43,7 +43,7 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 | Anthropic | `claude-fable-5` · `claude-opus-5` · `claude-opus-4-8` · `claude-opus-4-6` · `claude-sonnet-5` · `claude-haiku-4-5` |
 | OpenAI | `gpt-5.6-sol` · `gpt-5.5` · `gpt-5.6-terra` · `gpt-5.6-luna` · `gpt-5.4-mini` · `gpt-5.4-nano` |
 | Google | `gemini-3.1-pro-preview` · `gemini-3.5-flash` · `gemini-3.1-flash-lite` |
-| xAI | `grok-4.5` · `grok-4.3` |
+| xAI | `grok-4.6` · `grok-4.6-build` · `grok-4.5` · `grok-4.5-build` · `grok-4.3` |
 | DeepSeek | `deepseek-v4-pro` · `deepseek-v4-flash` |
 | Moonshot | `kimi-k3` · `kimi-k2.7-code` · `kimi-k2.6` |
 
@@ -59,10 +59,8 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 
 LIVE 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저장 실패나 rAF 정지로
 마지막 성공 스냅샷이 임의로 오래될 수 있으므로 5초를 손실 상한이나 zero-loss 보장으로
-해석하지 않는다. Task 3에서 production build와 DEMO 표면의 앱 실행은 PASS였지만 native
-LIVE는 기동되지 않았다. native LIVE 연속성, 중복 재생, 지연·즉시 리로드는 **미측정 /
-INCONCLUSIVE**이며, `localStorage['pitwall.live']` 프라이버시 검사와 malformed/expired
-fixture 폴백은 Web Inspector가 없어 **미측정 / BLOCKED**다.
+해석하지 않는다. 2026-08-22 네이티브 기본은 LIVE. 첫 실행과 ⌘R 복원을 스크린샷으로
+확인했다. 스냅샷 유출은 저장 거부. 8시간 힙은 측정 중이다.
 
 ### 가독성 구현
 
@@ -126,8 +124,20 @@ Vite · TypeScript · Vitest · SVG · `requestAnimationFrame`. UI 프레임워�
 
 `main` 푸시가 테스트·타입·`build:single`·실기록 혼입 게이트를 통과한 뒤에만 Pages에 올린다. `PITWALL_REAL=1` 산출물은 올리지 않는다. GitHub Pages는 공개다.
 
-macOS 앱은 이 기기 로컬이다. 다른 Mac에서 ad-hoc 서명이 막히면 Apple 안내대로 시스템 설정 → 개인정보 보호 및 보안 → **그래도 열기**다. Developer ID 공증은 이 버전에 없다.
+macOS 앱은 이 기기 로컬 ad-hoc이다 (2026-08-22 확정). 다른 Mac에서 막히면 Apple 안내대로 시스템 설정 → 개인정보 보호 및 보안 → **그래도 열기**. Developer ID 공증은 하지 않는다.
+
+```bash
+npm run measure -- --ms 90000 --headed --dataset demo-large
+# 8시간 힙: --ms 28800000  (headless. 끝나기 전에 합격을 말하지 않는다)
+```
 
 ## 라이선스
 
-MIT. 서드파티 자산 표시는 [LICENSE](LICENSE)와 `pitwall/assets/*/SOURCE.txt`.
+코드는 [MIT](LICENSE). GitHub가 라이선스를 읽으려면 LICENSE 본문은 MIT만 둔다.
+
+서드파티 자산 (MIT 아님):
+
+- Skoll Game Icons F1 car: CC BY 3.0 — `pitwall/assets/f1/game-icons/SOURCE.txt`
+- Kenney Future Narrow: CC0 — `pitwall/assets/broadcast/LICENSE-CC0.txt`
+- Tabler icons: MIT — `pitwall/assets/broadcast/LICENSE-MIT.txt`
+

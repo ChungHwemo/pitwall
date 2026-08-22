@@ -7,4 +7,5 @@ corpus.jsonl
 node_modules/
 dist/
 pitwall/dist/
+pitwall/output/
 CLAUDE.md

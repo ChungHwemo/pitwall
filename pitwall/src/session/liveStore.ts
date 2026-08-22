@@ -96,9 +96,21 @@ function isLiveSnapshot(value: unknown): value is LiveSnapshot {
   );
 }
 
-/** 스냅샷을 저장소에 쓴다. 실패(할당량 초과 등)는 호출자가 다룬다. */
+/**
+ * 스냅샷 원문에 계정 식별자·본문이 있는지. 저장·복원 전에 본다.
+ * 필드명 `accountUuid` 는 파서 코드에 있으나 스냅샷 JSON 값으로 남아선 안 된다.
+ */
+export function liveSnapshotLeaks(raw: string): boolean {
+  if (/accountUuid|oauthAccount|emailAddress/.test(raw)) return true;
+  if (/"messages"\s*:/.test(raw) || /"response"\s*:/.test(raw)) return true;
+  return /[^\s"{}:,]+@[^\s"{}:,]+\.[A-Za-z]{2,}/.test(raw);
+}
+
+/** 스냅샷을 저장소에 쓴다. 유출 징후가 있으면 쓰지 않는다. */
 export function saveLiveSnapshot(snapshot: LiveSnapshot): void {
-  localStorage.setItem(LIVE_STORAGE_KEY, JSON.stringify(snapshot));
+  const json = JSON.stringify(snapshot);
+  if (liveSnapshotLeaks(json)) return;
+  localStorage.setItem(LIVE_STORAGE_KEY, json);
 }
 
 /**
@@ -115,6 +127,10 @@ export function loadLiveSnapshot(now: number = Date.now()): LiveSnapshot | null 
     return null;
   }
   if (raw === null) return null;
+  if (liveSnapshotLeaks(raw)) {
+    try { localStorage.removeItem(LIVE_STORAGE_KEY); } catch { /* 지우기 실패도 boot를 죽이지 않는다 */ }
+    return null;
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

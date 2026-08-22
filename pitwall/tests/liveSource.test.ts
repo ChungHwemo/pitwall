@@ -166,6 +166,26 @@ describe('LiveSource — Grok 최상위 model_id', () => {
     expect(out[0]!.model).toBe('grok-4.5-build');
     expect(providerOfModel(out[0]!.model)).toBe('xai');
   });
+
+  it('unified inference_done 은 앞선 청크의 modelId 를 이어받아 루프마다 이벤트를 낸다', () => {
+    const meta = JSON.stringify({
+      method: 'session/update',
+      params: { _meta: { modelId: 'grok-4.6' }, update: { sessionUpdate: 'agent_thought_chunk' } },
+    });
+    const loop = JSON.stringify({
+      ts: '2026-08-22T11:30:20.952Z',
+      msg: 'shell.turn.inference_done',
+      sid: 'sess-now',
+      ctx: { prompt_tokens: 100, cached_prompt_tokens: 80, completion_tokens: 10, reasoning_tokens: 4 },
+    });
+    const src = new LiveSource();
+    src.ingest('grok', [meta, loop]);
+    const out = collect(src);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.model).toBe('grok-4.6');
+    expect(out[0]!.tokens.prompt).toBe(100);
+    expect(providerOfModel(out[0]!.model)).toBe('xai');
+  });
 });
 
 describe('LiveSource — 한도', () => {

@@ -22,7 +22,8 @@
     "make:demo": "vite-node scripts/makeDemo.ts",
     "make:demo:all": "vite-node scripts/makeDemo.ts 4 11 demo-small && vite-node scripts/makeDemo.ts 14 20260731 demo && vite-node scripts/makeDemo.ts 40 777 demo-large",
     "release:check": "vite-node scripts/release.ts check dist/pitwall.html",
-    "release:stage": "vite-node scripts/release.ts stage dist/pitwall.html dist/pages"
+    "release:stage": "vite-node scripts/release.ts stage dist/pitwall.html dist/pages",
+    "measure": "vite-node scripts/measureRuntime.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

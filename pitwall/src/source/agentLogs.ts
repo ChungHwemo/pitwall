@@ -168,7 +168,34 @@ export function codexEvent(raw: unknown, ctx: LogContext): CarEvent | null {
 export function grokEvent(raw: unknown, ctx: LogContext): CarEvent | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const row = raw as Record<string, unknown>;
-  if (row.method !== '_x.ai/session/update') return null;
+
+  // 루프마다 unified.jsonl 에 찍힌다. 턴 종료(_x.ai turn_completed)만 보면
+  // 지금 도는 세션이 화면에 안 나온다.
+  if (row.msg === 'shell.turn.inference_done') {
+    const loop = row.ctx;
+    if (typeof loop !== 'object' || loop === null) return null;
+    const c = loop as Record<string, unknown>;
+    const prompt = c.prompt_tokens;
+    const completion = c.completion_tokens;
+    if (typeof prompt !== 'number' || typeof completion !== 'number') return null;
+    const reasoning = typeof c.reasoning_tokens === 'number' ? c.reasoning_tokens : 0;
+    const cacheRead = typeof c.cached_prompt_tokens === 'number' ? c.cached_prompt_tokens : 0;
+    const ts = Date.parse(String(row.ts ?? ''));
+    if (!Number.isFinite(ts)) return null;
+    return build(
+      { ...ctx, sessionId: typeof row.sid === 'string' ? row.sid : ctx.sessionId },
+      ts,
+      {
+        prompt,
+        completion: Math.max(0, completion - reasoning),
+        reasoning,
+        cacheRead,
+      },
+      { latency_ms: typeof c.model_elapsed_ms === 'number' ? c.model_elapsed_ms : 0 },
+    );
+  }
+
+  if (row.method !== '_x.ai/session/update' && row.method !== 'session/update') return null;
 
   const params = row.params as Record<string, unknown> | undefined;
   const usage = (params?.update as Record<string, unknown> | undefined)?.usage as

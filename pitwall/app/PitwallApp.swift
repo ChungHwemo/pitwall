@@ -20,10 +20,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         let config = WKWebViewConfiguration()
         // 기본 저장소가 영속이라 localStorage 설정이 실행 간에 유지된다.
         config.websiteDataStore = .default()
+        // 페이지 JS보다 먼저 심는다. 기본 데이터셋이 LIVE가 되려면 boot가 이걸 봐야 한다.
+        let nativeFlag = WKUserScript(
+            source: "window.__pitwallNative = true;",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(nativeFlag)
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")   // 창 배경이 비치지 않게
+        if #available(macOS 13.3, *) {
+            webView.isInspectable = true
+        }
 
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
@@ -79,10 +89,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             pendingLines.append((vendor, lines))
             return
         }
-        // 줄을 그대로 넘긴다. 문자열 이어붙이기 대신 JSON으로 실어야 따옴표가 안 깨진다.
-        guard let payload = try? JSONSerialization.data(withJSONObject: lines),
-              let json = String(data: payload, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.pitwallIngest && window.pitwallIngest(\(quote(vendor)), \(json))")
+        // 클로드 트랜스크립트 한 줄이 MB 단위라 묶어서 넘기면 JSON/JS 가 통째로 실패한다.
+        // 본문은 파서가 안 읽으므로 여기서 잘라 내고, 실패하는 묶음은 건너뛴다.
+        let slim = lines.compactMap(Self.slimLogLine)
+        guard !slim.isEmpty else { return }
+        let chunk = 32
+        var i = 0
+        while i < slim.count {
+            let slice = Array(slim[i..<min(i + chunk, slim.count)])
+            i += chunk
+            guard let payload = try? JSONSerialization.data(withJSONObject: slice),
+                  let json = String(data: payload, encoding: .utf8) else { continue }
+            webView.evaluateJavaScript("window.pitwallIngest && window.pitwallIngest(\(quote(vendor)), \(json))")
+        }
+    }
+
+    /// 사용량 필드만 남긴다. `content`/`text`/`rawOutput` 은 MB 단위 + PRIV-4.
+    static func slimLogLine(_ line: String) -> String? {
+        guard let data = line.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) else {
+            return line.utf8.count < 8_192 ? line : nil
+        }
+        let slim = stripBulky(obj)
+        guard let out = try? JSONSerialization.data(withJSONObject: slim),
+              let text = String(data: out, encoding: .utf8) else { return nil }
+        return text
+    }
+
+    static func stripBulky(_ value: Any) -> Any {
+        if let dict = value as? [String: Any] {
+            var out: [String: Any] = [:]
+            for (key, child) in dict {
+                if key == "content" || key == "rawOutput" || key == "thinking" || key == "text" { continue }
+                out[key] = stripBulky(child)
+            }
+            return out
+        }
+        if let arr = value as? [Any] { return arr.map { stripBulky($0) } }
+        return value
     }
 
     private func quote(_ s: String) -> String {
@@ -116,7 +160,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         webView.evaluateJavaScript(
             "typeof window.pitwallLive === 'function' ? (window.pitwallLive(\(json)), true) : false"
         ) { [weak self] result, _ in
-            guard let self, (result as? Bool) != true, attempt < maxAttempts else { return }
+            let ok = (result as? Bool) == true
+            NSLog("pitwallLive attempt=%d ok=%@", attempt, ok ? "true" : "false")
+            if ok {
+                let mark = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("pitwall-live-ok")
+                try? "ok".write(to: mark, atomically: true, encoding: .utf8)
+            }
+            guard let self, !ok, attempt < maxAttempts else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.sendLiveAccounts(json, attempt: attempt + 1)
             }

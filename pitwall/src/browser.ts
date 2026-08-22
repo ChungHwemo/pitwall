@@ -9,7 +9,7 @@ import { workOf } from './state/reducer';
 import { ReplaySource } from './source/ReplaySource';
 import { LiveSource } from './source/LiveSource';
 import type { LiveAccounts, LiveVendor, VendorLimitSnapshot } from './source/LiveSource';
-import { DATASET_KEY, LIVE_ID, type Dataset } from './config/datasets';
+import { DATASET_KEY, LIVE_ID, pickDataset, type Dataset } from './config/datasets';
 import { DatasetPicker } from './render/datasetPicker';
 
 /**
@@ -70,8 +70,8 @@ if (mount) {
       ...embedded,
     ];
     const wanted = localStorage.getItem(DATASET_KEY);
-    // 저장된 선택이 없으면 첫 데모 기록(기본 빌드가 심는다), 그것도 없으면 실시간.
-    const chosen = datasets.find((d) => d.id === wanted) ?? datasets[1] ?? datasets[0];
+    const native = (window as unknown as { __pitwallNative?: boolean }).__pitwallNative === true;
+    const chosen = pickDataset(datasets, wanted, native);
     const wantsLive = chosen?.id === LIVE_ID;
     const recorded = wantsLive ? [] : (chosen?.events ?? []);
     // DEMO 배지는 지금 도는 것이 지어낸 데이터인지를 말한다. 시뮬레이터(기록

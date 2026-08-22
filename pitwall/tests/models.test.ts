@@ -67,6 +67,19 @@ describe('MODEL_CATALOG', () => {
 });
 
 describe('classOfModel', () => {
+  it('grok-4.6 캐시 단가는 공개 $0.50 이지 grok-4.5의 $0.30이 아니다', () => {
+    // docs.x.ai/developers/models/grok-4.6 : $2 / $0.50 / $6
+    const spec = specOf('grok-4.6');
+    expect(spec).toBeDefined();
+    expect(spec!.carClass).toBe('P');
+    expect(spec!.inputPerMtok).toBe(2);
+    expect(spec!.cachedInputPerMtok).toBe(0.5);
+    expect(spec!.outputPerMtok).toBe(6);
+    expect(spec!.priceSource).toBe('verified');
+    const build = specOf('grok-4.6-build');
+    expect(build!.cachedInputPerMtok).toBe(0.5);
+  });
+
   it('실기록에 등장하는 claude-opus-4-6은 H다 — 공식 출력 $25', () => {
     // platform.claude.com/docs/en/about-claude/pricing : Opus 4.6 = $5 / $0.50 / $25
     const spec = specOf('claude-opus-4-6');

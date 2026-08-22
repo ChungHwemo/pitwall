@@ -25,3 +25,23 @@ export const DATASET_KEY = 'pitwall.dataset';
  * 안 들어오는데, 그건 고장이 아니라 그 환경에 로그를 읽을 수단이 없다는 뜻이다.
  */
 export const LIVE_ID = 'live';
+
+/**
+ * 저장된 선택이 있으면 그걸 쓴다. 없으면 환경이 정한다.
+ *
+ * 브라우저 기본은 데모 — 실시간 항목을 골라도 브리지가 없어 LIVE라고 가장하면
+ * 안 된다. 네이티브는 브리지가 있으므로 첫 실행의 기본은 실시간이다. 예전에
+ * `datasets[1]`(첫 데모)을 모든 환경의 기본으로 둬서, 앱을 켜도 LIVE가 안 붙었다.
+ */
+export function pickDataset<T extends { id: string }>(
+  datasets: readonly T[],
+  storedId: string | null,
+  native: boolean,
+): T | undefined {
+  if (storedId !== null && storedId !== '') {
+    const hit = datasets.find((d) => d.id === storedId);
+    if (hit !== undefined) return hit;
+  }
+  if (native) return datasets.find((d) => d.id === LIVE_ID) ?? datasets[0];
+  return datasets.find((d) => d.id !== LIVE_ID) ?? datasets[0];
+}

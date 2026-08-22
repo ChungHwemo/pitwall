@@ -1,6 +1,6 @@
 # PITWALL — 프로덕션 배포 PRD
 
-**PRD v1.0** · 2026-08-22 · 상태: **구현 착수** (요청: 미비점을 찾아 완성할 때까지)
+**PRD v1.0** · 2026-08-22 · 상태: **공개 데모 배포됨** (origin/main `78b389e`). 로컬에 미커밋 게이트 수정 잔여.
 
 기존 제품 PRD([2026-07-29-pitwall-prd.md](./2026-07-29-pitwall-prd.md))의 v1 범위 안에서, **지금 공개 배포를 막는 구멍만** 닫는다. 서버·LiteLLM·공증·위젯·8시간 힙 실측은 이 문서의 목표가 아니다.
 
@@ -53,11 +53,11 @@ v1 PRD §11.4는 “배포는 정적 호스팅, 서버 없음”이다. 호스�
 | Apple Developer ID · 공증 · 하드닝 | 계정·$99 없음. Apple은 공증을 “Mac App Store 밖 배포”의 선호 경로로 둔다. 지금 공개면은 HTML이다 |
 | WidgetKit | D10 권장안이 이미 상주 창 = 현재 앱 |
 | 서버 · LiteLLM · 텔레메트리 | v1.5. PRIV outbound-0 |
-| 8시간 힙 · GPU fps · 3초 인지 | 측정이지 코드가 아님. 출시 게이트로 이 배포를 막지 않는다 |
+| 3초 인지 사용성 테스트 | 사람 피험자. 에이전트 스크린샷으로 대체하지 않는다 |
 | 실기록 fixture를 git에서 삭제 | 로컬 `PITWALL_REAL=1` 경로. Pages가 안 심으면 된다 |
 | Vite `base: '/pitwall/'` 멀티파일 배포 | 단일 HTML이 이미 `file://`·서브경로를 견딘다 |
 | CSP `unsafe-inline` 연극 | 인라인 번들은 nonce 없이 스크립트를 막으면 죽는다 |
-| native LIVE 운영 재실측 | 별도 사람 게이트. 웹 배포와 무관 |
+| Apple 공증 | 사용자가 2026-08-22에 웹 데모 + 로컬 ad-hoc으로 확정 |
 
 ---
 
@@ -126,13 +126,20 @@ Node 24. 권한: verify는 `contents: read`. pages는 `pages: write` + `id-token
 
 빈칸이면 배포했다고 말하지 않는다.
 
-| 항목 | 합격 |
-|---|---|
-| 단위 테스트 `release.test.ts` | RED를 본 뒤 GREEN |
-| 전체 `npm test` · `tsc --noEmit` | 통과 |
-| `build:single` + `release:check` | 실기록 canary 0 |
-| GitHub Actions verify | 통과 |
-| Pages URL | `https://chunghwemo.github.io/pitwall/` 200, 데모만 |
-| LICENSE | 리포 루트 MIT |
+| 항목 | 합격 | 실측 2026-08-22 |
+|---|---|---|
+| 단위 테스트 `release.test.ts` | RED를 본 뒤 GREEN | origin/main CI 통과 |
+| 전체 `npm test` · `tsc --noEmit` | 통과 | 워크플로 `production` run `32547824402` success |
+| `build:single` + `release:check` | 실기록 canary 0 | 라이브 HTML: `real-busy` 0, UUID 0, `demo-small`/`demo-large` 존재. 시뮬레이터 프리셋 `{id:\`real\`,label:\`실측\`}` 은 데이터셋이 아님 |
+| GitHub Actions verify | 통과 | 같은 run |
+| Pages URL | `https://chunghwemo.github.io/pitwall/` 200, 데모만 | HTTP 200, `PITWALL_REAL` 0, `/assets/` 없음 |
+| LICENSE | 리포 루트 MIT | 파일은 MIT. GitHub API는 서드파티 꼬리 때문에 `NOASSERTION`. 꼬리는 README로 옮김 — **푸시 전에는 원격 배지가 바뀌지 않는다** |
 
-측정하지 않은 것(8시간 힙, native LIVE, GPU fps)은 이 표에 넣지 않는다. 없다고 끝난 것이 아니다. 이 배포의 합격 조건이 아니다.
+이 표가 이 배포의 합격 조건이다. 아래는 같은 날 관측한 운영 실측이며, 빈칸이면 그 항목만 미완료다.
+
+| 운영 실측 | 상태 |
+|---|---|
+| 헤드풀 fps ≥ 55 | 90s `demo-large` **58.94 fps**, `fpsPass=true` |
+| 8시간 힙 ≤ 50MB | **미완료.** 표본 경과가 8시간을 지나야 `heapPass`를 매긴다. 중간 JSON의 `heapPass:true`는 요청 `--ms`만 본 거짓 양성 |
+| native LIVE | 로컬 ad-hoc에서 LIVE CONNECTED 확인. **origin/main에는 아직 없음** |
+| 3초 인지 · 라디오 가독성 | 사람만. 에이전트가 대신하지 않는다 |

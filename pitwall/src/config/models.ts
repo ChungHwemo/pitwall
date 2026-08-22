@@ -35,6 +35,7 @@ const ANTHROPIC = 'https://platform.claude.com/docs/en/about-claude/pricing';
 const OPENAI = 'https://platform.openai.com/docs/pricing';
 const GOOGLE = 'https://ai.google.dev/gemini-api/docs/pricing';
 const XAI = 'https://docs.x.ai/docs/models';
+const XAI_GROK46 = 'https://docs.x.ai/developers/models/grok-4.6';
 const DEEPSEEK = 'https://api-docs.deepseek.com/quick_start/pricing';
 const MOONSHOT_K3 = 'https://platform.moonshot.ai/docs/pricing/chat-k3';
 const MOONSHOT_K27 = 'https://platform.moonshot.ai/docs/pricing/chat-k27-code';
@@ -88,6 +89,14 @@ export const MODEL_CATALOG: ModelSpec[] = [
     inputPerMtok: 2, cachedInputPerMtok: 0.3, outputPerMtok: 6,
     priceSource: 'verified', sourceUrl: XAI,
     priceNote: 'grok-4.5 build 채널 — 단가·클래스는 grok-4.5 공개값과 동일' },
+  { id: 'grok-4.6', provider: 'xai', carClass: 'P',
+    inputPerMtok: 2, cachedInputPerMtok: 0.5, outputPerMtok: 6,
+    priceSource: 'verified', sourceUrl: XAI_GROK46,
+    priceNote: 'docs.x.ai grok-4.6 : $2 / $0.50 / $6. 로그 _meta.modelId 가 grok-4.6' },
+  { id: 'grok-4.6-build', provider: 'xai', carClass: 'P',
+    inputPerMtok: 2, cachedInputPerMtok: 0.5, outputPerMtok: 6,
+    priceSource: 'verified', sourceUrl: XAI_GROK46,
+    priceNote: 'build 채널 공개 단가 없음. grok-4.6 API 단가를 쓴다' },
   { id: 'gpt-5.6-luna', provider: 'openai', carClass: 'P',
     inputPerMtok: 1, cachedInputPerMtok: 0.1, outputPerMtok: 6,
     priceSource: 'verified', sourceUrl: OPENAI },

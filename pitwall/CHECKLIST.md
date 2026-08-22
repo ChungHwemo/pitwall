@@ -204,18 +204,22 @@ transform 쓰기를 100에서 12로 줄여도 layout이 안 줄어드는 것 자
 
 ---
 
-## ⚠️ 여전히 미측정
+## ⚠️ 측정 갱신 (2026-08-22)
+
+D9 확정: 공개는 GitHub Pages 데모 HTML, macOS 앱은 이 기기 ad-hoc. Developer ID 공증 없음.
 
 | 항목 | 합격 기준 | 상태 |
 |---|---|---|
-| **8시간 힙 증가** | ≤ 50 MB | **미측정.** 5분 실측에서 누수 징후는 없다 — 30초 +2.1 MB vs 300초 +1.8 MB로 **구동 시간에 비례해 늘지 않았고**, DOM 노드는 634 고정, 라디오 버퍼는 링버퍼로 상한. 그래도 8시간은 8시간을 돌려야 한다 |
-| 실 GPU 프레임률 | 평균 ≥ 55fps | **부분 측정.** headless shell은 120fps 무제한으로 돌아 상한이 아니라 하한만 말해준다. 32ms 초과 프레임 0회는 유의미하나, 실제 컴포지터 경로는 헤드풀 브라우저로 재확인 필요 |
-| 라디오 가독성 | `chaos`에서 읽을 수 있는 속도 | **미측정.** 사람의 판단이 필요하다 |
-| macOS 앱 production build | 성공 | ✅ `npm run build:app` exit 0. 앱 실행·렌더는 확인했지만 DEMO 표면뿐 |
-| native LIVE 연속성·중복 재생 | 새로고침 뒤 집계 연속, 중복 없음 | **미측정 / INCONCLUSIVE.** Task 3에서 fresh native launch가 LIVE를 기동하지 않아 확인하지 못함 |
-| 지연·즉시 리로드 | 저장된 스냅샷 복원 및 미저장 창 관찰 | **미측정 / INCONCLUSIVE.** 사람 운영 native LIVE 절차가 실행되지 않음 |
-| `localStorage['pitwall.live']` 프라이버시 검사 | 본문·raw account identifier 없음 | **미측정 / BLOCKED.** 배포 앱에서 Web Inspector가 노출되지 않음 |
-| malformed / expired fixture 폴백 | 충돌 없이 새 LIVE 상태로 폴백 | **미측정 / BLOCKED.** 주입할 native console이 노출되지 않음 |
+| 실 GPU 프레임률 | 평균 ≥ 55fps | ✅ **헤드풀 Chrome 90s** `demo-large` 워밍업 15s: **58.94 fps**, long-frame 0.054%, `fpsPass=true`. 45s 표본은 120Hz 패널 vsync로 120.00 fps · long 0. headless 8h 초기는 120fps라 **fps 합격에 쓰지 않음** |
+| 짧은 창 힙 | 누수가 시간에 비례하지 않음 | ✅ 45s headed heap Δ **0 MB** (quantized). 90s headed Δ **+0.031 MB**. CDP `JSHeapUsedSize` |
+| **8시간 힙 증가** | ≤ 50 MB | **진행 중. 합격 금지.** `heapPass`는 표본 경과 ≥ 8시간일 때만 매긴다. 요청 `--ms`만으로 참이 되면 안 된다. 2026-08-22 22:31 표본: n=129, 경과 ≈ 2.13h, Δheap ≈ 7.56 MB, SVG 노드는 워밍업 후 177로 고정. 돌고 있는 측정 프로세스는 옛 코드를 들고 있어 중간 JSON의 `heapPass:true`는 거짓 양성이다 |
+| native LIVE 첫 실행 | LIVE 기동 | ✅ 2026-08-22. `__pitwallNative` + `pickDataset` 기본 실시간. 마커 `pitwall-live-ok`. 화면 `LIVE · WAITING` · 데이터셋 `실시간` — 최근 호출이 415초 전이라 차가 없는 것이 정직하다 |
+| native 리로드 복원 | LIVE 유지, 스냅샷 복원 | ✅ ⌘R 후 마커 mtime 갱신. 화면 `LIVE · CONNECTED`, 카넘버 12 · opus-4-6 · $0.10. 스크린샷 `docs/screenshots/2026-08-22-native-live-reload.png` |
+| macOS 앱 production build | 성공 | ✅ `build:app` ad-hoc, 5.7M, `codesign flags=0x2(adhoc)` |
+| 스냅샷 프라이버시 | 본문·raw id 없음 | ✅ `liveSnapshotLeaks` 단위 테스트. 유출 JSON은 저장 거부. WebView `isInspectable=true` (13.3+) |
+| malformed / expired 폴백 | 충돌 없이 null | ✅ `liveStore.test.ts` (깨진 JSON·만료·미래). 네이티브 주입은 이제 Inspector로 가능하나 이번 세션에서 주입 실측은 안 함 |
+| 라디오 가독성 | `chaos`에서 읽을 수 있는 속도 | **미측정.** 사람 판단. 이번 LIVE 화면은 무전이 비어 있음 |
+| 3초 인지 기준선 | 사용성 테스트 ≥80% | **미측정.** 에이전트 스크린샷은 대체 불가 |
 
 > 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저장 실패나 rAF 정지 때문에 이를 보편적인 손실 상한이나 zero-loss 보장으로 해석하지 않는다.
 

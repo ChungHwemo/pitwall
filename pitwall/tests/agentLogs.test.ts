@@ -129,6 +129,30 @@ describe('grokEvent', () => {
     expect(grokEvent({ msg: 'shell.turn.inference_done' }, { car: CAR })).toBeNull();
     expect(grokEvent({ method: '_x.ai/session/update' }, { car: CAR })).toBeNull();
   });
+
+  it('unified.jsonl 의 inference_done 한 루프를 이벤트로 옮긴다 — 턴 끝날 때까지 기다리지 않는다', () => {
+    const row = {
+      ts: '2026-08-22T11:30:20.952Z',
+      msg: 'shell.turn.inference_done',
+      sid: 'sess-loop',
+      ctx: {
+        prompt_tokens: 357_034,
+        cached_prompt_tokens: 354_688,
+        completion_tokens: 2_221,
+        reasoning_tokens: 2_218,
+        model_elapsed_ms: 44_902,
+      },
+    };
+    const e = grokEvent(row, { car: CAR, model: 'grok-4.6-build' })!;
+    expect(e.model).toBe('grok-4.6-build');
+    expect(e.session_id).toBe('sess-loop');
+    expect(e.tokens.prompt).toBe(357_034);
+    expect(e.tokens.cache_read).toBe(354_688);
+    expect(e.tokens.completion).toBe(3);
+    expect(e.tokens.reasoning).toBe(2_218);
+    expect(e.latency_ms).toBe(44_902);
+    expect(e.ts).toBe(Date.parse('2026-08-22T11:30:20.952Z'));
+  });
 });
 
 describe('copilotEvents', () => {
