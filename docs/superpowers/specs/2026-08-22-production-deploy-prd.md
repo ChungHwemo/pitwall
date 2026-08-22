@@ -118,7 +118,7 @@ stagePagesSite(opts: { html: string; settingsJson: string; outDir: string }): vo
 - `verify`: 모든 push/PR. `pitwall/`에서 `npm ci` · `npm test` · `npx tsc --noEmit` · `npm run build:single` · `npm run release:check` · `npm run release:stage`. 스테이징 디렉터리를 일반 artifact로 올린다.
 - `pages`: `main` 푸시만. artifact를 받아 `actions/upload-pages-artifact` + `actions/deploy-pages`. environment `github-pages`.
 
-Node 22. 권한: verify는 `contents: read`. pages는 `pages: write` + `id-token: write`.
+Node 24. 권한: verify는 `contents: read`. pages는 `pages: write` + `id-token: write`.
 
 ---
 
