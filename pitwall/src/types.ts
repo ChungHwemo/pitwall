@@ -63,7 +63,7 @@ export interface CarEvent {
   ttft_ms?: number;
   status: 'ok' | 'error';
   error_code?: string;
-  fuel_pct: number;        // 0–100
+  fuel_pct?: number;       // 시뮬레이터 일 예산만. LIVE·실 임포터는 부재 (PRD v2.0 QG1)
   /** 0–100. 한도 윈도우 잔여. 소스가 없으면 부재 — 0으로 두지 않는다 (PRD §7.0) */
   tyre_pct?: number;
   /** 그 한도가 어떤 창인지 (5시간 = 300, 주간 = 10080). 창을 모르면 잔여도 못 읽는다 */
@@ -110,8 +110,8 @@ export interface CarState {
    * 깨지지 않도록 `reasoning`과 같은 선택 필드로 둔다.
    */
   hourly?: number[];
-  /** 비용 예산 잔여. 한도(tyre)와는 다른 축이다 — 돈이 남아도 한도에 걸릴 수 있다 */
-  fuel_pct: number;
+  /** 비용 예산 잔여. 한도(tyre)와는 다른 축이다 — 돈이 남아도 한도에 걸릴 수 있다. 실 소스가 없으면 부재 */
+  fuel_pct?: number;
   /** 한도 윈도우 잔여. 소스가 없으면 부재 — UI는 게이지를 그리지 않는다 */
   tyre_pct?: number;
   /** 그 한도의 창 길이 (분). 5시간인지 주간인지 모르면 잔여를 읽을 수 없다 */
@@ -122,6 +122,8 @@ export interface CarState {
   limit_observed_at?: number;
   cost_usd: number;
   last_event_ts: number;
+  /** 원본 벽시계. 실시간 드레인이 ts를 내부 시계로 바꿔도 속도 분모는 이걸 쓴다. */
+  last_wall_ts?: number;
   error_count: number;
   /**
    * 캐시가 아낀 돈 누적. 재전송이 전체 토큰의 99%인데 화면에서는 비율 한 칸이라

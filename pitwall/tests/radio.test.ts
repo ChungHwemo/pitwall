@@ -49,6 +49,10 @@ describe('eventRadio', () => {
     expect(eventRadio(event({ kind: 'limit_warn', fuel_pct: 12 }))?.severity).toBe('warn');
   });
 
+  it('연료 없는 한도 경고는 연료 문구를 만들지 않는다', () => {
+    expect(eventRadio(event({ kind: 'limit_warn', fuel_pct: undefined }))).toBeNull();
+  });
+
   it('메시지에 다른 차량과의 비교 표현이 없다', () => {
     const msgs = [
       eventRadio(event({ kind: 'error', status: 'error', error_code: 'x' })),

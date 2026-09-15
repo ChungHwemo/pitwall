@@ -13,6 +13,7 @@ const ROWS: [string, string, string?][] = [
   ['STALE', '5분 넘게 새 데이터가 없음', 'stale'],
   ['CONNECTED', '실시간 소스가 최근 데이터를 처리함', 'connected'],
   ['SYNCING', '실시간 소스가 실제 대기열을 처리 중', 'syncing'],
+  ['WAITING', '실시간 소스가 연결됐으나 아직 처리한 이벤트가 없음', 'waiting'],
   ['RUN', '최근에 호출이 있었다'],
   ['IDLE', '5분 넘게 조용하다. 트랙에는 흐리게 남는다'],
   ['PIT · LIM', '한도 창이 바닥나 더 못 간다'],
@@ -23,6 +24,7 @@ const ROWS: [string, string, string?][] = [
   ['P', '주력 · 파란 원', 'class-p'],
   ['GT', '경량 · 보라 사각형', 'class-gt'],
   ['밝기', '밝기는 현재 속도. 위치는 누적값.'],
+  ['중계', '기존 서킷에서 사용량이 큰 차를 고른다. [ ] 다른 모델, Esc 자동'],
 ];
 
 export class Legend {

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MINI MX — sculptable park</title>
+  <style>
+    :root {
+      --ink: #f3ead8;
+      --dim: #cbbca3;
+      --dirt: #1a120c;
+      --panel: rgba(12, 8, 6, 0.72);
+      --line: rgba(240, 193, 74, 0.45);
+      --gold: #f0c14a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0c0907; color: var(--ink); font-family: "DIN Alternate", "Barlow Condensed", "Arial Narrow", sans-serif; }
+    #view { display: block; width: 100%; height: 100%; }
+    .hud { position: fixed; inset: 0; pointer-events: none; }
+    .hud > * { pointer-events: auto; }
+    header {
+      position: absolute; top: 14px; left: 16px; right: 16px;
+      display: flex; align-items: baseline; gap: 16px;
+      text-transform: uppercase; letter-spacing: 0.16em;
+    }
+    header h1 { margin: 0; font-size: 22px; font-weight: 800; }
+    header h1 span { color: var(--gold); }
+    #clock { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 22px; color: var(--gold); }
+    #mode {
+      border: 1px solid var(--line); padding: 3px 8px; font-size: 12px; letter-spacing: 0.22em;
+    }
+    #count {
+      position: absolute; left: 50%; top: 22%; transform: translateX(-50%);
+      font-size: 120px; font-weight: 900; letter-spacing: 0.08em; color: var(--gold);
+      text-shadow: 0 8px 24px #000; opacity: 0; pointer-events: none;
+    }
+    #boot-err:empty { display: none; }
+    #count[data-show="1"] { opacity: 1; }
+    #tower {
+      position: absolute; left: 16px; top: 58px; list-style: none; margin: 0; padding: 8px 0;
+      background: var(--panel); border: 1px solid var(--line); min-width: 280px;
+    }
+    #tower li {
+      display: grid; grid-template-columns: 22px 28px 1fr 44px 40px 52px;
+      gap: 8px; align-items: center; padding: 6px 12px; font-size: 14px;
+      border-left: 4px solid var(--c);
+    }
+    #tower li.you { background: rgba(240,193,74,0.12); }
+    #tower .num { color: var(--gold); font-weight: 800; }
+    #tower .sk, #tower .st, #tower .lp { font-size: 11px; letter-spacing: 0.12em; color: var(--dim); }
+    nav {
+      position: absolute; left: 16px; bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px;
+      max-width: 70vw;
+    }
+    nav button, #help kbd {
+      background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+      padding: 8px 10px; letter-spacing: 0.12em; text-transform: uppercase; font: inherit; font-size: 12px;
+      cursor: pointer;
+    }
+    nav button.on { background: var(--gold); color: #1a120c; border-color: var(--gold); }
+    #help {
+      position: absolute; right: 16px; bottom: 16px; background: var(--panel);
+      border: 1px solid var(--line); padding: 12px 14px; font-size: 12px; line-height: 1.55;
+      max-width: 280px; color: var(--dim);
+    }
+    #help.hide { display: none; }
+    #help b { color: var(--ink); }
+    #help kbd { padding: 1px 5px; margin-right: 4px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/": "./vendor/addons/"
+    }
+  }
+  </script>
+  <script>
+    window.addEventListener('error', function (e) {
+      document.title = 'ERR ' + (e.message || e.error);
+      var el = document.getElementById('boot-err');
+      if (el) el.textContent = e.message + ' @ ' + (e.filename || '') + ':' + (e.lineno || '');
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      document.title = 'REJ ' + e.reason;
+      var el = document.getElementById('boot-err');
+      if (el) el.textContent = String(e.reason);
+    });
+  </script>
+</head>
+<body data-mode="race">
+  <canvas id="view"></canvas>
+  <pre id="boot-err" style="position:fixed;left:16px;top:120px;color:#f88;z-index:9;max-width:70vw;white-space:pre-wrap;pointer-events:none"></pre>
+  <div class="hud">
+    <header>
+      <h1>MINI <span>MX</span></h1>
+      <div id="mode">LIVE</div>
+      <div id="clock">0:00.00</div>
+    </header>
+    <div id="count" data-show="0">3</div>
+    <ol id="tower"></ol>
+    <nav>
+      <button data-mode="race" class="on">레이스</button>
+      <button data-mode="sculpt">조각</button>
+      <button data-tool="raise" class="on">1 올림</button>
+      <button data-tool="lower">2 내림</button>
+      <button data-tool="smooth">3 고르게</button>
+      <button data-tool="whoops">훕스</button>
+      <button data-tool="table">테이블탑</button>
+      <button data-tool="berm">버름</button>
+      <button id="undo">실행취소</button>
+      <button id="reset-dirt">트랙 리셋</button>
+      <button id="restart">재출발</button>
+    </nav>
+    <aside id="help">
+      <b>조각 가능한 미니 모터크로스.</b> PITWALL과 무관한 토이.<br />
+      <kbd>WASD</kbd>보고 있는 차 조종 · <kbd>Tab</kbd>카메라 전환<br />
+      <kbd>V</kbd>조각 · <kbd>C</kbd>카메라 · <kbd>R</kbd>재출발<br />
+      <kbd>[ ]</kbd>브러시 크기 · 드래그로 흙을 팜
+    </aside>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

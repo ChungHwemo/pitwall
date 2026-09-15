@@ -34,7 +34,9 @@ export function scoreCar(car: CarState, ctx: ScoreContext): number {
   // 타이어는 모드가 켜져 있을 때만 신호가 된다 (PRD §9.1).
   // 소스가 없는 게이지로 "임계 도달"을 주장하지 않는다.
   const tyreLow = car.tyre_pct !== undefined && car.tyre_pct < 15;
-  if (car.fuel_pct < 20 || tyreLow) score += DIRECTOR_WEIGHTS.limitThreshold;
+  if ((typeof car.fuel_pct === 'number' && car.fuel_pct < 20) || tyreLow) {
+    score += DIRECTOR_WEIGHTS.limitThreshold;
+  }
 
   const idle = ctx.now - car.last_event_ts;
   if (idle < 30_000 && idle >= 0) {

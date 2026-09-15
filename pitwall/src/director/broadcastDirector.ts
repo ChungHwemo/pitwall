@@ -58,6 +58,9 @@ function compare(
   right: { readonly candidate: BroadcastCandidate; readonly score: number },
 ): number {
   if (left.score !== right.score) return right.score - left.score;
+  if (left.candidate.workPerMin !== right.candidate.workPerMin) {
+    return right.candidate.workPerMin - left.candidate.workPerMin;
+  }
   if (left.candidate.lastEventTs !== right.candidate.lastEventTs) {
     return right.candidate.lastEventTs - left.candidate.lastEventTs;
   }

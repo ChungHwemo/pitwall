@@ -7,6 +7,7 @@ import type { CarClass } from '../types';
 import type { HotCar, RenderCar, TrackModel } from '../track/trackModel';
 import type { Freshness } from '../state/reducer';
 import { HOT_CAP } from '../track/trackModel';
+import { idleSwayDelay, racingLineDrawProgress } from './idleCreep';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -170,40 +171,6 @@ function paintCarClass(badge: SVGPathElement, carIcon: SVGPathElement, carClass:
   badge.setAttribute('d', glyphPath(style.shape, BADGE_RADIUS, 0, BADGE_Y));
   badge.setAttribute('stroke', style.color);
   carIcon.setAttribute('fill', style.color);
-}
-
-/**
- * carId → 0..4초 결정적 idle sway 위상 (FNV-1a).
- *
- * 같은 차는 항상 같은 위상이라 재접속·재렌더에도 떨림이 튀지 않는다.
- * RNG가 아니라 id 해시인 이유는 `trackModel.progressOf`와 같다 — 배치는
- * 데이터에서만 나와야 한다. sway는 진행이 아니라 제자리 시각 효과일 뿐이라
- * 시각적 다양성 용도로만 쓴다.
- */
-function idleSwayDelay(carId: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < carId.length; i++) {
-    h ^= carId.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (((h >>> 0) % 1000) / 1000) * 4;
-}
-
-/**
- * 무통신(≥5분, `idle`) 주행선 차량의 결정론적 왕복 폭 (progress 단위).
- *
- * 사용자 정정(2026-08-09): "데이터 없을시 멈춰있는게 아니고 천천히 이동" — 없는
- * 데이터를 지어내진 않되(§15), 진행률(`car.progress`, 토큰의 순수 함수)이 안 바뀌는
- * 동안에도 화면이 완전히 죽어 보이지 않게 하는 절충이다. `Projector.step()`이
- * 반환하는 값 위에 얹기만 하고, `visualProgressOf()`가 읽는 내부 상태는 건드리지
- * 않는다 — 위 유휴 sway 불변식과 같은 규율이다.
- */
-const IDLE_CREEP_PROGRESS = 0.0006;
-const IDLE_CREEP_PERIOD_MS = 8_000;
-
-function idleCreepOffset(carId: string, now: number): number {
-  const phaseMs = idleSwayDelay(carId) * 1000;
-  return Math.sin((now + phaseMs) / IDLE_CREEP_PERIOD_MS * Math.PI * 2) * IDLE_CREEP_PROGRESS;
 }
 
 /**
@@ -522,6 +489,7 @@ export class TrackRenderer {
     const { badge, carIcon } = appendCarBody(group);
 
     const fuelRing = document.createElementNS(SVG_NS, 'circle');
+    fuelRing.setAttribute('class', 'fuel-ring');
     fuelRing.setAttribute('r', String(GLYPH_SIZE + 3));
     fuelRing.setAttribute('fill', 'none');
     fuelRing.setAttribute('stroke-width', '2');
@@ -595,8 +563,8 @@ export class TrackRenderer {
 
       applyHeat(node.group, this.projector.heat(car.carId, car.heat, now), car.idle, car.freshness, car.carId);
       const next = this.projector.step(car.carId, car.progress, now);
-      // 무통신 차는 실제 진행이 멈춰도 주행선에서 완전히 얼어붙지 않는다 — idleCreepOffset 참고.
-      const draw = car.idle ? next + idleCreepOffset(car.carId, now) : next;
+      // 무통신 차는 실제 진행이 멈춰도 주행선에서 완전히 얼어붙지 않는다 — racingLineDrawProgress.
+      const draw = racingLineDrawProgress(car, next, now);
       translate(node.group, positionAt(this.track, draw, car.carClass, car.laneLine));
       this.markSelection(node.group, car.carId);
       if (node.group.style.opacity !== '1') node.group.style.opacity = '1';
@@ -657,6 +625,9 @@ export class TrackRenderer {
         node.carId = car.carId;
       }
 
+      const ringOn = typeof car.fuelPct === 'number' ? '1' : '0';
+      if (node.fuelRing.style.opacity !== ringOn) node.fuelRing.style.opacity = ringOn;
+
       // 에러(호출 실패)와 한도(벤더가 건 벽)는 둘 다 더 갈 수 없는 상태다.
       // 주행선 위에 세우면 달리는 차의 길을 막고, 멈춘 차가 여전히 경기 중인
       // 것처럼 보인다 — 실제 경기와 같이 피트로 들여보낸다.
@@ -664,7 +635,7 @@ export class TrackRenderer {
       //
       // 사용자 정정(2026-08-09): 피트에 들어온 차는 완전히 정지한다 — 더 못 가는
       // 상태에 창작된 왕복 움직임(구 REVIEW #14 pitCreep)을 얹지 않는다. 화면이
-      // 죽어 보이지 않게 하는 몫은 아래 무통신 주행선 차량의 idleCreepOffset로 옮겼다.
+      // 죽어 보이지 않게 하는 몫은 아래 무통신 주행선 차량의 racingLineDrawProgress로 옮겼다.
       applyHeat(node.group, this.projector.heat(car.carId, car.heat, now), car.idle, car.freshness, car.carId);
       if (STOPPED.has(car.reason)) {
         // 피트에 선 차는 굴러가지 않는다. 자리만 기억해 둔다.
@@ -674,7 +645,7 @@ export class TrackRenderer {
         pitSlot += 1;
       } else {
         const next = this.projector.step(car.carId, car.progress, now);
-        const draw = car.idle ? next + idleCreepOffset(car.carId, now) : next;
+        const draw = racingLineDrawProgress(car, next, now);
         translate(node.group, positionAt(this.track, draw, car.carClass, car.laneLine));
       }
       this.markSelection(node.group, car.carId);

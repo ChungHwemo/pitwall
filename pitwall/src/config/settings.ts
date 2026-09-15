@@ -2,11 +2,14 @@ import type { WorkdayConfig } from '../state/clock';
 import { DEFAULT_WORKDAY } from '../state/clock';
 import type { PresetName } from './presets';
 import type { HighlightType } from '../track/trackModel';
+import { DEFAULT_CHROME_MODE, parseChromeMode, type ChromeMode } from './chromeMode';
 
 export interface PitwallSettings {
   workday: WorkdayConfig;
   preset: PresetName;
   speed: 1 | 20 | 30 | 100;
+  /** 화면 크롬. 1 토큰 스킨 · 2 클러스터 · 3 워크숍 오버레이. */
+  chromeMode: ChromeMode;
   tyreMode: 'off' | 'rolling_budget' | 'proxy_budget';
   /** 개별 추적할 이벤트 유형. 비워도 클러스터·밀도는 그대로 보인다. */
   highlightTypes: HighlightType[];
@@ -35,6 +38,7 @@ export const DEFAULT_SETTINGS: PitwallSettings = {
   workday: DEFAULT_WORKDAY,
   preset: 'busy',
   speed: 30,
+  chromeMode: DEFAULT_CHROME_MODE,
   tyreMode: 'off',
   highlightTypes: ['error', 'limit'],
   demoClock: true,
@@ -70,6 +74,7 @@ export function clampSettings(s: PitwallSettings): PitwallSettings {
     cameraSlotSwapMinIntervalMs: Math.max(3_000, s.cameraSlotSwapMinIntervalMs),
     radioRepeatSuppressMs: Math.max(1_800_000, s.radioRepeatSuppressMs),
     laneRenderCap: Math.min(40, s.laneRenderCap),   // 성능 예산이라 방향이 반대다
+    chromeMode: parseChromeMode(s.chromeMode),
   };
 }
 
@@ -125,6 +130,11 @@ export type SettingsInput = Partial<Record<keyof PitwallSettings, unknown>> & {
    * `loadPricingOverride`(pricingOverride.ts)가 org/local 원본에서 따로 읽는다.
    */
   pricingOverride?: unknown;
+  /**
+   * Wall SKU 라이선스. 조직 파일에만 둔다. sane()이 이 키를 무시하므로
+   * PitwallSettings로 새지 않는다 — licenseFromOrg가 따로 읽는다.
+   */
+  license?: unknown;
 };
 
 export function resolveSettings(

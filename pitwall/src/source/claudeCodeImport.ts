@@ -95,7 +95,6 @@ export function toCarEvent(raw: unknown, salt: string = CAR_SALT): CarEvent | nu
     latency_ms: 0,
     status: failed ? 'error' : 'ok',
     error_code: errorCode,
-    fuel_pct: 100,
-    // 타이어는 소스가 없다 (PRD §7.0).
+    // 타이어·연료는 소스가 없다 (PRD v2.0 QG1). 100으로 채우지 않는다.
   };
 }

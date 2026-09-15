@@ -143,6 +143,7 @@ describe('SimulatorSource', () => {
     const events = collect(sim, 200);
     const byCar = new Map<string, number[]>();
     for (const e of events) {
+      if (typeof e.fuel_pct !== 'number') throw new Error('simulator must emit fuel');
       if (!byCar.has(e.car_id)) byCar.set(e.car_id, []);
       byCar.get(e.car_id)!.push(e.fuel_pct);
     }

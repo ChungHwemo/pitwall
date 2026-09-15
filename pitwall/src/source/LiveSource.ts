@@ -2,6 +2,7 @@ import type { CarEvent } from '../types';
 import type { EventSource } from './EventSource';
 import { toCarEvent } from './claudeCodeImport';
 import { accountCar, codexEvent, grokEvent, copilotEvents } from './agentLogs';
+import { loadCarSalt } from '../config/carSalt';
 
 /**
  * 로그를 **지금** 읽는 소스.
@@ -49,9 +50,11 @@ export class LiveSource implements EventSource {
   private limits = new Map<string, { utilization: number; window_minutes: number; resets_at: string | null; fetchedAt: number }>();
 
   private accounts: LiveAccounts;
+  private salt: string;
 
   constructor(accounts: LiveAccounts = {}, private readonly drainPerTick: number = DEFAULT_DRAIN) {
     this.accounts = accounts;
+    this.salt = loadCarSalt();
   }
 
   /**
@@ -106,7 +109,8 @@ export class LiveSource implements EventSource {
         ? undefined
         : { accountUuid: this.accounts.claudeAccountUuid };
       const e = toCarEvent(
-        typeof row === 'object' && row !== null ? { ...row, account } : row);
+        typeof row === 'object' && row !== null ? { ...row, account } : row,
+        this.salt);
       if (e && messageId !== undefined) {
         // 같은 id의 진행 누적 행은 최신이 이긴다. 첫 행(부분 사용량)이 남으면
         // 최종 토큰이 영원히 버려진다 — 실측 output 1→577이 그 증거다.
@@ -121,7 +125,7 @@ export class LiveSource implements EventSource {
       const payload = (row as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
       const named = (payload?.ctx as Record<string, unknown> | undefined)?.model ?? payload?.model;
       if (typeof named === 'string' && named.startsWith('gpt-')) this.model.codex = named;
-      const car = accountCar('codex', this.accounts.codexAccountId ?? 'codex');
+      const car = accountCar('codex', this.accounts.codexAccountId ?? 'codex', this.salt);
       const e = codexEvent(row, { car, model: this.model.codex });
       return e ? [e] : [];
     }
@@ -136,13 +140,13 @@ export class LiveSource implements EventSource {
       const named = ctx?.model ?? ctx?.current_model_id ?? r?.model_id ?? meta?.modelId;
       if (typeof named === 'string' && named.startsWith('grok-')) this.model.grok = named;
       const e = grokEvent(row, {
-        car: accountCar('grok', 'grok'),
+        car: accountCar('grok', 'grok', this.salt),
         model: this.model.grok ?? 'grok-4.6-build',
       });
       return e ? [e] : [];
     }
 
-    return copilotEvents(row, { car: accountCar('copilot', 'copilot') });
+    return copilotEvents(row, { car: accountCar('copilot', 'copilot', this.salt) });
   }
 
   start(onEvent: (event: CarEvent) => void): void {

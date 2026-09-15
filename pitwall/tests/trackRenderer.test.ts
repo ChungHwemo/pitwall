@@ -812,6 +812,17 @@ describe('트랙 색 토큰 (P0-2)', () => {
     expect(src).not.toMatch(/#2a323d/i);
     expect(src).not.toMatch(/#1c222b/i);
   });
+
+  it('차를 골라도 기존 서킷 viewBox 를 자르지 않는다', () => {
+    // 중계 줌은 코스를 잘라 다른 맵처럼 읽힌다. 맵은 기존 서킷 전체다.
+    const r = new TrackRenderer(svg, track);
+    const full = svg.getAttribute('viewBox');
+    r.render(model([car('a')]), T);
+    r.render(model([car('a')]), T + 16, 'a');
+    expect(svg.getAttribute('viewBox')).toBe(full);
+    expect(svg.querySelectorAll('path.track-centerline').length).toBe(1);
+    expect(svg.querySelector('g.car, g.cold')?.getAttribute('data-selected')).toBe('true');
+  });
 });
 
 describe('스타트/피니시 체커 스트립 (P0-2)', () => {
@@ -982,6 +993,20 @@ describe('F1 차량 아이콘 (P0-1)', () => {
     const g = svg.querySelector('g.car')!;
     expect(g.querySelector('circle')).not.toBeNull();
     expect(g.querySelector('.alert')).not.toBeNull();
+  });
+
+  it('연료가 없으면 연료 링을 숨긴다 — LIVE는 탱크가 없다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1, fuel_pct: undefined })]), T);
+    const ring = svg.querySelector('g.car .fuel-ring') as SVGCircleElement;
+    expect(ring).not.toBeNull();
+    expect(ring.style.opacity).toBe('0');
+  });
+
+  it('연료가 숫자면 연료 링이 보인다', () => {
+    const r = new TrackRenderer(svg, track);
+    r.render(model([car('boom', { error_count: 1, fuel_pct: 40 })]), T);
+    expect((svg.querySelector('g.car .fuel-ring') as SVGCircleElement).style.opacity).not.toBe('0');
   });
 
   it('차량 렌더 경로에 <image>, <img>, <use>가 없다', () => {

@@ -23,16 +23,20 @@
   font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34px));
   /* 경계선. 해상도가 아니라 시야거리 문제라 Retina에서 얇아지면 안 된다. */
   --hair: max(1px, 0.0625rem);
-  --pw-accent: #4dc3ff;
+  --pw-accent: #528ff0;
   --pw-positive: #4ade80;
-  --pw-bg: #0e1116;
-  --pw-surface: #161b22;
-  --pw-line: #1c222b;
-  --pw-border: #2a323d;
-  --pw-text: #e6edf3;
-  --pw-text-muted: #9fb3c8;
-  --pw-quiet-graphic: #55636f;
-  --pw-caution: #ff5c5c;
+  --pw-bg: #101722;
+  --pw-surface: #101b29;
+  --pw-line: #1c2a38;
+  --pw-border: #52697f;
+  --pw-text: #f6f7f5;
+  --pw-text-muted: #b1bccb;
+  --pw-quiet-graphic: #6f8792;
+  --pw-caution: #ea4c4f;
+  --pw-focus: #f8d65e;
+  --pw-panel: rgba(10, 17, 27, 0.86);
+  --pw-hairline: rgba(178, 203, 229, 0.28);
+  --pw-display: Arial, Helvetica, sans-serif;
   --pw-class-gt: #c084fc;
   --pw-space-5: 0.75rem;
   /*
@@ -52,8 +56,8 @@
 
 body {
   margin: 0;
-  background: #0e1116;
-  color: #e6edf3;
+  background: var(--pw-bg);
+  color: var(--pw-text);
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   -webkit-font-smoothing: antialiased;
 }
@@ -77,9 +81,9 @@ body {
    * 칸이 하한 근처로 내려가는 조건(좁은 창·큰 --pw-zoom)에서 금액이 잘렸다.
    * 여기서 막지 않으면 잘린 사실조차 화면에 안 나온다.
    */
-  grid-template-columns: minmax(var(--tower-min), 1fr) 1.05fr;
+  grid-template-columns: minmax(var(--tower-min), 1fr) minmax(0, 0.9fr) minmax(0, 1.2fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas: "hud hud" "tower detail" "radio radio";
+  grid-template-areas: "hud hud hud" "tower detail broadcast" "radio radio radio";
   height: 100vh;
   gap: 0.5rem;
   padding: 0.5rem;
@@ -130,7 +134,7 @@ body {
  */
 .tower-row:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 max(2px, 0.125rem) #4dc3ff;
+  box-shadow: inset 0 0 0 max(2px, 0.125rem) var(--pw-focus);
 }
 
 /*
@@ -180,23 +184,23 @@ body {
 }
 /* 최근 30분 소진. 숫자보다 먼저 도착하는 신호다. */
 .tower-spark {
-  grid-area: spark; font-size: 0.95rem; line-height: 1.1; color: #4dc3ff;
+  grid-area: spark; font-size: 0.95rem; line-height: 1.1; color: var(--pw-accent);
   letter-spacing: 0.06em; white-space: pre; align-self: start; overflow: hidden;
 }
-.tower-row[data-state="limit"] .tower-spark { color: #ff5c5c; }
-.tower-row[data-state="error"] .tower-spark { color: #ff5c5c; }
+.tower-row[data-state="limit"] .tower-spark { color: var(--pw-caution); }
+.tower-row[data-state="error"] .tower-spark { color: var(--pw-caution); }
 /*
  * 유휴는 물러나 있되 **보이기는 해야 한다.** #3b4655는 배경 대비 1.91:1로,
  * 비텍스트 그래픽 하한 3:1에 못 미쳐 스파크라인이 사실상 사라졌다 — 조용한 것과
- * 아무것도 없는 것이 같아 보이면 화면이 거짓을 말한다. #55636f는 3.05:1이다.
+ * 아무것도 없는 것이 같아 보이면 화면이 거짓을 말한다. #5d6d7a는 #101722 대비 3.37:1이다.
  */
-.tower-row[data-state="idle"] .tower-spark { color: #55636f; }
+.tower-row[data-state="idle"] .tower-spark { color: #5d6d7a; }
 .tower-state {
   grid-area: state; font-size: 0.7rem; letter-spacing: 0.14em;
   color: #6b7c91; align-self: end; text-align: right;
 }
-.tower-row[data-state="error"] .tower-state { color: #ff5c5c; }
-.tower-row[data-state="limit"] .tower-state { color: #ff5c5c; }
+.tower-row[data-state="error"] .tower-state { color: var(--pw-caution); }
+.tower-row[data-state="limit"] .tower-state { color: var(--pw-caution); }
 /* 멈춘 차는 줄 자체를 죽인다 — 굴러가는 줄과 한눈에 갈라져야 한다. */
 .tower-row[data-state="error"], .tower-row[data-state="limit"] { opacity: 0.62; }
 
@@ -210,9 +214,9 @@ body {
 
 .tower-limit { grid-area: limit; align-self: center; }
 .tower-limit-track { height: 0.45rem; background: #1c222b; border-radius: 0.28rem; overflow: hidden; }
-.tower-limit-fill { height: 100%; background: #4dc3ff; border-radius: 0.28rem; }
+.tower-limit-fill { height: 100%; background: var(--pw-accent); border-radius: 0.28rem; }
 /* 게이지 색이 곧 급한 정도다. 숫자를 읽기 전에 색이 먼저 도착한다 — caution 빨강을 공유한다. */
-.tower-row[data-state="limit"] .tower-limit-fill { background: #ff5c5c; }
+.tower-row[data-state="limit"] .tower-limit-fill { background: var(--pw-caution); }
 .tower-limit-text {
   font-size: 0.7rem; color: #9fb3c8; margin-top: 0.25rem; white-space: nowrap;
 }
@@ -225,6 +229,11 @@ body {
 .tower-overflow {
   flex: 0 0 auto; padding: 0.5rem 0.6rem; font-size: 0.7rem;
   color: #6b7c91; border-top: var(--hair) solid #1c222b;
+}
+.tower-aggregate {
+  flex: 0 0 auto; padding: 0.6rem 0.6rem;
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--pw-text);
 }
 
 .tower-total {
@@ -281,6 +290,12 @@ body {
   border-inline-start-color: var(--pw-quiet-graphic);
   border-inline-start-style: dotted;
 }
+.wall-status {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: var(--pw-accent);
+}
 
 /*
  * 시간대별(0–23시) 작업 토큰 곡선. 타워 스파크라인이 "최근 30분"이라면 이건
@@ -314,7 +329,7 @@ body {
   border-radius: 0.25rem; padding: 0.1rem 0.45rem; font: inherit; font-size: 0.75rem;
   cursor: pointer;
 }
-.legend-toggle:hover, .settings-toggle:hover { color: #e6edf3; border-color: #4dc3ff; }
+.legend-toggle:hover, .settings-toggle:hover { color: #e6edf3; border-color: var(--pw-accent); }
 .legend-toggle::before, .settings-toggle::before {
   content: ''; display: inline-block; width: 0.85rem; height: 0.85rem;
   margin-inline-end: 0.3rem; vertical-align: -0.18em; background: currentColor;
@@ -404,7 +419,7 @@ body {
   border-radius: 0.25rem; padding: 0.12rem 0.38rem; font: inherit;
 }
 .settings-check { display: flex; align-items: center; gap: 0.2rem; color: #9fb3c8; cursor: pointer; }
-.settings-check input { accent-color: #4dc3ff; }
+.settings-check input { accent-color: var(--pw-accent); }
 
 /* ── 오른쪽: 트랙 + 선택한 계정 ───────────────────────────────── */
 
@@ -415,9 +430,17 @@ body {
  * 코스가 통째로 밀려난다 — 차를 하나 고르려고 눌렀을 뿐인데 지도가 움직인다.
  * 내역은 그 위에 겹쳐 띄운다.
  */
-.detail { grid-area: detail; position: relative; overflow: hidden; }
+.detail { grid-area: detail; position: relative; overflow: hidden; min-width: 0; }
+.broadcast {
+  grid-area: broadcast;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  background: #101722;
+}
 .broadcast-focus {
-  position: absolute; z-index: 2; inset: var(--pw-space-5) var(--pw-space-5) auto;
+  position: absolute; z-index: 2; inset: 1.55rem var(--pw-space-5) auto;
   min-height: 2.5rem; box-sizing: border-box;
   padding: var(--pw-space-5); border: var(--hair) solid var(--pw-border);
   background: #161b22f2; color: var(--pw-text); backdrop-filter: blur(6px);
@@ -434,6 +457,25 @@ svg.track {
   position: absolute; inset: auto 0 0 0; margin: 0 auto;
   width: auto; height: auto; max-width: 100%; max-height: 100%;
 }
+.broadcast-feed {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  background: #101722;
+  border: var(--hair) solid var(--pw-border);
+  pointer-events: auto;
+}
+.broadcast-feed .chrome-kicker { padding: 0.22rem 0.45rem; }
+canvas.track-3d {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: block;
+}
 svg.track [data-selected="true"] path { stroke: #e6edf3; stroke-width: 2.5; paint-order: stroke; }
 svg.track g.cold, svg.track g.car { cursor: pointer; }
 svg.track .broadcast-cars g.car { transition: opacity 180ms ease, filter 180ms ease; }
@@ -445,7 +487,7 @@ svg.track .broadcast-cars [data-reason="limit"] path { stroke: var(--pw-caution)
   position: absolute; inset: 0 0 auto 0; max-height: 58%;
   display: flex; flex-direction: column; overflow: hidden;
   /* 판이다. 반투명이면 코스 위에 글자가 겹쳐 둘 다 안 읽힌다. */
-  background: #0e1116;
+  background: var(--pw-bg);
   border-bottom: var(--hair) solid #1c222b;
   padding-bottom: 0.5rem; pointer-events: none;
 }
@@ -483,9 +525,9 @@ svg.track .broadcast-cars [data-reason="limit"] path { stroke: var(--pw-caution)
 .feed-time { color: #6b7c91; }
 .feed-model { color: #e6edf3; }
 .feed-size { color: #6b7c91; }
-.feed-row[data-status="error"] .feed-who { color: #ff5c5c; }
+.feed-row[data-status="error"] .feed-who { color: var(--pw-caution); }
 /* 사건 없이도 데이터로 판정되는 한도·은퇴까지 포함하는 상위 규칙 (§4.3.2). */
-.feed-row[data-polarity="caution"] .feed-who { color: #ff5c5c; }
+.feed-row[data-polarity="caution"] .feed-who { color: var(--pw-caution); }
 
 /* ── 모델별 오늘 — 타워가 계정을 말하고 여기가 모델을 말한다 ──── */
 
@@ -625,8 +667,8 @@ svg.track [data-idle="true"]:not([data-reason]) .class-car-icon {
   :root { font-size: max(14px, calc(var(--pw-zoom) * min(100vw / 48, 100vh / 48))); }
   .pitwall {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(24rem, 58vh) auto;
-    grid-template-areas: "hud" "tower" "detail" "radio";
+    grid-template-rows: auto auto minmax(16rem, 36vh) minmax(16rem, 28vh) auto;
+    grid-template-areas: "hud" "tower" "broadcast" "detail" "radio";
     min-height: 100dvh; height: auto;
   }
   .hud { flex-wrap: wrap; overflow: visible; }
@@ -640,6 +682,7 @@ svg.track [data-idle="true"]:not([data-reason]) .class-car-icon {
   .hud-pace { font-size: 1.1rem; }
   .broadcast-focus { inset: 0.25rem 0.25rem auto; font-size: 1rem; }
   .detail { min-height: 24rem; }
+  .broadcast { min-height: 16rem; }
   .cams { display: none; }
   svg.track { max-height: calc(100% - 4rem); }
   /*
@@ -725,3 +768,185 @@ svg.track .sector-marker {
 .tower-model { display: flex; align-items: baseline; gap: 0.3rem; }
 .tower-model-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* ── /프로바이더 칩 (REVIEW #11) ── */
+
+.consent {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: #161b22f2;
+  color: var(--pw-text, #e6edf3);
+  font: 1.05rem ui-monospace, "SF Mono", Menlo, monospace;
+}
+.consent button {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  border: var(--hair) solid var(--pw-border, #2a323d);
+  background: var(--pw-surface, #161b22);
+  color: inherit;
+}
+
+/* ── 크롬 모드 1·2·3 (토큰 / 클러스터 / 워크숍) ──────────────── */
+
+.chrome-kicker {
+  font-family: var(--pw-display);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--pw-text-muted);
+  line-height: 1;
+}
+
+.hud-cluster { display: contents; }
+
+.chrome-toast,
+.workshop-vignette {
+  position: fixed;
+  pointer-events: none;
+  grid-area: 1 / 1 / -1 / -1;
+}
+
+.chrome-toast {
+  z-index: 22;
+  top: 0.45rem;
+  right: 11.2rem;
+  left: auto;
+  transform: none;
+  padding: 0.28rem 0.7rem;
+  border: var(--hair) solid var(--pw-hairline);
+  background: var(--pw-panel);
+  color: var(--pw-text);
+  font-family: var(--pw-display);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.workshop-vignette {
+  z-index: 14;
+  inset: 0;
+  box-shadow: inset 0 0 140px #050b16cc;
+}
+
+.workshop-vignette[hidden] { display: none; }
+
+.chrome-mode-btn {
+  background: var(--pw-surface);
+  color: var(--pw-text-muted);
+  border: var(--hair) solid var(--pw-border);
+  border-radius: 0.25rem;
+  min-width: 2rem;
+  padding: 0.1rem 0.45rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chrome-mode-btn[aria-pressed="true"] {
+  color: var(--pw-text);
+  border-color: var(--pw-accent);
+}
+
+.tower-slot > .chrome-kicker,
+.radio > .chrome-kicker {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.6rem 0.15rem;
+  font-size: 0.7rem;
+}
+
+.detail > .chrome-kicker,
+.broadcast > .chrome-kicker {
+  position: absolute;
+  z-index: 3;
+  top: 0.35rem;
+  left: 0.6rem;
+  font-size: 0.7rem;
+}
+
+/* 모드 1 — 토큰 스킨. 키커는 얇게, 클러스터는 풀어 기존 HUD 한 줄을 유지한다. */
+[data-chrome-mode="1"] .hud-cluster > .chrome-kicker { display: none; }
+[data-chrome-mode="1"] .chrome-toast {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+/* 모드 2 — 클러스터 크롬. HUD를 묶고 키커를 디스플레이 페이스로 키운다. */
+[data-chrome-mode="2"] .hud-cluster,
+[data-chrome-mode="3"] .hud-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.2rem 0.55rem 0.28rem;
+  border-top: 3px solid var(--pw-accent);
+  background: var(--pw-panel);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+[data-chrome-mode="2"] .hud-cluster-pace,
+[data-chrome-mode="3"] .hud-cluster-pace {
+  border-top-color: var(--pw-caution);
+}
+[data-chrome-mode="2"] .hud-cluster-pace .hud-pace,
+[data-chrome-mode="3"] .hud-cluster-pace .hud-pace {
+  font-family: var(--pw-display);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  font-size: 1.55rem;
+}
+[data-chrome-mode="2"] .chrome-kicker,
+[data-chrome-mode="3"] .chrome-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--pw-accent);
+}
+[data-chrome-mode="2"] .legend-body,
+[data-chrome-mode="2"] .settings-body,
+[data-chrome-mode="2"] .summary,
+[data-chrome-mode="3"] .legend-body,
+[data-chrome-mode="3"] .settings-body,
+[data-chrome-mode="3"] .summary {
+  border-radius: 0;
+  border-top: 4px solid var(--pw-caution);
+  background: #101b29f5;
+}
+[data-chrome-mode="2"] .summary-title,
+[data-chrome-mode="3"] .summary-title {
+  font-family: var(--pw-display);
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  font-size: 1.35rem;
+  color: var(--pw-text);
+}
+
+/* 모드 3 — 워크숍 오버레이. 하드 섀도와 데이터셋 스트립을 얹는다. */
+[data-chrome-mode="3"] .legend-toggle,
+[data-chrome-mode="3"] .settings-toggle,
+[data-chrome-mode="3"] .chrome-mode-btn,
+[data-chrome-mode="3"] .consent button,
+[data-chrome-mode="3"] .dataset-select {
+  box-shadow: 4px 4px 0 #050b12;
+  border-radius: 0;
+}
+[data-chrome-mode="3"] .dataset {
+  background: var(--pw-panel);
+  border: var(--hair) solid var(--pw-hairline);
+  padding: 0.15rem 0.3rem;
+}
+[data-chrome-mode="3"] .chrome-toast {
+  font-size: 0.95rem;
+  border-top: 3px solid var(--pw-caution);
+  box-shadow: 4px 4px 0 #050b12;
+}
+[data-chrome-mode="3"] .tower-row[data-selected="true"] {
+  box-shadow: inset 3px 0 0 var(--pw-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-toast { transition: none; }
+}

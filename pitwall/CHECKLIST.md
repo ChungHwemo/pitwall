@@ -12,7 +12,7 @@
 
 | 항목 | 합격 기준 | 관측값 |
 |---|---|---|
-| 단위·통합 테스트 | 전부 통과 | ✅ **256 passed / 20 files** |
+| 단위·통합 테스트 | 전부 통과 | ✅ **1032 passed / 64 files** (2026-09-01 재측정) |
 | 타입 검사 | `tsc --noEmit` 오류 0 | ✅ **exit 0** |
 | 프로덕션 빌드 | 성공 | ✅ **JS 24.7 kB (gzip 9.0) · CSS 1.12 kB** |
 | 런타임 의존성 | 0개 | ✅ **zero runtime dependencies** |
@@ -52,9 +52,9 @@
 
 | 항목 | 합격 기준 | 관측값 |
 |---|---|---|
-| 공급자 커버리지 | 6개 (anthropic / openai / google / xai / deepseek / moonshot) | ✅ 19개 모델 |
+| 공급자 커버리지 | 6개 (anthropic / openai / google / xai / deepseek / moonshot) | ✅ 25개 모델 |
 | 가격 출처 명시 | 모든 항목에 `priceSource` + `sourceUrl` | ✅ 테스트가 강제 |
-| 검증된 가격 | 공식 문서에서 직접 확인 | ✅ **19 / 19** |
+| 검증된 가격 | 공식 문서에서 직접 확인 | ✅ **25 / 25** |
 | **미검증 가격** | 자리표시자임을 표시 | ✅ **0건** — Q9 해소. Moonshot 값은 렌더 후 모델별 페이지에서 확보 |
 | 클래스 밴드 | H > P > GT가 출력 단가로 겹치지 않음 | ✅ 테스트가 강제 |
 | 비용 계산 | 이벤트 `cost_usd`가 그 모델 단가와 일치 | ✅ 시뮬레이터·픽스처 양쪽 테스트 |
@@ -212,11 +212,11 @@ D9 확정: 공개는 GitHub Pages 데모 HTML, macOS 앱은 이 기기 ad-hoc. D
 |---|---|---|
 | 실 GPU 프레임률 | 평균 ≥ 55fps | ✅ **헤드풀 Chrome 90s** `demo-large` 워밍업 15s: **58.94 fps**, long-frame 0.054%, `fpsPass=true`. 45s 표본은 120Hz 패널 vsync로 120.00 fps · long 0. headless 8h 초기는 120fps라 **fps 합격에 쓰지 않음** |
 | 짧은 창 힙 | 누수가 시간에 비례하지 않음 | ✅ 45s headed heap Δ **0 MB** (quantized). 90s headed Δ **+0.031 MB**. CDP `JSHeapUsedSize` |
-| **8시간 힙 증가** | ≤ 50 MB | **진행 중. 합격 금지.** `heapPass`는 표본 경과 ≥ 8시간일 때만 매긴다. 요청 `--ms`만으로 참이 되면 안 된다. 2026-08-22 22:31 표본: n=129, 경과 ≈ 2.13h, Δheap ≈ 7.56 MB, SVG 노드는 워밍업 후 177로 고정. 돌고 있는 측정 프로세스는 옛 코드를 들고 있어 중간 JSON의 `heapPass:true`는 거짓 양성이다 |
+| **8시간 힙 증가** | ≤ 50 MB | **합격 금지.** 2026-08-31 `heap-8h.json` 경과 **3.70h**, 저장된 `heapPass:true`는 옛 러너. `summarizeRuntime` 재계산 **`null`**. `assertHeapPassMatchesElapsed`가 위조를 거부한다 |
 | native LIVE 첫 실행 | LIVE 기동 | ✅ 2026-08-22. `__pitwallNative` + `pickDataset` 기본 실시간. 마커 `pitwall-live-ok`. 화면 `LIVE · WAITING` · 데이터셋 `실시간` — 최근 호출이 415초 전이라 차가 없는 것이 정직하다 |
 | native 리로드 복원 | LIVE 유지, 스냅샷 복원 | ✅ ⌘R 후 마커 mtime 갱신. 화면 `LIVE · CONNECTED`, 카넘버 12 · opus-4-6 · $0.10. 스크린샷 `docs/screenshots/2026-08-22-native-live-reload.png` |
 | macOS 앱 production build | 성공 | ✅ `build:app` ad-hoc, 5.7M, `codesign flags=0x2(adhoc)` |
-| 스냅샷 프라이버시 | 본문·raw id 없음 | ✅ `liveSnapshotLeaks` 단위 테스트. 유출 JSON은 저장 거부. WebView `isInspectable=true` (13.3+) |
+| 스냅샷 프라이버시 | 본문·raw id 없음 | ✅ `liveSnapshotLeaks` 단위 테스트. 유출 JSON은 저장 거부. `isInspectable`은 DEBUG만 true — 프라이버시 합격 칸이 아님 |
 | malformed / expired 폴백 | 충돌 없이 null | ✅ `liveStore.test.ts` (깨진 JSON·만료·미래). 네이티브 주입은 이제 Inspector로 가능하나 이번 세션에서 주입 실측은 안 함 |
 | 라디오 가독성 | `chaos`에서 읽을 수 있는 속도 | **미측정.** 사람 판단. 이번 LIVE 화면은 무전이 비어 있음 |
 | 3초 인지 기준선 | 사용성 테스트 ≥80% | **미측정.** 에이전트 스크린샷은 대체 불가 |
@@ -248,4 +248,4 @@ rg 'getBBox|getComputedTextLength|createSVGPoint|getScreenCTM' src/ || echo "OK:
 | 일일 브리핑 (PRD §10.4) | 일별 집계 테이블이 필요하다. v1은 시뮬레이터라 소스가 없다 |
 | 레이아웃 B (PRD §6.2) | v1.5 대안으로 명시된 비목표 |
 | 이스터에그 `ehvkals` | 음원 라이선스 미확보 |
-| 설정 UI | Task 19는 병합·하한까지. UI는 `localStorage` 직접 편집으로 대체 |
+| 설정 UI | `settingsPanel.ts`가 상단 바에 있다. localStorage 직접 편집이 유일한 길이 아님 |

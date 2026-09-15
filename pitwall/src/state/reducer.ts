@@ -71,7 +71,7 @@ function initialCar(event: CarEvent): CarState {
     cached: 0,
     reasoning: 0,
     hourly: new Array(24).fill(0),
-    fuel_pct: 100,
+    fuel_pct: event.fuel_pct,
     tyre_pct: event.tyre_pct === undefined ? undefined : 100,
     limit_window_minutes: event.limit_window_minutes,
     limit_resets_at: event.limit_resets_at,
@@ -103,12 +103,13 @@ export function applyEvent(state: RaceState, event: CarEvent): RaceState {
     reasoning: (prev.reasoning ?? 0) + reasoningOf(event),
     hourly: accumulateHour(prev.hourly, event),
     cost_usd: prev.cost_usd + event.cost_usd,
-    fuel_pct: event.fuel_pct,
+    fuel_pct: event.fuel_pct !== undefined ? event.fuel_pct : prev.fuel_pct,
     tyre_pct: event.tyre_pct,
     limit_window_minutes: event.limit_window_minutes ?? prev.limit_window_minutes,
     limit_resets_at: event.limit_resets_at ?? prev.limit_resets_at,
     limit_observed_at: event.limit_observed_at ?? prev.limit_observed_at,
     last_event_ts: Math.max(prev.last_event_ts, event.ts),
+    last_wall_ts: event.wall_ts ?? event.ts,
     error_count: prev.error_count + (event.status === 'error' ? 1 : 0),
     last_error_ts: event.status === 'error' ? event.ts : prev.last_error_ts,
     work_per_min: nextRate(prev, event),
@@ -146,7 +147,9 @@ const RATE_SMOOTHING = 0.3;
  * 간격이 아주 짧으면(같은 밀리초에 여러 건) 나눗셈이 폭발하므로 하한을 둔다.
  */
 function nextRate(prev: CarState, event: CarEvent): number {
-  const gap = event.ts - prev.last_event_ts;
+  const prevMark = prev.last_wall_ts ?? prev.last_event_ts;
+  const nextMark = event.wall_ts ?? event.ts;
+  const gap = nextMark - prevMark;
   if (prev.call_count === 0 || gap <= 0) return prev.work_per_min;
   const measured = workOf(event) / Math.max(gap, 250) * 60_000;
   return prev.work_per_min === 0

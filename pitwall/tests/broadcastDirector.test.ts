@@ -99,6 +99,14 @@ describe('automatic broadcast focus', () => {
       .toMatchObject({ carId: 'stale-error', score: 400 });
   });
 
+  it('같은 점수면 tok/min이 큰 차를 자동 포커스로 고른다', () => {
+    const pick = new BroadcastDirector().select([
+      candidate('aaa-quiet', { workPerMin: 800, previousWorkPerMin: 800 }),
+      candidate('zzz-busy', { workPerMin: 12_000, previousWorkPerMin: 12_000 }),
+    ], T);
+    expect(pick).toMatchObject({ kind: 'selected', carId: 'zzz-busy', source: 'automatic' });
+  });
+
   it('requires a comparable, positive prior sample before scoring a work-rate change', () => {
     const noBaseline = candidate('a', { workPerMin: 1_250, previousWorkPerMin: null, fresh: false });
     expect(scoreBroadcastCandidate(noBaseline, T)).toBe(0);

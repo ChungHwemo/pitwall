@@ -33,6 +33,10 @@ export function bootBroadcastTrackRenderer(
   let selectHandler: ((carId: string) => void) | null = null;
   const fallback = (): void => {
     if (mode === 'legacy') return;
+    if ('dispose' in current && typeof current.dispose === 'function') {
+      current.dispose();
+    }
+    svg.style.display = '';
     svg.replaceChildren();
     current = legacy();
     if (selectHandler) current.onSelect(selectHandler);

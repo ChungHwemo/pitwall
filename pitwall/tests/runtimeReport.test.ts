@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeRuntime, EIGHT_HOURS_MS } from '../scripts/runtimeReport';
+import { summarizeRuntime, assertHeapPassMatchesElapsed, EIGHT_HOURS_MS } from '../scripts/runtimeReport';
 
 function sample(over: Partial<{ tMs: number; heapBytes: number | null; nodes: number; svgNodes: number; frames: number; longFrames: number }>) {
   return {
@@ -68,6 +68,23 @@ describe('summarizeRuntime', () => {
       durationMs: 1_000, headed: true, dataset: 'x',
       samples: [sample({ tMs: 0 }), sample({ tMs: 1_000, frames: 30 })],
     }).fpsPass).toBe(false);
+  });
+
+  it('저장된 heapPass가 경과와 다르면 정직하지 않다', () => {
+    const twoHours = 2 * 60 * 60 * 1000;
+    const lying = summarizeRuntime({
+      durationMs: EIGHT_HOURS_MS,
+      headed: false,
+      dataset: 'demo-large',
+      samples: [
+        sample({ tMs: 0, heapBytes: 10_000_000 }),
+        sample({ tMs: twoHours, heapBytes: 11_000_000, frames: 1 }),
+      ],
+    });
+    expect(lying.heapPass).toBeNull();
+    const forged = { ...lying, heapPass: true as const };
+    expect(assertHeapPassMatchesElapsed(forged)).toBe(false);
+    expect(assertHeapPassMatchesElapsed(lying)).toBe(true);
   });
 
   it('노드 수가 거의 안 변하면 안정이다', () => {

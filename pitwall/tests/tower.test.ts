@@ -310,6 +310,55 @@ describe('타워 밀집 카드 가독성 — 세 자리 카넘버·상태·위�
     expect((row.querySelector('.tower-model-text') as HTMLElement).title).toBe(longModel);
   });
 
+  it('aggregate면 개인 줄이 없고 조직 합계 한 줄이다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(
+      state([
+        car('a', { car_number: 7, cost_usd: 1.25 }),
+        car('b', { car_number: 9, cost_usd: 2.5 }),
+      ]),
+      T, T, null, () => [], [], 1, {},
+      { mode: 'aggregate' },
+    );
+    const visible = [...host.querySelectorAll('.tower-row')]
+      .filter((n) => (n as HTMLElement).style.display !== 'none');
+    expect(visible).toHaveLength(0);
+    const agg = host.querySelector('.tower-aggregate')!.textContent ?? '';
+    expect(agg).toContain('조직');
+    expect(agg).toContain('2계정');
+    expect(agg).toContain('$3.75');
+    expect(host.querySelectorAll('.tower-number')).toHaveLength(8);
+    expect([...host.querySelectorAll('.tower-number')]
+      .every((n) => (n.parentElement as HTMLElement).style.display === 'none')).toBe(true);
+  });
+
+  it('hidden이면 구독 만료 문구만 있고 차는 없다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(state([car('a', { car_number: 7 })]), T, T, null, () => [], [], 1, {},
+      { mode: 'hidden' });
+    const visible = [...host.querySelectorAll('.tower-row')]
+      .filter((n) => (n as HTMLElement).style.display !== 'none');
+    expect(visible).toHaveLength(0);
+    expect(host.querySelector('.tower-aggregate')!.textContent).toBe('구독 만료 — 조직 차량을 표시하지 않음');
+  });
+
+  it('maxCars를 넘으면 +N을 명시한다', () => {
+    const r = new TowerRenderer(host, 8);
+    r.render(
+      state([
+        car('a', { car_number: 1, cost_usd: 1 }),
+        car('b', { car_number: 2, cost_usd: 1 }),
+        car('c', { car_number: 3, cost_usd: 1 }),
+      ]),
+      T, T, null, () => [], [], 1, {},
+      { mode: 'individual', maxCars: 2 },
+    );
+    const visible = [...host.querySelectorAll('.tower-row')]
+      .filter((n) => (n as HTMLElement).style.display !== 'none');
+    expect(visible).toHaveLength(2);
+    expect(host.querySelector('.tower-overflow')!.textContent).toContain('+1');
+  });
+
   it('반복 렌더에도 밀집 모드 줄의 노드 수가 늘지 않는다', () => {
     const r = new TowerRenderer(host, 16);
     const many = Array.from({ length: 12 }, (_, i) => car(`c${i}`, { car_number: i + 300 }));

@@ -2,30 +2,32 @@ import { describe, it, expect } from 'vitest';
 import { codexEvent, codexRateLimit, grokEvent, grokCredits, copilotEvents, accountCar } from '../src/source/agentLogs';
 import { workOf, cachedOf } from '../src/state/reducer';
 
+const SALT = 'test-salt';
+
 describe('accountCar', () => {
   it('벤더가 다르면 다른 차량이다', () => {
-    expect(accountCar('codex', 'acct-1').car_id).not.toBe(accountCar('grok', 'acct-1').car_id);
+    expect(accountCar('codex', 'acct-1', SALT).car_id).not.toBe(accountCar('grok', 'acct-1', SALT).car_id);
   });
 
   it('같은 벤더·계정이면 같은 차량이다', () => {
-    expect(accountCar('codex', 'a').car_id).toBe(accountCar('codex', 'a').car_id);
+    expect(accountCar('codex', 'a', SALT).car_id).toBe(accountCar('codex', 'a', SALT).car_id);
   });
 
   it('원본 계정 식별자를 담지 않는다', () => {
-    const car = accountCar('codex', 'super-secret-account-id');
+    const car = accountCar('codex', 'super-secret-account-id', SALT);
     expect(JSON.stringify(car)).not.toContain('super-secret-account-id');
   });
 
   it('카넘버가 1..999다', () => {
     for (const v of ['codex', 'grok', 'copilot', 'claude']) {
-      const n = accountCar(v, 'x').car_number;
+      const n = accountCar(v, 'x', SALT).car_number;
       expect(n).toBeGreaterThanOrEqual(1);
       expect(n).toBeLessThanOrEqual(999);
     }
   });
 });
 
-const CAR = accountCar('codex', 'acct');
+const CAR = accountCar('codex', 'acct', SALT);
 
 describe('codexEvent', () => {
   const row = {
@@ -65,9 +67,10 @@ describe('codexEvent', () => {
 
   it('실제 한도 소진율은 타이어다 — 연료(비용 예산)와 다른 축이다', () => {
     // 연료 = 돈, 타이어 = 한도 윈도우. 둘을 섞으면 어느 쪽이 바닥났는지 못 읽는다.
+    // 실 로그에는 일 예산이 없으므로 연료를 100으로 채우지 않는다 (PRD v2.0 QG1).
     const e = codexEvent(row, { car: CAR, model: 'gpt-5.6-luna' })!;
     expect(e.tyre_pct).toBe(28);
-    expect(e.fuel_pct).toBe(100);
+    expect(e.fuel_pct).toBeUndefined();
   });
 
   it('한도 정보가 없으면 타이어를 그리지 않는다 — 0으로 두지 않는다', () => {
@@ -116,6 +119,10 @@ describe('grokEvent', () => {
   it('지연을 담는다', () => {
     const e = grokEvent(row, { car: CAR })!;
     expect(e.latency_ms).toBe(45908);
+  });
+
+  it('실 벤더 이벤트는 연료를 지어내지 않는다', () => {
+    expect(grokEvent(row, { car: CAR })!.fuel_pct).toBeUndefined();
   });
 
   it('모델이 없으면 ctx.model을 쓴다', () => {

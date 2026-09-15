@@ -50,6 +50,19 @@ describe('PitwallApp', () => {
     expect(root.querySelector('.radio')).not.toBeNull();
   });
 
+  it('맵은 기존 SVG 칸이고 3D 중계는 별도 레이아웃 칸이다', () => {
+    new PitwallApp(root, { seed: 2026, preset: 'busy', speed: 20 });
+    const shell = root.querySelector('.pitwall');
+    const detail = root.querySelector('.detail');
+    const broadcast = root.querySelector('.broadcast');
+    if (!shell || !detail || !broadcast) throw new Error('레이아웃 칸이 없다');
+    expect(detail.parentElement).toBe(shell);
+    expect(broadcast.parentElement).toBe(shell);
+    expect(detail.querySelector('svg.track')).not.toBeNull();
+    expect(broadcast.querySelector('svg.track')).toBeNull();
+    expect(detail.querySelector('.broadcast-feed')).toBeNull();
+  });
+
   it('모듈을 import 하는 것만으로 앱이 생기지 않는다', () => {
     // 배선은 browser.ts에만 둔다. main.ts import에 부작용이 있으면
     // 테스트와 재사용이 전부 이 부작용에 걸린다.
@@ -418,6 +431,22 @@ describe('실시간 리로드 복원', () => {
     expect(focus.textContent).toMatch(new RegExp(`FOCUS ${String(carNumber).padStart(2, '0')}\\b`));
   });
 
+  it('] 키는 다른 차로 포커스를 옮기고 Esc 는 자동 중계로 되돌린다', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.0001);
+    const app = new PitwallApp(root, { seed: 5, preset: 'busy', speed: 100 });
+    app.start();
+    runFrames(app, 20);
+    const rows = [...root.querySelectorAll<HTMLElement>('.tower-row[data-state]')];
+    expect(rows.length).toBeGreaterThan(1);
+    const before = root.querySelector<HTMLElement>('.broadcast-focus')!.textContent;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ']', bubbles: true }));
+    const after = root.querySelector<HTMLElement>('.broadcast-focus')!;
+    expect(after.dataset['source']).toBe('manual');
+    expect(after.textContent).not.toBe(before);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(root.querySelector<HTMLElement>('.broadcast-focus')!.dataset['source']).toBe('automatic');
+  });
+
   it('관측 차량이 없으면 방송 포커스는 빈 상태를 유지하고 후보를 지어내지 않는다', () => {
     const live = new LiveSource();
     const app = new PitwallApp(root, { seed: 7, preset: 'busy', speed: 1 });
@@ -432,7 +461,8 @@ describe('실시간 리로드 복원', () => {
     app.frame(1_000);
 
     const focus = root.querySelector<HTMLElement>('.broadcast-focus')!;
-    expect(focus.textContent).toBe('방송 포커스 없음 — 새 이벤트 대기 · 관측 차량 없음');
+    expect(focus.textContent).toContain('관측 차량 없음');
+    expect(focus.textContent).toContain('고장이 아님');
     expect(focus.dataset['source']).toBeUndefined();
   });
 });

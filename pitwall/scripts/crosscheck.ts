@@ -10,6 +10,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { toCarEvent } from '../src/source/claudeCodeImport';
 import { accountCar, codexEvent, grokEvent, copilotEvents } from '../src/source/agentLogs';
+import { CAR_SALT } from '../src/source/claudeCodeImport';
 import { specOf } from '../src/config/models';
 import { workOf, cachedOf } from '../src/state/reducer';
 import type { CarEvent } from '../src/types';
@@ -93,10 +94,10 @@ const codexFiles = walk(join(home, '.codex'));
 const grokFiles = walk(join(home, '.grok'));
 const copilotFiles = walk(join(home, '.copilot'));
 
-const claudeCar = accountCar('claude', 'crosscheck');
-const codexCar = accountCar('codex', 'crosscheck');
-const grokCar = accountCar('grok', 'grok');
-const copilotCar = accountCar('copilot', 'copilot');
+const claudeCar = accountCar('claude', 'crosscheck', CAR_SALT);
+const codexCar = accountCar('codex', 'crosscheck', CAR_SALT);
+const grokCar = accountCar('grok', 'grok', CAR_SALT);
+const copilotCar = accountCar('copilot', 'copilot', CAR_SALT);
 
 const all: { vendor: string; events: CarEvent[] }[] = [];
 

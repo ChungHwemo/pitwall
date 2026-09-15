@@ -134,3 +134,68 @@ describe('HUD 시간대별 곡선', () => {
     expect(root.querySelectorAll('*').length).toBe(nodes);
   }, 15_000);
 });
+
+describe('HUD 구독 배지', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="app"></div>';
+    root = document.getElementById('app')!;
+    localStorage.clear();
+  });
+
+  it('Free는 WALL 배지를 숨긴다', () => {
+    new PitwallApp(root, { seed: 1, preset: 'sparse', speed: 1 });
+    const el = root.querySelector('.wall-status') as HTMLElement;
+    expect(el.style.display).toBe('none');
+  });
+
+  it('유효 라이선스는 WALL · ACTIVE', () => {
+    const app = new PitwallApp(root, {
+      seed: 1, preset: 'sparse', speed: 1,
+      license: {
+        orgId: 'org-1', wallId: 'wall-1',
+        validUntil: Date.now() + 86_400_000,
+        maxCars: 40, minTeamSize: 10,
+      },
+    });
+    app.start();
+    app.frame(1_000);
+    const el = root.querySelector('.wall-status') as HTMLElement;
+    expect(el.style.display).toBe('');
+    expect(el.textContent).toBe('WALL · ACTIVE');
+  });
+
+  it('만료 라이선스는 WALL · EXPIRED', () => {
+    const app = new PitwallApp(root, {
+      seed: 1, preset: 'sparse', speed: 1,
+      license: {
+        orgId: 'org-1', wallId: 'wall-1',
+        validUntil: Date.now() - 1,
+        maxCars: 40, minTeamSize: 10,
+      },
+    });
+    app.start();
+    app.frame(1_000);
+    expect(root.querySelector('.wall-status')!.textContent).toBe('WALL · EXPIRED');
+  });
+
+  it('만료면 트랙에도 차를 그리지 않는다', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.0001);
+    const app = new PitwallApp(root, {
+      seed: 2026, preset: 'busy', speed: 100,
+      license: {
+        orgId: 'org-1', wallId: 'wall-1',
+        validUntil: Date.now() - 1,
+        maxCars: 40, minTeamSize: 10,
+      },
+    });
+    app.start();
+    for (let i = 1; i <= 30; i++) app.frame(i * 100);
+    expect(app.state.cars.size).toBeGreaterThan(0);
+    const visible = [...root.querySelectorAll('g.car, g.cold')]
+      .filter((n) => (n as HTMLElement).style.opacity !== '0');
+    expect(visible).toHaveLength(0);
+    expect(root.querySelector('.tower-aggregate')!.textContent)
+      .toBe('구독 만료 — 조직 차량을 표시하지 않음');
+  });
+});

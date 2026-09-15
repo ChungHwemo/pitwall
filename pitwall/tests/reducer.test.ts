@@ -64,6 +64,12 @@ describe('applyEvent', () => {
     expect(s.cars.get('car-a')?.tyre_pct).toBeUndefined();
   });
 
+  it('연료가 없는 이벤트는 탱크를 100으로 채우지 않는다', () => {
+    const { fuel_pct: _omit, ...noFuel } = makeEvent();
+    const s = applyEvent(emptyRaceState(T0), noFuel as CarEvent);
+    expect(s.cars.get('car-a')?.fuel_pct).toBeUndefined();
+  });
+
   it('에러 이벤트가 에러 카운트를 올린다', () => {
     let s = emptyRaceState(T0);
     s = applyEvent(s, makeEvent({ kind: 'error', status: 'error', error_code: 'rate_limit' }));
@@ -295,6 +301,19 @@ describe('작업 속도', () => {
   it('첫 호출에는 속도가 없다 — 간격을 모른다', () => {
     const s = applyEvent(emptyRaceState(T0), makeEvent());
     expect(s.cars.get('car-a')!.work_per_min).toBe(0);
+  });
+
+  it('실시간 한 프레임에 여러 줄이 와도 벽시계 간격으로 속도를 잰다', () => {
+    let s = emptyRaceState(1_000);
+    const wall = T0;
+    s = applyEvent(s, makeEvent({
+      ts: 1_000, wall_ts: wall, tokens: { prompt: 10_000, completion: 0 },
+    }));
+    s = applyEvent(s, makeEvent({
+      ts: 1_000, wall_ts: wall + 60_000, tokens: { prompt: 10_000, completion: 0 },
+    }));
+    expect(s.cars.get('car-a')!.work_per_min).toBeGreaterThan(5_000);
+    expect(s.cars.get('car-a')!.work_per_min).toBeLessThan(20_000);
   });
 });
 

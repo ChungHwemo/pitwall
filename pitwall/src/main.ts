@@ -16,9 +16,11 @@ import {
   BroadcastDirector, broadcastSeverityOf,
   type BroadcastCandidate, type BroadcastSelection, type BroadcastSeverity,
 } from './director/broadcastDirector';
+import { cycleFocus } from './director/cycleFocus';
 import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
 import { RoutineRadio } from './radio/routineRadio';
 import { TrackRenderer } from './render/trackRenderer';
+import { Circuit3DRenderer } from './render/circuit3DRenderer';
 import {
   bootBroadcastTrackRenderer,
   type BroadcastRendererSession,
@@ -40,6 +42,10 @@ import { serializeLiveState, saveLiveSnapshot, rebaseLiveSnapshot, type LiveSnap
 import { RingBuffer } from './state/ringBuffer';
 import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 import type { PricingOverride } from './config/pricingOverride';
+import { towerMode, wallHudCopy, type WallLicense } from './config/license';
+import {
+  applyChromeMode, chromeModeFromKey, isChromeHotkeyBlocked,
+} from './config/chromeMode';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RADIO_LINES = 3;
@@ -62,6 +68,24 @@ const ROUTINE_INTERVAL_MS = 3_600_000;
  */
 const LIVE_SAVE_INTERVAL_MS = 5_000;
 
+function chromeKicker(kind: 'tower' | 'track' | 'radio' | 'broadcast', text: string): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'chrome-kicker';
+  el.setAttribute('data-chrome-kicker', kind);
+  el.textContent = text;
+  return el;
+}
+
+function hudCluster(name: string, label: string, ...kids: HTMLElement[]): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = `hud-cluster hud-cluster-${name}`;
+  const kicker = document.createElement('div');
+  kicker.className = 'chrome-kicker';
+  kicker.textContent = label;
+  wrap.append(kicker, ...kids);
+  return wrap;
+}
+
 export interface AppOptions {
   seed: number;
   preset: PresetName;
@@ -80,6 +104,10 @@ export interface AppOptions {
    * 설정 패널의 적용 출처 표시가 이걸 쓴다.
    */
   pricingOverride?: PricingOverride;
+  /** Wall SKU 라이선스. 없으면 Free — k-익명성·만료 숨김을 적용하지 않는다. */
+  license?: WallLicense;
+  /** 처음부터 LIVE. 시뮬레이터를 끼우지 않는다. */
+  live?: boolean;
 }
 
 export class PitwallApp {
@@ -89,6 +117,7 @@ export class PitwallApp {
   settings: PitwallSettings;
   private routine = new RoutineRadio();
   private trackRenderer: BroadcastRendererSession;
+  private broadcast3d: Circuit3DRenderer | null = null;
   private towerRenderer: TowerRenderer;
   private modelPanel: ModelPanel;
   private radioRenderer: RadioRenderer;
@@ -97,6 +126,7 @@ export class PitwallApp {
   private hudPhase: HTMLElement;
   private hudPace: HTMLElement;
   private liveStatus: HTMLElement;
+  private wallStatus: HTMLElement;
   /** 시간대별(0–23시) 작업 토큰 곡선. 근무일 타임라인 곁에 붙는 하루 모양. */
   private hudHourly: HTMLElement;
   private detail: HTMLElement;
@@ -112,6 +142,7 @@ export class PitwallApp {
   private summaryRenderer: SummaryRenderer;
   private feedRenderer: FeedRenderer;
   private settingsPanel: SettingsPanel;
+  private shell: HTMLElement;
   /** 계정 표시 이름. 이 기기에만 산다 (PRIV-6). 렌더가 렌더러들에 넘긴다 */
   private carNames: Record<string, string> = loadCarNames();
   /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
@@ -141,7 +172,8 @@ export class PitwallApp {
   constructor(root: HTMLElement, private opts: AppOptions) {
     // 하한 강제는 resolveSettings에서 끝난다. 여기서는 결과를 쓰기만 한다.
     this.settings = opts.settings ?? DEFAULT_SETTINGS;
-    this.demo = opts.demo ?? (opts.source === undefined);
+    this.live = opts.live ?? false;
+    this.demo = opts.live ? false : (opts.demo ?? (opts.source === undefined));
     this.director = new Director(this.settings.cameraSlots);
 
     /*
@@ -157,6 +189,7 @@ export class PitwallApp {
 
     const shell = document.createElement('div');
     shell.className = 'pitwall';
+    this.shell = shell;
 
     const hud = document.createElement('div');
     hud.className = 'hud';
@@ -174,6 +207,9 @@ export class PitwallApp {
     this.liveStatus.setAttribute('role', 'status');
     this.liveStatus.setAttribute('aria-live', 'polite');
     this.liveStatus.style.display = 'none';
+    this.wallStatus = document.createElement('div');
+    this.wallStatus.className = 'hud-item wall-status';
+    this.wallStatus.style.display = 'none';
     /*
      * 데이터셋 칸은 설정보다 **앞**이다.
      *
@@ -188,8 +224,11 @@ export class PitwallApp {
     this.hudHourly.className = 'hud-item hud-hourly';
     this.hudHourly.title = '시간대별 작업 토큰 0–23시';
     hud.append(
-      this.hudTime, this.hudPace, this.hudPhase, this.liveStatus,
-      this.hudSalary, this.hudHourly, datasetSlot,
+      hudCluster('clock', 'TIME', this.hudTime, this.hudPhase),
+      hudCluster('pace', 'PACE', this.hudPace),
+      this.liveStatus, this.wallStatus,
+      hudCluster('pay', 'PAY', this.hudSalary),
+      this.hudHourly, datasetSlot,
     );
     this.hudSlot = datasetSlot;
 
@@ -199,6 +238,7 @@ export class PitwallApp {
     // 타워가 먼저다. 트랙은 "어디쯤"을 말하고 타워가 "무엇이 일어나는가"를 말한다.
     const tower = document.createElement('div');
     tower.className = 'tower-slot';
+    tower.appendChild(chromeKicker('tower', 'TOWER / 01'));
     const models = document.createElement('div');
     models.className = 'models-slot';
 
@@ -209,16 +249,23 @@ export class PitwallApp {
     this.broadcastFocus.setAttribute('aria-live', 'polite');
     this.broadcastFocus.textContent = '방송 포커스 없음 — 새 이벤트 대기';
 
-    // 오른쪽 한 칸: 위는 선택한 계정 내역, 아래는 줄어든 트랙.
+    // 맵은 기존 SVG 칸. 3D 온보드는 MX 중계처럼 별도 칸에서 차를 쫓는다.
     const detail = document.createElement('div');
     detail.className = 'detail';
-    detail.append(this.broadcastFocus, cams, svg);
+    detail.append(chromeKicker('track', 'TRACK / 02'), this.broadcastFocus, cams, svg);
     this.detail = detail;
+
+    const broadcast = document.createElement('div');
+    broadcast.className = 'broadcast';
+    broadcast.appendChild(chromeKicker('broadcast', 'ONBOARD / 04'));
 
     const radio = document.createElement('div');
     radio.className = 'radio';
+    radio.appendChild(chromeKicker('radio', 'RADIO / 03'));
 
-    shell.append(hud, tower, detail, radio);
+    shell.append(hud, tower, detail, broadcast, radio);
+    applyChromeMode(shell, this.settings.chromeMode);
+    window.addEventListener('keydown', this.onChromeKey);
     root.appendChild(shell);
 
     this.summaryRenderer = new SummaryRenderer(shell);
@@ -242,13 +289,14 @@ export class PitwallApp {
     // 모델 판은 타워 **아래**다. 타워 렌더러가 자기 노드를 붙인 뒤에 이어 붙여야
     // 순서가 맞는다 — 먼저 붙이면 모델 판이 위로 올라간다.
     tower.appendChild(models);
-    // ROLLBACK 2026-08-09: broadcast pit lane spans most of the circuit and
-    // renders as a second track loop. Force legacy until fixed; broadcast files untouched.
     this.trackRenderer = bootBroadcastTrackRenderer(svg, track, {
       supported: () => false,
       createLegacy: () => new TrackRenderer(svg, track),
     });
-    this.detail.dataset['renderer'] = this.trackRenderer.mode;
+    this.broadcast3d = Circuit3DRenderer.isSupported()
+      ? new Circuit3DRenderer(broadcast, track)
+      : null;
+    this.detail.dataset['renderer'] = 'legacy';
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed, opts.pricingOverride?.entries);
 
@@ -458,24 +506,35 @@ export class PitwallApp {
     const broadcastSelection = this.broadcastDirector.select(
       this.broadcastCandidates, now, this.selected,
     );
-    this.trackRenderer.render(
-      this.trackModel,
-      now,
-      broadcastSelection.kind === 'selected' ? broadcastSelection.carId : null,
-    );
-    this.detail.dataset['renderer'] = this.trackRenderer.mode;
-    this.renderBroadcastFocus(broadcastSelection, now);
+    const wallNow = real.getTime();
+    const wallMode = towerMode(this.opts.license ?? null, wallNow, this.raceState.cars.size);
+    const hideOrgCars = wallMode === 'hidden';
+    const focusId = hideOrgCars ? null
+      : (broadcastSelection.kind === 'selected' ? broadcastSelection.carId : null);
+    const model = hideOrgCars
+      ? { cold: [], hot: [], hotOverflow: 0, laneOverflow: { H: 0, P: 0, GT: 0 } }
+      : this.trackModel;
+    this.trackRenderer.render(model, now, focusId);
+    this.broadcast3d?.render(model, now, focusId);
+    this.detail.dataset['renderer'] = 'legacy';
+    this.renderBroadcastFocus(hideOrgCars ? { kind: 'empty' } : broadcastSelection, now);
     this.settingsPanel.setAccounts([...this.raceState.cars.values()]);
     this.towerRenderer.render(
-      this.raceState, now, real.getTime(), this.selected,
+      this.raceState, now, wallNow, this.selected,
       (carId) => this.recent.get(carId)?.toArray() ?? [],
       // 줄이 모자랄 때 누구를 남길지는 디렉터가 고른다 — 에러·한도가 급한 쪽.
       this.director.update(this.raceState, now),
-      this.settings.speed, this.carNames);
-    this.modelPanel.render(this.raceState);
+      this.settings.speed, this.carNames,
+      {
+        mode: wallMode,
+        maxCars: this.opts.license?.maxCars,
+      });
+    this.modelPanel.render(hideOrgCars
+      ? { ...this.raceState, cars: new Map() }
+      : this.raceState);
 
     // 선택이 있으면 카메라 대신 그 계정의 내역을 보여준다.
-    const picked = this.selected ? this.raceState.cars.get(this.selected) : undefined;
+    const picked = hideOrgCars ? undefined : (this.selected ? this.raceState.cars.get(this.selected) : undefined);
     const open = picked ? 'true' : 'false';
     if (this.detail.getAttribute('data-selected') !== open) {
       this.detail.setAttribute('data-selected', open);
@@ -502,6 +561,10 @@ export class PitwallApp {
       `${phase.toUpperCase().replace('_', ' ')}`
       + (this.demo ? ' · DEMO' : ''));
     this.renderLiveStatus(now);
+    const wallCopy = wallHudCopy(this.opts.license ?? null, real.getTime());
+    const wantedWall = wallCopy === null ? 'none' : '';
+    if (this.wallStatus.style.display !== wantedWall) this.wallStatus.style.display = wantedWall;
+    if (wallCopy !== null) setText(this.wallStatus, wallCopy);
 
     /*
      * 연봉이 없으면 칸 자체를 안 그린다.
@@ -565,7 +628,7 @@ export class PitwallApp {
     this.broadcastFocusCarId = nextCarId;
     if (selection.kind === 'empty') {
       setText(this.broadcastFocus, this.raceState.cars.size === 0
-        ? '방송 포커스 없음 — 새 이벤트 대기 · 관측 차량 없음'
+        ? '방송 포커스 없음 — 새 이벤트 대기 · 관측 차량 없음 — 최근 호출이 없어 트랙이 비어 있음. 고장이 아님'
         : '방송 포커스 없음 — 새 이벤트 대기');
       return;
     }
@@ -607,7 +670,47 @@ export class PitwallApp {
     this.settings = next;
     this.source.setSpeed(next.speed);
     this.modelCars = null;   // 하이라이트 필터가 바뀌었을 수 있다
+    applyChromeMode(this.shell, next.chromeMode);
   }
+
+  private cycleBroadcast(step: 1 | -1): void {
+    const ids = [...this.raceState.cars.values()]
+      .filter((car) => car.activity !== 'retired')
+      .sort((a, b) => a.car_number - b.car_number || (a.car_id < b.car_id ? -1 : 1))
+      .map((car) => car.car_id);
+    const next = cycleFocus(ids, this.selected ?? this.broadcastFocusCarId, step);
+    this.selected = next;
+    this.pinned.clear();
+    if (next) this.pinned.add(next);
+    this.modelCars = null;
+  }
+
+  private onChromeKey = (event: KeyboardEvent): void => {
+    if (!this.shell.isConnected) return;
+    if (isChromeHotkeyBlocked(event.target)) return;
+    if (event.key === '[' || event.key === ',') {
+      event.preventDefault();
+      this.cycleBroadcast(-1);
+      this.render(this.raceState.now);
+      return;
+    }
+    if (event.key === ']' || event.key === '.') {
+      event.preventDefault();
+      this.cycleBroadcast(1);
+      this.render(this.raceState.now);
+      return;
+    }
+    if (event.key === 'Escape') {
+      this.selected = null;
+      this.pinned.clear();
+      this.modelCars = null;
+      this.render(this.raceState.now);
+      return;
+    }
+    const mode = chromeModeFromKey(event.key);
+    if (mode === null) return;
+    this.settingsPanel.setChromeMode(mode);
+  };
 
   get state(): RaceState {
     return this.raceState;

@@ -1,8 +1,8 @@
 /**
  * Claude Code 트랜스크립트 → `CarEvent` JSONL.
  *
- *   npm run import:real                      # 기본 예산 $20/일
- *   npm run import:real -- 50 400            # 예산 $50, 최근 400개 파일
+ *   npm run import:real                      # 최근 300개 파일
+ *   npm run import:real -- 60 400            # argv[2] 예산은 무시(실기록은 연료 없음). 400개 파일
  *
  * 실제 사용 기록을 시뮬레이터와 **같은 계약**으로 옮긴다. 여기서 나온 파일이
  * 화면에서 그대로 돌면 A5(가짜 데이터로 만든 로직이 실데이터에서 안 돈다)가 해소된다.
@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
-import { toCarEvent } from '../src/source/claudeCodeImport';
+import { toCarEvent, CAR_SALT } from '../src/source/claudeCodeImport';
 import { accountCar, codexEvent, grokEvent, copilotEvents } from '../src/source/agentLogs';
 import { specOf } from '../src/config/models';
 import { workdayFromActivity } from '../src/state/clock';
@@ -54,7 +54,7 @@ function codexAccount(): string {
 }
 
 function collectCodex(limit: number): CarEvent[] {
-  const car = accountCar('codex', codexAccount());
+  const car = accountCar('codex', codexAccount(), CAR_SALT);
   const out: CarEvent[] = [];
   const modelOf = (row: unknown): string | undefined => {
     const p = (row as Record<string, unknown>)?.payload as Record<string, unknown> | undefined;
@@ -80,7 +80,7 @@ function collectCodex(limit: number): CarEvent[] {
 
 /** Grok. 모델은 `model changed` 이벤트로 추적한다. 한도는 `applyLimit`이 붙인다. */
 function collectGrok(limit: number): CarEvent[] {
-  const car = accountCar('grok', 'grok');
+  const car = accountCar('grok', 'grok', CAR_SALT);
   const out: CarEvent[] = [];
   for (const file of newestFiles(join(homedir(), '.grok'), limit)) {
     let model: string | undefined;
@@ -98,7 +98,7 @@ function collectGrok(limit: number): CarEvent[] {
 
 /** Copilot. 세션 집계라 호출 단위가 아니다 — 차량 하나에 굵직한 이벤트 몇 개. */
 function collectCopilot(limit: number): CarEvent[] {
-  const car = accountCar('copilot', 'copilot');
+  const car = accountCar('copilot', 'copilot', CAR_SALT);
   const out: CarEvent[] = [];
   for (const file of newestFiles(join(homedir(), '.copilot'), limit)) {
     for (const row of readJsonl(file)) out.push(...copilotEvents(row, { car }));
@@ -106,8 +106,7 @@ function collectCopilot(limit: number): CarEvent[] {
   return out;
 }
 
-// 실측 차량당 비용 중앙값이 9일에 $92.84였다. 일 $20은 즉시 소진된다.
-const dailyBudgetUsd = Number(process.argv[2] ?? 60);
+// argv[2]는 옛 일 예산. 실기록은 연료를 짓지 않는다 (PRD v2.0 QG1). 자리만 유지.
 const maxFiles = Number(process.argv[3] ?? 300);
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -305,14 +304,6 @@ if (inWindow.length < dayEvents.length) {
 }
 dayEvents.length = 0;
 dayEvents.push(...inWindow);
-
-// 연료는 그날의 차량별 누적 비용을 일간 예산으로 나눈 잔여다.
-const spent = new Map<string, number>();
-for (const e of dayEvents) {
-  const total = (spent.get(e.car_id) ?? 0) + e.cost_usd;
-  spent.set(e.car_id, total);
-  e.fuel_pct = Math.max(0, 100 - (total / dailyBudgetUsd) * 100);
-}
 
 /*
  * 출력 이름. 기본은 `real`이라 예전과 같다.

@@ -176,6 +176,16 @@ describe('실시간 스냅샷 프라이버시', () => {
     expect(liveSnapshotLeaks('{"response":"hi"}')).toBe(true);
   });
 
+  it('session_id 키가 있으면 저장하지 않는다', () => {
+    expect(liveSnapshotLeaks('{"session_id":"abc"}')).toBe(true);
+    expect(liveSnapshotLeaks('{"sessionId":"abc"}')).toBe(true);
+    const snap = serializeLiveState(stateWith([['car-1', car()]], [], 2_000), [], Date.now());
+    const poisoned = JSON.parse(JSON.stringify(snap)) as LiveSnapshot;
+    (poisoned.state as { session_id?: string }).session_id = 'sess-abc';
+    saveLiveSnapshot(poisoned);
+    expect(localStorage.getItem(LIVE_STORAGE_KEY)).toBeNull();
+  });
+
   it('유출 스냅샷은 저장하지 않는다', () => {
     const snap = serializeLiveState(stateWith([['car-1', car({ car_id: 'user@cainz.co.jp' })]], [], 2_000), [], Date.now());
     saveLiveSnapshot(snap);

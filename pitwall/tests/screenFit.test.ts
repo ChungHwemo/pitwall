@@ -85,6 +85,21 @@ describe('타워 줄은 자기 칸 안에 들어간다', () => {
     expect(first).toContain('var(--tower-min)');
   });
 
+  it('맵과 3D 중계는 서로 다른 그리드 칸이다 — 맵 위에 겹치지 않는다', () => {
+    const cols = tracks(decl(ruleBody('.pitwall'), 'grid-template-columns'));
+    const areas = decl(ruleBody('.pitwall'), 'grid-template-areas');
+    expect(cols).toHaveLength(3);
+    expect(areas).toMatch(/tower detail broadcast/);
+    expect(decl(ruleBody('.broadcast'), 'grid-area')).toBe('broadcast');
+    expect(decl(ruleBody('.detail'), 'grid-area')).toBe('detail');
+  });
+
+  it('3D 중계 칸은 맵을 가리는 PIP가 아니라 칸을 채운다', () => {
+    expect(decl(ruleBody('.broadcast-feed'), 'position')).toBe('absolute');
+    expect(decl(ruleBody('.broadcast-feed'), 'inset')).toBe('0');
+    expect(ruleBody('.broadcast-feed')).not.toMatch(/width:\s*min\(/);
+  });
+
   it('2단 줄이 하한 안에 들어간다', () => {
     // 고정 칸 31.4 + 갭 3 + 패딩 0.65 = 35.05rem. 넘으면 오른쪽 끝(금액)이 잘린다.
     const need = rowMinRem(decl(rowBody, 'grid-template-columns'), GAP, PAD_RIGHT);

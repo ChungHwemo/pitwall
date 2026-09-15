@@ -106,10 +106,16 @@ export const DENSE_FROM = 10;
 const SPARK_WINDOW_MS = 1_800_000;
 const SPARK_BUCKETS = 18;
 
+export interface TowerWallOpts {
+  mode?: 'individual' | 'aggregate' | 'hidden';
+  maxCars?: number;
+}
+
 export class TowerRenderer {
   private root: HTMLElement;
   private rows: TowerRow[] = [];
   private overflow: HTMLElement;
+  private aggregate: HTMLElement;
   private total: HTMLElement;
   private selectHandler: ((carId: string) => void) | null = null;
 
@@ -191,6 +197,11 @@ export class TowerRenderer {
     this.overflow.style.display = 'none';
     root.appendChild(this.overflow);
 
+    this.aggregate = document.createElement('div');
+    this.aggregate.className = 'tower-aggregate';
+    this.aggregate.style.display = 'none';
+    root.appendChild(this.aggregate);
+
     // 조직 합계. 계정이 두어 대뿐이면 타워 아래가 통째로 비는데, 그 자리에
     // "오늘 전체가 어떻게 굴러갔나"를 두면 빈칸이 정보가 된다.
     this.total = document.createElement('div');
@@ -214,9 +225,37 @@ export class TowerRenderer {
     priority: string[] = [],
     speed = 1,
     names: Record<string, string> = {},
+    wall: TowerWallOpts = {},
   ): void {
+    const mode = wall.mode ?? 'individual';
+    if (mode === 'hidden' || mode === 'aggregate') {
+      for (const row of this.rows) {
+        if (row.root.style.display !== 'none') row.root.style.display = 'none';
+        row.carId = '';
+      }
+      if (this.overflow.style.display !== 'none') this.overflow.style.display = 'none';
+      if (this.total.style.display !== 'none') this.total.style.display = 'none';
+      if (this.aggregate.style.display !== '') this.aggregate.style.display = '';
+      if (mode === 'hidden') {
+        setText(this.aggregate, '구독 만료 — 조직 차량을 표시하지 않음');
+        return;
+      }
+      const allCars = [...state.cars.values()];
+      const n = allCars.length;
+      const cost = allCars.reduce((sum, c) => sum + c.cost_usd, 0);
+      setText(this.aggregate, `조직 · ${n}계정 · 합계 $${cost.toFixed(2)}`);
+      return;
+    }
+    if (this.aggregate.style.display !== 'none') this.aggregate.style.display = 'none';
+    if (this.total.style.display !== '') this.total.style.display = '';
+
     // 카넘버 오름차순 고정. 사용량으로 재정렬하면 그 순간 리더보드가 된다.
-    const all = [...state.cars.values()].sort((a, b) => a.car_number - b.car_number);
+    let all = [...state.cars.values()].sort((a, b) => a.car_number - b.car_number);
+    const cap = wall.maxCars;
+    const overCap = cap !== undefined && all.length > cap ? all.length - cap : 0;
+    if (overCap > 0) {
+      all = all.slice(0, cap);
+    }
 
     // 줄이 모자라면 **누구를 남길지**는 급한 순으로 고르되, 남은 것을 보여주는
     // 순서는 카넘버 그대로다. 급한 차를 맨 위로 올리면 그 순간 순위표가 된다.
@@ -305,12 +344,17 @@ export class TowerRenderer {
     }
 
     const hidden = foldedOut;
-    if (hidden.length === 0) {
+    if (hidden.length === 0 && overCap === 0) {
       if (this.overflow.style.display !== 'none') this.overflow.style.display = 'none';
     } else {
       if (this.overflow.style.display !== '') this.overflow.style.display = '';
-      const sum = hidden.reduce((a, c) => a + c.cost_usd, 0);
-      setText(this.overflow, `접힘 ${hidden.length}대 · 합계 $${sum.toFixed(2)}`);
+      const parts: string[] = [];
+      if (hidden.length > 0) {
+        const sum = hidden.reduce((a, c) => a + c.cost_usd, 0);
+        parts.push(`접힘 ${hidden.length}대 · 합계 $${sum.toFixed(2)}`);
+      }
+      if (overCap > 0) parts.push(`+${overCap}`);
+      setText(this.overflow, parts.join(' · '));
     }
 
     let calls = 0; let work = 0; let cached = 0; let cost = 0; let saved = 0; let reasoning = 0;

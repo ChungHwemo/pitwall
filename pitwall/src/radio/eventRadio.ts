@@ -32,6 +32,7 @@ export function eventRadio(event: CarEvent): RadioMessage | null {
     case 'pit_out':
       return { ...base, severity: 'info', text: '피트 아웃 — 코스 복귀' };
     case 'limit_warn':
+      if (typeof event.fuel_pct !== 'number') return null;
       return { ...base, severity: 'warn', text: `연료 ${Math.round(event.fuel_pct)}% — 관리 필요` };
     default:
       return null;

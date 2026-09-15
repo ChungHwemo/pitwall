@@ -66,6 +66,8 @@ export interface HotCar {
   reason: HighlightType | 'pinned';
   /** 클수록 급한 차 */
   score: number;
+  /** 시뮬레이터만 숫자. 없으면 연료 링을 그리지 않는다. */
+  fuelPct?: number;
 }
 
 export interface TrackModel {
@@ -181,6 +183,7 @@ export function buildTrackModel(
       laneLine: laneLineOf(car.car_id),
       reason,
       score: scoreOf(car, reason),
+      fuelPct: car.fuel_pct,
     });
   }
   candidates.sort((a, b) => b.score - a.score);

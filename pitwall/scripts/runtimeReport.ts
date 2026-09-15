@@ -70,3 +70,14 @@ export function summarizeRuntime(opts: {
     nodesStable: Math.abs(nodeDelta) <= NODE_SLACK && Math.abs(svgNodeDelta) <= NODE_SLACK,
   };
 }
+
+/** 저장된 heapPass가 표본 경과로 다시 계산한 값과 같은가. 짧은 창에 true를 심으면 거짓. */
+export function assertHeapPassMatchesElapsed(report: RuntimeReport): boolean {
+  const fresh = summarizeRuntime({
+    durationMs: report.durationMs,
+    headed: report.headed,
+    dataset: report.dataset,
+    samples: report.samples,
+  });
+  return report.heapPass === fresh.heapPass;
+}

@@ -1,11 +1,11 @@
 # PITWALL
 
-**LiteLLM 프록시 로그를 8시간 내구 레이스 중계 화면으로 번역하는, 세컨드 모니터에 상시 띄워두는 앰비언트 디스플레이.**
+**로컬 코딩 에이전트 로그를 8시간 내구 레이스 중계 화면으로 번역하는, 세컨드 모니터에 상시 띄워두는 앰비언트 디스플레이.**
 
 대시보드가 아니다. 대시보드는 응시하는 물건이고, PITWALL은 곁눈질하는 물건이다. 체류 시간이 길면 실패다 — 3초 훑고 자기 일로 돌아가되 내일도 켜져 있으면 성공이다.
 
-현재 상태: **v1 구현 완료 + 브라우저 실측 완료.**
-858 tests · `tsc` 0 오류 · 기본 단일 파일 빌드 5,449.1 kB (약 5.4 MB) · 런타임 의존성 0개.
+현재 상태: **시뮬레이터 + 로컬 LIVE 동작 중. 유료 품질 게이트는 [PRD v2.0](docs/superpowers/specs/2026-08-31-paid-quality-prd.md).** LiteLLM 프록시는 v1.5.
+1032 tests · 64 files · `tsc` 0 오류 · 기본 단일 파일 빌드 5,449.1 kB (약 5.4 MB) · 런타임 의존성 0개.
 차량 100대 × 35,996프레임에서 **layout 유발 0** — 남은 layout은 전부 텍스트 변경분이고 프레임 수가 아니라 이벤트 수에 비례한다.
 기본 빌드는 데모 데이터셋 3벌을 HTML에 심기 때문에 예전 24 kB보다 커졌다. 실기록은 `PITWALL_REAL=1` 빌드에서만 심는다. 8시간 힙 구동만 남았다 — [CHECKLIST.md](pitwall/CHECKLIST.md).
 
@@ -36,7 +36,7 @@ WidgetKit은 JavaScript를 실행하지 않는다 — SwiftUI 정적 스냅샷�
 
 ## 더미 데이터
 
-시뮬레이터는 6개 공급자 21개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
+시뮬레이터는 6개 공급자 25개 모델을 섞어 이벤트를 만든다. 단가는 2026-07-30에 각 공급자 공식 문서에서 직접 읽었고, 항목마다 출처를 갖는다 ([`src/config/models.ts`](pitwall/src/config/models.ts)).
 
 | 공급자 | 모델 |
 |---|---|
@@ -74,7 +74,8 @@ LIVE 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저�
 
 | 문서 | 내용 |
 |---|---|
-| [PRD v1.4](docs/superpowers/specs/2026-07-29-pitwall-prd.md) | 제품 정의, 은유 사전, 데이터 모델, 프라이버시 가드레일, 리스크 등록부 |
+| **[PRD v2.0 유료 품질](docs/superpowers/specs/2026-08-31-paid-quality-prd.md)** | 출하 정본. 카피·IA·프라이버시·연료·솔트 |
+| [PRD v1.4](docs/superpowers/specs/2026-07-29-pitwall-prd.md) | 역사 문서. LiteLLM 조직 벽 설계 |
 | [구현 계획 v1](docs/superpowers/plans/2026-07-29-pitwall-v1.md) | 19개 태스크 TDD 실행 계획 |
 | [f1-telemetry 분해](docs/reference/2026-07-30-f1-telemetry-teardown.md) | 참조 구현 원본 코드 분석. 채택 기법 5건 / 기각 7건 |
 | [출시 검수](pitwall/CHECKLIST.md) | 측정한 것과 **측정하지 않은 것**을 분리해 기록 |
@@ -89,7 +90,7 @@ LIVE 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저�
 
 - 트랙 SVG 1종 · 클래스별(H/P/GT) 레인 분리 · 리더 라이트 글리프
 - 활동 중인 차량만 트랙에 렌더 (레인당 상한 40대, 초과분은 클러스터 배지)
-- 카메라 슬롯 3~5개 자동 선별 + 핀 고정
+- 타워 우선 스플릿. 디렉터가 방송 포커스 1칸. 카메라 카드 그리드는 없음
 - 팀 라디오 — 이벤트 즉시 발화 + 매시 정각 패턴 피드백
 - 근무일 타임라인 (포메이션 랩 → 스타트 라이트 → 점심 피트 → 체커기)
 - 연봉 HUD (`localStorage` 전용) · 하루 요약 카드
@@ -109,8 +110,8 @@ Vite · TypeScript · Vitest · SVG · `requestAnimationFrame`. UI 프레임워�
 
 협상 대상이 아닌 것들.
 
-- **기본 익명.** 카넘버 + 클래스로만 표시. 이름 없음
-- **개인 간 정렬·순위 UI 금지.** 타이밍 타워를 만들지 않는다
+- **기본 익명.** 카넘버 + 클래스. 이름은 이 기기 라벨이며 기본 꺼짐
+- **개인 간 정렬·순위 UI 금지.** 타워는 카넘버 고정순. 사용량으로 줄을 바꾸지 않는다
 - **프롬프트·응답 본문 미수집.** 스키마에 필드 자체가 없다
 - **색상 단독 인코딩 금지.** 클래스는 색 + 형태 이중 인코딩
 - **트랙 위 텍스트 라벨 금지.** 상세값은 카메라 카드에서만
@@ -140,4 +141,5 @@ npm run measure -- --ms 90000 --headed --dataset demo-large
 - Skoll Game Icons F1 car: CC BY 3.0 — `pitwall/assets/f1/game-icons/SOURCE.txt`
 - Kenney Future Narrow: CC0 — `pitwall/assets/broadcast/LICENSE-CC0.txt`
 - Tabler icons: MIT — `pitwall/assets/broadcast/LICENSE-MIT.txt`
+- bacinger/f1-circuits 서킷 형상: OpenStreetMap **ODbL** — `pitwall/scripts/importCircuits.ts`
 

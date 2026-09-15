@@ -103,6 +103,7 @@ function isLiveSnapshot(value: unknown): value is LiveSnapshot {
 export function liveSnapshotLeaks(raw: string): boolean {
   if (/accountUuid|oauthAccount|emailAddress/.test(raw)) return true;
   if (/"messages"\s*:/.test(raw) || /"response"\s*:/.test(raw)) return true;
+  if (/"session_id"\s*:/.test(raw) || /"sessionId"\s*:/.test(raw)) return true;
   return /[^\s"{}:,]+@[^\s"{}:,]+\.[A-Za-z]{2,}/.test(raw);
 }
 

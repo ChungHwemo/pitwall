@@ -1,16 +1,16 @@
 # PITWALL — 현재 상태 전부
 
-2026-08-08 기준 · 테스트 858개 통과 · 테스트 파일 53개 · tsc 클린 · 런타임 의존성 0
+2026-09-01 기준 · 테스트 1032개 통과 · 테스트 파일 64개 · tsc 클린 · 런타임 의존성 0
 
-조직의 LLM 사용을 내구 레이스로 그리는 상시 노출 화면. 대시보드가 아니라
-두 번째 모니터에 띄워 두고 **곁눈질로 읽는** 물건이다.
+로컬 코딩 에이전트 로그를 내구 레이스로 그리는 상시 노출 화면. 대시보드가 아니라
+두 번째 모니터에 띄워 두고 **곁눈질로 읽는** 물건이다. LiteLLM은 v1.5.
 
 ---
 
 ## 1. 실행
 
 ```bash
-npm test                      # 858개 · 테스트 파일 53개
+npm test                      # 1032개 · 테스트 파일 64개
 npm run dev                   # 웹 (시뮬레이터)
 npm run build:single          # 기본 빌드 · 데모 3벌을 심은 단일 HTML (5,449.1 kB 실측)
 npm run build                 # Vite 정적 산출물
@@ -41,7 +41,7 @@ open dist/PITWALL.app         # ⌘T 항상 위 · ⌘F 전체 화면
 | 선택 | 내용 |
 |---|---|
 | **실시간** | `window.pitwallLive` 네이티브 브리지로 실제 `LiveSource`를 연결할 때만 동작. 일반 브라우저에서는 실시간으로 가장하지 않는다 |
-| **실기록** | `PITWALL_REAL=1` 빌드에서만 선택 가능. `events.real.jsonl` 1,302건, `events.real-busy.jsonl` 7,375건 중 각각 1,302건 / 5,000건을 심는다 |
+| **실기록** | `PITWALL_REAL=1` 빌드에서만 선택 가능. `events.real.jsonl` 441건, `events.real-busy.jsonl` 7,375건 중 각각 441건 / 5,000건을 심는다 |
 | 데모 · 소규모 | 지어냄 — 원본 fixture 계정 4, 모델 4종, 빌드에는 5,000건 |
 | 데모 · 중규모 | 지어냄 — 원본 fixture 계정 14, 모델 7종, 빌드에는 5,000건 |
 | 데모 · 대규모 | 지어냄 — 원본 fixture 계정 40, 모델 8종, 빌드에는 5,000건 |
@@ -83,7 +83,7 @@ WebView는 macOS 13.3+에서 inspectable. 스냅샷 유출은 `liveSnapshotLeaks
 
 이 표는 2026-07-30 당시의 **라이브 측정값**이다. 커밋된 `fixtures/events.real.jsonl`은
 그 뒤의 다른 스냅샷이라 위 숫자를 재현하지 않는다. 커밋된 픽스처로 재현 가능한 기준은
-호출 1,302건 · 작업 토큰 8,640,311 · 캐시 재전송 437,845,502 · 비용 $256.84다.
+호출 441건 · 작업 토큰 2,016,045 · 캐시 재전송 60,981,874 · 비용 $46.32다.
 
 ---
 
@@ -222,14 +222,14 @@ font-size: calc(var(--pw-zoom) * clamp(13px, min(100vw / 90, 100vh / 56.25), 34p
 
 ## 7. 개인정보·보안 (전부 코드에 강제)
 
-- 차량 id는 **소금 친 해시**. uuid·이메일·경로 원문은 안 나간다
+- 차량 id는 **설치별 솔트 + FNV-1a**. HMAC 아님. uuid·이메일·경로 원문은 안 나간다
 - `~/.claude.json`의 `emailAddress`는 **읽지도 않는다**
-- OAuth 토큰은 키체인에서 읽어 **헤더로만**. 출력·파일 어디에도 안 남는다
+- OAuth 토큰을 키체인에서 읽지 않는다. Swift 키체인 코드 없음
 - `CarEvent`에 프롬프트·응답 본문 필드가 **없다** (스키마 수준)
 - 에이전트 이름도 **없다** — 로그의 `agentName`은 값이 자연어 작업 제목이라 계약에서 뺐다.
   남은 귀속 축은 스킬 id 하나뿐이고 그건 도구 메타데이터다
-- 화면에 이름 없음, **순위·리더보드 UI 없음**
-- k-익명성 하한 10 (완화 방향으로 못 연다)
+- 기본 화면은 카넘버. 이 기기 라벨(`pitwall.carNames`)은 꺼져 있다. **순위·리더보드 UI 없음**
+- k-익명성 하한 10은 **Wall SKU에서만** 화면을 바꾼다. 개인 LIVE(계정 1–3)에는 적용하지 않는다
 
 ---
 
@@ -272,7 +272,7 @@ pitwall/
   scripts/              importClaudeCode · fetchLimits · makeDemo · liveCheck
                         bundleSingleFile · dumpEvents · importCircuits
   app/                  main.swift · PitwallApp.swift · LogTail.swift · build.sh
-  tests/                53개 파일 858개
+  tests/                64개 파일 1032개
 docs/
   superpowers/specs/    PRD · MVP 결정 · 악마의 변호인 감사
   reference/            f1-telemetry 분해 · 사용량 시각화 벤치마크

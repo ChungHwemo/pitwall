@@ -21,12 +21,14 @@ describe('Legend', () => {
     const text = host.textContent ?? '';
     expect(text).toContain('한 바퀴');
     expect(text).toContain('한도');
+    expect(text).toContain('중계');
+    expect(text).toContain('[');
   });
 
   it('차량 freshness와 LIVE 상태를 글자로 설명한다', () => {
     new Legend(host);
     const text = host.textContent ?? '';
-    for (const key of ['FRESH', 'QUIET', 'STALE', 'CONNECTED', 'SYNCING']) {
+    for (const key of ['FRESH', 'QUIET', 'STALE', 'CONNECTED', 'SYNCING', 'WAITING']) {
       expect(text).toContain(key);
     }
   });

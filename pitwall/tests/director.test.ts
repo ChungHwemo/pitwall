@@ -33,6 +33,14 @@ describe('scoreCar', () => {
     expect(scoreCar(car('a', { fuel_pct: 10 }), ctx)).toBeGreaterThan(scoreCar(car('a'), ctx));
   });
 
+  it('연료 부재는 한도 점수를 주지 않는다 — 100%로 읽히지 않는다', () => {
+    const missing = scoreCar(car('a', { fuel_pct: undefined }), ctx);
+    const knownOk = scoreCar(car('a', { fuel_pct: 80 }), ctx);
+    const low = scoreCar(car('a', { fuel_pct: 10 }), ctx);
+    expect(missing).toBe(knownOk);
+    expect(low).toBeGreaterThan(missing);
+  });
+
   it('타이어 부족이 점수를 올린다', () => {
     expect(scoreCar(car('a', { tyre_pct: 5 }), ctx)).toBeGreaterThan(scoreCar(car('a'), ctx));
   });

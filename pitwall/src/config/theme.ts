@@ -1,7 +1,7 @@
 import type { CarClass } from '../types';
 import type { ProviderId } from './models';
 
-export const BACKGROUND = '#0e1116';
+export const BACKGROUND = '#101722';
 
 /**
  * 트랙 렌더러 전용 색 토큰. 예전에는 중심선(`#2a323d`)과 피트레인(`#1c222b`)이
@@ -15,8 +15,8 @@ export const BACKGROUND = '#0e1116';
  * - `sector`: 중심선보다 밝지만 차량 클래스·이벤트 색상과 섞이지 않는 청회색.
  */
 export const TRACK_COLOR = {
-  centerline: '#3f5963',
-  pitLane: '#334b55',
+  centerline: '#45626d',
+  pitLane: '#3a5460',
   markerDark: '#11161d',
   markerLight: '#e8edf3',
   sector: '#6f8792',
@@ -28,7 +28,7 @@ export const TRACK_COLOR = {
  */
 export const EVENT_POLARITY_COLOR = {
   positive: '#4ade80',
-  caution: '#ff5c5c',
+  caution: '#ea4c4f',
   neutral: '#9fb3c8',
 } as const;
 
@@ -64,8 +64,8 @@ export const CONTRIBUTION_STEPS: readonly string[] = [
  * 보라 계열로 옮긴다 — 이중 인코딩은 그대로 유지된다.
  */
 export const CLASS_STYLE: Record<CarClass, { color: string; shape: 'circle' | 'triangle' | 'square'; label: string }> = {
-  H: { color: '#ff5c5c', shape: 'triangle', label: 'HYPERCAR' },
-  P: { color: '#4dc3ff', shape: 'circle', label: 'PROTOTYPE' },
+  H: { color: '#ea4c4f', shape: 'triangle', label: 'HYPERCAR' },
+  P: { color: '#528ff0', shape: 'circle', label: 'PROTOTYPE' },
   GT: { color: '#c084fc', shape: 'square', label: 'GT' },
 };
 
@@ -77,10 +77,10 @@ export const CLASS_STYLE: Record<CarClass, { color: string; shape: 'circle' | 't
  * 공급자 약어 `label`을 함께 보여준다. 색은 보조 신호이고 판독은 문자가 진다.
  *
  * 색 선택 근거:
- *  - 배경(`#0e1116`) 대비는 전부 6:1을 넘긴다 (하한 2.5:1을 여유 있게 통과) — 아래
+ *  - 배경(`#101722`) 대비는 전부 6:1을 넘긴다 (하한 2.5:1을 여유 있게 통과) — 아래
  *    `PROVIDER_STYLE contrast` 테스트가 강제한다.
- *  - 클래스·이벤트 예약색과 **색상(hue)을 비켜간다**: 빨강(H·caution `#ff5c5c`),
- *    청록(P·spark `#4dc3ff`), 보라(GT `#c084fc`), 따뜻한 노랑(`ACCENT_DELTA` 델타 전용)은
+ *  - 클래스·이벤트 예약색과 **색상(hue)을 비켜간다**: 빨강(H·caution `#ea4c4f`),
+ *    팀 블루(P·spark `#528ff0`), 보라(GT `#c084fc`), 따뜻한 노랑(`ACCENT_DELTA` 델타 전용)은
  *    피한다. 여섯 칩은 주황·청록초록·하늘·중립회색·남보라·자홍으로 색환에 흩어 두어
  *    인접한 두 공급자가 헷갈리게 비슷해지지 않게 했다. 문자 약어가 이미 판독을 지므로
  *    색은 한눈에 "다른 공급자"임만 거들면 된다.

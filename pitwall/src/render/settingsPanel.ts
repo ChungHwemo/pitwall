@@ -1,5 +1,6 @@
 import type { PitwallSettings } from '../config/settings';
 import { saveLocalSettings } from '../config/settings';
+import type { ChromeMode } from '../config/chromeMode';
 import { loadCarNames, saveCarNames, CAR_NAME_MAX_LENGTH } from '../config/carNames';
 import type { PricingOverride } from '../config/pricingOverride';
 import type { PresetName } from '../config/presets';
@@ -48,13 +49,21 @@ const HELP = {
   limit: '한도 창이 바닥난 차를 피트로 보낸다.',
   demoClock: '밤에도 레이스가 도는 것처럼 시각을 지어낸다. 끄면 실제 벽시계가 흐른다. '
     + 'HUD의 DEMO 배지는 DATA가 지어낸 것이라는 뜻이며, 이 설정과는 별개다.',
+  chromeMode: '화면 크롬. 1 토큰 스킨, 2 클러스터 크롬, 3 워크숍 오버레이. 숫자키 1·2·3도 같다.',
 } as const;
+
+const CHROME_CHOICES: { mode: ChromeMode; label: string }[] = [
+  { mode: 1, label: '1' },
+  { mode: 2, label: '2' },
+  { mode: 3, label: '3' },
+];
 
 export class SettingsPanel {
   private settings: PitwallSettings;
   private names: Record<string, string> = loadCarNames();
   private onNamesChange: () => void;
   private accountsRows: HTMLElement;
+  private chromeRoot: HTMLElement | null = null;
   /** 마지막으로 그린 계정 집합의 지문. 바뀔 때만 줄을 다시 짓는다 */
   private accountsKey = '';
 
@@ -126,6 +135,8 @@ export class SettingsPanel {
         this.settings = { ...this.settings, speed: Number(v) as PitwallSettings['speed'] };
       },
     ));
+
+    root.appendChild(this.chromeModeGroup(initial.chromeMode));
 
     const group = document.createElement('div');
     group.className = 'settings-group';
@@ -292,6 +303,48 @@ export class SettingsPanel {
 
     wrap.append(text, select);
     return wrap;
+  }
+
+  setChromeMode(mode: ChromeMode): void {
+    if (this.settings.chromeMode === mode) {
+      this.syncChromeButtons();
+      this.onChange(this.settings);
+      return;
+    }
+    this.settings = { ...this.settings, chromeMode: mode };
+    this.syncChromeButtons();
+    this.commit();
+  }
+
+  private chromeModeGroup(current: ChromeMode): HTMLElement {
+    const group = document.createElement('div');
+    group.className = 'settings-group chrome-mode';
+    group.title = HELP.chromeMode;
+    const label = document.createElement('span');
+    label.className = 'settings-label';
+    label.textContent = '크롬';
+    group.appendChild(label);
+    this.chromeRoot = group;
+    for (const { mode, label: text } of CHROME_CHOICES) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chrome-mode-btn';
+      btn.setAttribute('data-setting', 'chromeMode');
+      btn.setAttribute('data-chrome-choice', String(mode));
+      btn.setAttribute('aria-pressed', String(current === mode));
+      btn.setAttribute('aria-label', `크롬 모드 ${mode}`);
+      btn.textContent = text;
+      btn.addEventListener('click', () => this.setChromeMode(mode));
+      group.appendChild(btn);
+    }
+    return group;
+  }
+
+  private syncChromeButtons(): void {
+    if (this.chromeRoot === null) return;
+    for (const btn of this.chromeRoot.querySelectorAll<HTMLButtonElement>('[data-setting="chromeMode"]')) {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-chrome-choice') === String(this.settings.chromeMode)));
+    }
   }
 
   /** localStorage에만 쓴다. 네트워크로 보내지 않는다 (PRIV-6). */

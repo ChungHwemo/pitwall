@@ -110,6 +110,10 @@ describe('toCarEvent', () => {
     expect(toCarEvent(line())!.tyre_pct).toBeUndefined();
   });
 
+  it('실 로그는 연료를 지어내지 않는다 — 예산 소스가 없다', () => {
+    expect(toCarEvent(line())!.fuel_pct).toBeUndefined();
+  });
+
   it('깨진 타임스탬프는 건너뛴다', () => {
     expect(toCarEvent(line({ timestamp: 'not-a-date' }))).toBeNull();
   });

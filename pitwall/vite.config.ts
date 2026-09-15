@@ -1,7 +1,9 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import { PER_SET, busiestWindow } from './scripts/pickWindow';
 import { chooseEmbeddedSources } from './scripts/embeddedSources';
+import { LiveTail, readLiveAccounts } from './scripts/liveTail';
 
 /**
  * 화면에서 고를 수 있는 데이터셋.
@@ -44,7 +46,38 @@ const datasets = chosen.flatMap((src) => {
   }];
 });
 
+function pitwallLivePlugin(): Plugin {
+  return {
+    name: 'pitwall-live',
+    configureServer(server) {
+      const tail = new LiveTail();
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split('?')[0] !== '/__pitwall/live/stream') {
+          next();
+          return;
+        }
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        });
+        const send = (event: string, data: unknown): void => {
+          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        };
+        send('accounts', readLiveAccounts());
+        const flush = (): void => {
+          for (const batch of tail.poll()) send('lines', batch);
+        };
+        flush();
+        const id = setInterval(flush, 2_000);
+        req.on('close', () => clearInterval(id));
+      });
+    },
+  };
+}
+
 export default defineConfig({
+  plugins: [pitwallLivePlugin()],
   build: {
     // 실기록까지 단일 오프라인 HTML에 심는 제품 계약의 8.5MB 상한이다.
     chunkSizeWarningLimit: 8_500,

@@ -33,8 +33,6 @@ export interface LogContext {
   sessionId?: string;
 }
 
-const SALT = 'pitwall-local';
-
 function hash(value: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < value.length; i++) {
@@ -44,9 +42,9 @@ function hash(value: string): number {
   return h >>> 0;
 }
 
-/** 벤더 + 계정 → 차량. 원본 식별자는 해시로만 남는다. */
-export function accountCar(vendor: string, accountId: string): CarIdentity {
-  const digest = hash(`${SALT}:${vendor}:${accountId}`);
+/** 벤더 + 계정 → 차량. 원본 식별자는 해시로만 남는다. 솔트는 호출자가 넘긴다. */
+export function accountCar(vendor: string, accountId: string, salt: string): CarIdentity {
+  const digest = hash(`${salt}:${vendor}:${accountId}`);
   return {
     car_id: `car-${digest.toString(16).padStart(8, '0').slice(0, 8)}`,
     car_number: (digest % 999) + 1,
@@ -91,7 +89,6 @@ function build(
       : 0,
     latency_ms: 0,
     status: 'ok',
-    fuel_pct: 100,
     ...extra,
   };
 }

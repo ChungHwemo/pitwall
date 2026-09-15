@@ -10,7 +10,12 @@ import { ReplaySource } from './source/ReplaySource';
 import { LiveSource } from './source/LiveSource';
 import type { LiveAccounts, LiveVendor, VendorLimitSnapshot } from './source/LiveSource';
 import { DATASET_KEY, LIVE_ID, pickDataset, type Dataset } from './config/datasets';
+import { bootSourceKind } from './config/bootSource';
 import { DatasetPicker } from './render/datasetPicker';
+import { mountConsent, allowLiveIngest, signalNativeConsent, notifyNativeIfConsented } from './config/consent';
+import { stripObservedFuel } from './config/observedFuel';
+import { licenseFromOrg } from './config/license';
+import { chromeModeFromSearch } from './config/chromeMode';
 
 /**
  * 빌드 시 실 기록을 심을 자리 (`build:real`).
@@ -29,6 +34,8 @@ if (mount) {
     const local = loadLocalSettings();
     const org = await loadOrgSettings();
     const settings = resolveSettings(org, local, {});
+    const pinnedChrome = chromeModeFromSearch(location.search);
+    if (pinnedChrome !== null) settings.chromeMode = pinnedChrome;
     // 단가 보정은 org·local의 pricingOverride 섹션에서 온다. 조직 파일이 로컬을 이긴다.
     const pricingOverride = loadPricingOverride(org, local);
 
@@ -69,14 +76,19 @@ if (mount) {
       { id: LIVE_ID, label: '실시간', synthetic: false, events: [] },
       ...embedded,
     ];
-    const wanted = localStorage.getItem(DATASET_KEY);
+    const wanted = new URLSearchParams(location.search).get('dataset')
+      ?? localStorage.getItem(DATASET_KEY);
     const native = (window as unknown as { __pitwallNative?: boolean }).__pitwallNative === true;
+    mountConsent(mount, { native }, () => { signalNativeConsent(); });
+    notifyNativeIfConsented(native);
     const chosen = pickDataset(datasets, wanted, native);
     const wantsLive = chosen?.id === LIVE_ID;
-    const recorded = wantsLive ? [] : (chosen?.events ?? []);
-    // DEMO 배지는 지금 도는 것이 지어낸 데이터인지를 말한다. 시뮬레이터(기록
-    // 없음)이거나 고른 데이터셋이 지어낸 것이면 데모다. 실기록 재생만 아니다.
-    const demo = recorded.length === 0 || (chosen?.synthetic ?? false);
+    const recorded = wantsLive
+      ? []
+      : stripObservedFuel(chosen?.events ?? [], chosen?.synthetic ?? false);
+    const kind = bootSourceKind({ wantsLive, recordedCount: recorded.length });
+    // DEMO 배지는 지어낸 데이터를 말한다. 실시간은 시뮬레이터가 아니다.
+    const demo = kind === 'live' ? false : (recorded.length === 0 || (chosen?.synthetic ?? false));
 
     // 근무창은 기록이 정한다. 09:00-18:00을 고집하면 실측 기준 하루 작업의
     // 61.4%가 창 밖으로 밀려나 화면에 아예 오지 않는다.
@@ -104,11 +116,14 @@ if (mount) {
     const app = new PitwallApp(mount, {
       seed,
       preset: observed.preset,
-      speed: observed.speed,
-      settings: observed,
-      source: recorded.length ? new ReplaySource(recorded, settings.speed) : undefined,
+      speed: kind === 'live' ? 1 : observed.speed,
+      settings: kind === 'live' ? { ...observed, demoClock: false } : observed,
+      source: kind === 'replay' ? new ReplaySource(recorded, settings.speed)
+        : kind === 'live' ? live : undefined,
       demo,
+      live: kind === 'live',
       pricingOverride,
+      license: licenseFromOrg(org) ?? undefined,
     });
 
     // 무엇을 보고 있는지 상단 바가 말한다. 고르면 그 데이터로 다시 연다 —
@@ -121,23 +136,40 @@ if (mount) {
     });
 
     win.pitwallLive = (accounts) => {
-      if (liveOn) return;
-      // 사용자가 기록을 골랐으면 껍데기가 덮지 않는다.
-      if (!wantsLive) return;
-      liveOn = true;
       live.configure(accounts);
-      // Claude 한도는 로그에 없다 — 빌드에 심은 스냅샷을 쓴다. 나이는 화면이 밝힌다.
+      if (!wantsLive) return;
+      if (liveOn) return;
+      liveOn = true;
       if (typeof __PITWALL_LIMITS__ !== 'undefined' && __PITWALL_LIMITS__) {
         live.setLimits(__PITWALL_LIMITS__);
       }
-       // 실시간에는 배속도 데모 시계도 없다. 지금이 지금이다.
-        app.useSource(live, { speed: 1, demoClock: false });
-        // useSource가 상태를 비운 **직후**에 되살린다 — 순서가 뒤집히면 복원분이
-        // 지워진다. 저장이 없거나 만료됐으면 loadLiveSnapshot이 null이라 새로 시작한다.
-        const snap = loadLiveSnapshot();
-        if (snap) app.restoreLiveState(snap);
+      app.useSource(live, { speed: 1, demoClock: false });
+      const snap = loadLiveSnapshot();
+      if (snap) app.restoreLiveState(snap);
     };
-    win.pitwallIngest = (vendor, lines) => { live.ingest(vendor, lines); };
+    win.pitwallIngest = (vendor, lines) => {
+      if (!allowLiveIngest(native)) return;
+      live.ingest(vendor, lines);
+    };
+
+    if (kind === 'live') {
+      liveOn = true;
+      if (typeof __PITWALL_LIMITS__ !== 'undefined' && __PITWALL_LIMITS__) {
+        live.setLimits(__PITWALL_LIMITS__);
+      }
+      const snap = loadLiveSnapshot();
+      if (snap) app.restoreLiveState(snap);
+      if (import.meta.env.DEV) {
+        const stream = new EventSource('/__pitwall/live/stream');
+        stream.addEventListener('accounts', (ev) => {
+          live.configure(JSON.parse((ev as MessageEvent).data));
+        });
+        stream.addEventListener('lines', (ev) => {
+          const batch = JSON.parse((ev as MessageEvent).data) as { vendor: LiveVendor; lines: string[] };
+          live.ingest(batch.vendor, batch.lines);
+        });
+      }
+    }
 
     app.start();
 

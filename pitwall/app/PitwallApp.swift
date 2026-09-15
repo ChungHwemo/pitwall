@@ -8,7 +8,7 @@ import WebKit
 ///
 /// 상시 노출이 유일한 사용 맥락이라(PRD §2.2) 창은 항상 위 토글을 갖는다.
 /// 창 크기·위치는 시스템 프레임 저장에 맡긴다 — 직접 관리할 이유가 없다.
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     private var window: NSWindow!
     private var webView: WKWebView!
     private var tail: LogTail?
@@ -27,12 +27,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             forMainFrameOnly: true
         )
         config.userContentController.addUserScript(nativeFlag)
+        config.userContentController.add(self, name: "pitwallConsent")
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")   // 창 배경이 비치지 않게
         if #available(macOS 13.3, *) {
+            #if DEBUG
             webView.isInspectable = true
+            #else
+            webView.isInspectable = false
+            #endif
         }
 
         window = NSWindow(
@@ -43,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         )
         window.title = "PITWALL"
         window.titlebarAppearsTransparent = true
-        window.backgroundColor = NSColor(red: 0.055, green: 0.067, blue: 0.086, alpha: 1)  // #0e1116
+        window.backgroundColor = NSColor(red: 0.063, green: 0.090, blue: 0.133, alpha: 1)  // #101722
         window.contentView = webView
         window.setFrameAutosaveName("PitwallMain")
         window.center()
@@ -51,7 +56,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
         buildMenu()
         load()
-        startTailing()
 
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
@@ -61,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         guard let html = Bundle.main.url(forResource: "pitwall", withExtension: "html") else {
             // 번들에 화면이 없으면 조용히 빈 창을 띄우지 않는다. 이유를 보여준다.
             webView.loadHTMLString(
-                "<body style='background:#0e1116;color:#e6edf3;font:14px ui-monospace;padding:40px'>"
+                "<body style='background:#101722;color:#f6f7f5;font:14px ui-monospace;padding:40px'>"
                 + "번들에 pitwall.html이 없습니다. <code>npm run build:app</code>으로 다시 빌드하십시오."
                 + "</body>", baseURL: nil)
             return
@@ -69,8 +73,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         webView.loadFileURL(html, allowingReadAccessTo: html.deletingLastPathComponent())
     }
 
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "pitwallConsent" else { return }
+        DispatchQueue.main.async { [weak self] in self?.startTailing() }
+    }
+
     /// 로그를 따라가 화면에 밀어 넣는다. 파싱은 화면 쪽 파서가 한다.
+    /// 동의 메시지 전에는 열지 않는다. 이미 열려 있으면 다시 열지 않는다.
     private func startTailing() {
+        if tail != nil { return }
         let home = FileManager.default.homeDirectoryForCurrentUser
         let sources = [
             LogTail.Source(vendor: "claude", directory: home.appendingPathComponent(".claude/projects")),
