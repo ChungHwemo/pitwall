@@ -1,6 +1,6 @@
 # PITWALL — 현재 상태 전부
 
-2026-09-01 기준 · 테스트 1032개 통과 · 테스트 파일 64개 · tsc 클린 · 런타임 의존성 0
+2026-09-23 기준 · 테스트 1082개 통과 · 테스트 파일 71개 · tsc 클린 · 런타임 의존성 0
 
 로컬 코딩 에이전트 로그를 내구 레이스로 그리는 상시 노출 화면. 대시보드가 아니라
 두 번째 모니터에 띄워 두고 **곁눈질로 읽는** 물건이다. LiteLLM은 v1.5.
@@ -10,7 +10,7 @@
 ## 1. 실행
 
 ```bash
-npm test                      # 1032개 · 테스트 파일 64개
+npm test                      # 1082개 · 테스트 파일 71개
 npm run dev                   # 웹 (시뮬레이터)
 npm run build:single          # 기본 빌드 · 데모 3벌을 심은 단일 HTML (5,449.1 kB 실측)
 npm run build                 # Vite 정적 산출물
@@ -278,7 +278,7 @@ pitwall/
   scripts/              importClaudeCode · fetchLimits · makeDemo · liveCheck
                         bundleSingleFile · dumpEvents · importCircuits
   app/                  main.swift · PitwallApp.swift · LogTail.swift · build.sh
-  tests/                64개 파일 1032개
+  tests/                71개 파일 1082개
 docs/
   superpowers/specs/    PRD · MVP 결정 · 악마의 변호인 감사
   reference/            f1-telemetry 분해 · 사용량 시각화 벤치마크
@@ -313,7 +313,7 @@ REVIEW.md               다른 작성자 의견
 - **처음 보는 파일을 끝만 찍음** — 최근 15분을 넘긴다. 잠잠했다가 온 첫 묶음이 포함된다 (`03f8e2a`)
 - **개행 전 JSON을 다음 개행까지 버렸다가 다시 셈** — 완전한 JSON은 한 번만 넘긴다 (`03f8e2a`)
 - **Copilot 테일 없음** — `~/.copilot`을 따라간다. 세션 집계라는 한계는 그대로다 (`03f8e2a`)
-- **빌드 한도를 실시간 Claude 게이지로 그림** — 로그에 없는 한도는 그리지 않는다 (`03f8e2a`)
+- **빌드 한도를 실시간 Claude 게이지로 그림** — 로그에 없는 한도는 그리지 않는다. Grok 청구 줄이 있으면 그 잔여만 붙인다 (`03f8e2a`, 이어서 청구 줄 연결)
 - **본문 삭제 키가 넷뿐** — 사용량 키만 웹뷰에 간다. JSON이 아닌 줄은 버린다 (`03f8e2a`)
 - **같은 크롬 모드를 다시 누르면 설정을 다시 씀** — 1·2·3은 바뀔 때만 저장한다. `?chrome=`은 이번 로드만이다 (`03f8e2a`)
 

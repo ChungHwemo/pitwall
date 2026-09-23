@@ -13,7 +13,8 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { LiveSource, type LiveVendor } from '../src/source/LiveSource';
+import { LIVE_VENDORS, slimLogLine } from './liveTail';
+import { LiveSource } from '../src/source/LiveSource';
 import { workOf, cachedOf } from '../src/state/reducer';
 import type { CarEvent } from '../src/types';
 
@@ -66,11 +67,7 @@ const source = new LiveSource({
 const seen: CarEvent[] = [];
 source.start((e) => seen.push(e));
 
-const VENDORS: { vendor: LiveVendor; dir: string }[] = [
-  { vendor: 'claude', dir: '.claude/projects' },
-  { vendor: 'codex', dir: '.codex' },
-  { vendor: 'grok', dir: '.grok' },
-];
+const VENDORS = LIVE_VENDORS;
 
 for (const { vendor, dir } of VENDORS) {
   const files = touchedSince(dir, since);
@@ -78,7 +75,7 @@ for (const { vendor, dir } of VENDORS) {
   for (const file of files) {
     let text: string;
     try { text = readFileSync(file, 'utf8'); } catch { continue; }
-    const fresh = text.split('\n').filter((l) => l.trim());
+    const fresh = text.split('\n').map(slimLogLine).filter((l): l is string => l !== null);
     lines += fresh.length;
     source.ingest(vendor, fresh);
   }
@@ -117,7 +114,10 @@ const newest = recent.reduce((a, e) => Math.max(a, e.wall_ts ?? 0), 0);
 console.log(`\n가장 최근 호출 ${Math.round((Date.now() - newest) / 1000)}초 전`);
 
 // 원문 식별자가 새어 나가지 않았는지 여기서 한 번 더 확인한다.
+const dumped = JSON.stringify(recent);
 const uuid = claudeAccount();
-const leaked = uuid !== undefined && JSON.stringify(recent).includes(uuid);
+const leaked = uuid !== undefined && dumped.includes(uuid);
+const bodyLeak = /"(content|prompt|command|cwd|thinking|rawOutput|text)"\s*:/.test(dumped);
 console.log(leaked ? '⛔ 계정 uuid가 이벤트에 남았다' : '계정 식별자 유출 없음 (해시만 통과)');
-if (leaked) process.exit(1);
+console.log(bodyLeak ? '⛔ 본문 키가 이벤트에 남았다' : '본문 키 유출 없음');
+if (leaked || bodyLeak) process.exit(1);

@@ -235,6 +235,37 @@ describe('LiveSource — Grok 최상위 model_id', () => {
     expect(prompt).toBe(100);
     expect(cache).toBe(80);
   });
+
+  it('청구 줄을 읽은 뒤에만 Grok 한도를 붙이고, 없으면 게이지를 짓지 않는다', () => {
+    const credit = JSON.stringify({
+      ts: '2026-07-24T08:03:43.432Z',
+      msg: 'billing: fetched credits config',
+      ctx: {
+        config: {
+          creditUsagePercent: 52,
+          currentPeriod: {
+            start: '2026-07-17T14:13:14.612417+00:00',
+            end: '2026-07-24T14:13:14.612417+00:00',
+          },
+        },
+      },
+    });
+    const loop = JSON.stringify({
+      ts: '2026-08-22T11:30:20.952Z',
+      msg: 'shell.turn.inference_done',
+      sid: 'sess-now',
+      ctx: { prompt_tokens: 100, cached_prompt_tokens: 80, completion_tokens: 10, reasoning_tokens: 0 },
+    });
+    const bare = new LiveSource();
+    bare.ingest('grok', [loop]);
+    expect(collect(bare)[0]!.tyre_pct).toBeUndefined();
+    const src = new LiveSource();
+    src.ingest('grok', [credit, loop]);
+    const [event] = collect(src);
+    expect(event!.tyre_pct).toBe(48);
+    expect(event!.limit_window_minutes).toBe(10_080);
+    expect(event!.limit_observed_at).toBe(Date.parse('2026-07-24T08:03:43.432Z'));
+  });
 });
 
 describe('LiveSource — 한도', () => {

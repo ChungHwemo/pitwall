@@ -1,7 +1,7 @@
 import type { CarEvent } from '../types';
 import type { EventSource } from './EventSource';
 import { toCarEvent } from './claudeCodeImport';
-import { accountCar, codexEvent, grokEvent, copilotEvents } from './agentLogs';
+import { accountCar, codexEvent, grokEvent, grokCredits, copilotEvents } from './agentLogs';
 import { loadCarSalt } from '../config/carSalt';
 
 /**
@@ -138,6 +138,15 @@ export class LiveSource implements EventSource {
 
     if (vendor === 'grok') {
       const r = row as Record<string, unknown>;
+      const credit = grokCredits(row);
+      if (credit) {
+        this.limits.set('grok', {
+          utilization: Math.max(0, 100 - credit.tyre_pct),
+          window_minutes: credit.limit_window_minutes,
+          resets_at: credit.resetsAt === undefined ? null : new Date(credit.resetsAt).toISOString(),
+          fetchedAt: credit.ts,
+        });
+      }
       const ctx = r?.ctx as Record<string, unknown> | undefined;
       const params = r?.params as Record<string, unknown> | undefined;
       const update = params?.update as Record<string, unknown> | undefined;
