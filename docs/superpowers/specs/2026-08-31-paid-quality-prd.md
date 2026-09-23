@@ -128,7 +128,7 @@ LiteLLM은 v1.5 문장에만 남긴다. 지금 출하물에 「프록시」를 �
 | LiteLLM 어댑터 · 서버 · 텔레메트리 | v1.5, outbound-0 |
 | 방송 렌더러 재활성화 | 피트 레인 기하가 미증명 |
 | G1 사람 테스트 | 사람. 이 PRD는 빈 화면 카피만 닫는다 |
-| tokscale급 40 파서 | 범위. 지금 파서는 claude / codex / grok (+ copilot 파서, 테일 없음) |
+| tokscale급 40 파서 | 범위. 지금 파서는 claude / codex / grok / copilot. Copilot은 테일이 있고 세션 집계다 |
 | `WKWebView.isInspectable=false`를 단위 테스트 | Swift. 릴리스 체크리스트 항목으로만 |
 | HMAC으로 PRIV-3를 「고치기」 | 서버 없는 제품에 WebCrypto HMAC은 연극. 설치 솔트로 충분 |
 
