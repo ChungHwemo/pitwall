@@ -8,7 +8,7 @@ import { workdayFromActivity } from './state/clock';
 import { workOf } from './state/reducer';
 import { ReplaySource } from './source/ReplaySource';
 import { LiveSource } from './source/LiveSource';
-import type { LiveAccounts, LiveVendor, VendorLimitSnapshot } from './source/LiveSource';
+import type { LiveAccounts, LiveVendor } from './source/LiveSource';
 import { DATASET_KEY, LIVE_ID, pickDataset, type Dataset } from './config/datasets';
 import { bootSourceKind } from './config/bootSource';
 import { DatasetPicker } from './render/datasetPicker';
@@ -23,8 +23,6 @@ import { chromeModeFromSearch } from './config/chromeMode';
  */
 /** 빌드에 심은 데이터셋들. 화면에서 고른다. */
 declare const __PITWALL_DATASETS__: Dataset[] | undefined;
-/** 빌드 시점의 벤더 한도 스냅샷 (`npm run fetch:limits`). */
-declare const __PITWALL_LIMITS__: VendorLimitSnapshot[] | undefined;
 
 // 브라우저 배선만 여기 둔다. requestAnimationFrame도 여기에만 있다 —
 // main.ts를 import 하는 것만으로 앱이 뜨면 테스트가 그 부작용에 걸린다.
@@ -35,7 +33,6 @@ if (mount) {
     const org = await loadOrgSettings();
     const settings = resolveSettings(org, local, {});
     const pinnedChrome = chromeModeFromSearch(location.search);
-    if (pinnedChrome !== null) settings.chromeMode = pinnedChrome;
     // 단가 보정은 org·local의 pricingOverride 섹션에서 온다. 조직 파일이 로컬을 이긴다.
     const pricingOverride = loadPricingOverride(org, local);
 
@@ -124,6 +121,7 @@ if (mount) {
       live: kind === 'live',
       pricingOverride,
       license: licenseFromOrg(org) ?? undefined,
+      chromePreview: pinnedChrome ?? undefined,
     });
 
     // 무엇을 보고 있는지 상단 바가 말한다. 고르면 그 데이터로 다시 연다 —
@@ -140,9 +138,6 @@ if (mount) {
       if (!wantsLive) return;
       if (liveOn) return;
       liveOn = true;
-      if (typeof __PITWALL_LIMITS__ !== 'undefined' && __PITWALL_LIMITS__) {
-        live.setLimits(__PITWALL_LIMITS__);
-      }
       app.useSource(live, { speed: 1, demoClock: false });
       const snap = loadLiveSnapshot();
       if (snap) app.restoreLiveState(snap);
@@ -154,9 +149,6 @@ if (mount) {
 
     if (kind === 'live') {
       liveOn = true;
-      if (typeof __PITWALL_LIMITS__ !== 'undefined' && __PITWALL_LIMITS__) {
-        live.setLimits(__PITWALL_LIMITS__);
-      }
       const snap = loadLiveSnapshot();
       if (snap) app.restoreLiveState(snap);
       if (import.meta.env.DEV) {

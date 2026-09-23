@@ -87,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             LogTail.Source(vendor: "claude", directory: home.appendingPathComponent(".claude/projects")),
             LogTail.Source(vendor: "codex", directory: home.appendingPathComponent(".codex")),
             LogTail.Source(vendor: "grok", directory: home.appendingPathComponent(".grok")),
+            LogTail.Source(vendor: "copilot", directory: home.appendingPathComponent(".copilot")),
         ]
         let tail = LogTail(sources: sources) { [weak self] vendor, lines in
             DispatchQueue.main.async { self?.push(vendor, lines) }
@@ -115,28 +116,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
     }
 
-    /// 사용량 필드만 남긴다. `content`/`text`/`rawOutput` 은 MB 단위 + PRIV-4.
+    /// 사용량 키만 남긴다. `scripts/liveTail.ts`의 USAGE_KEYS와 같다.
     static func slimLogLine(_ line: String) -> String? {
         guard let data = line.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data) else {
-            return line.utf8.count < 8_192 ? line : nil
-        }
-        let slim = stripBulky(obj)
+              let obj = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        let slim = stripBulky(obj, parent: nil)
         guard let out = try? JSONSerialization.data(withJSONObject: slim),
               let text = String(data: out, encoding: .utf8) else { return nil }
         return text
     }
 
-    static func stripBulky(_ value: Any) -> Any {
+    private static let usageKeys: Set<String> = [
+        "timestamp", "ts", "sessionId", "sid", "message", "id", "model", "usage",
+        "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens",
+        "attributionSkill", "isApiErrorMessage", "error", "apiErrorStatus",
+        "type", "payload", "ctx", "info", "last_token_usage", "cached_input_tokens",
+        "reasoning_output_tokens", "rate_limits", "primary", "used_percent", "window_minutes", "resets_at",
+        "msg", "prompt_tokens", "completion_tokens", "reasoning_tokens", "cached_prompt_tokens",
+        "model_elapsed_ms", "current_model_id", "method", "params", "update", "sessionUpdate",
+        "inputTokens", "outputTokens", "cachedReadTokens", "reasoningTokens", "modelUsage",
+        "modelCalls", "apiDurationMs", "_meta", "modelId", "model_id",
+        "data", "modelMetrics", "sessionStartTime", "cacheReadTokens",
+    ]
+
+    static func stripBulky(_ value: Any, parent: String?) -> Any {
         if let dict = value as? [String: Any] {
             var out: [String: Any] = [:]
             for (key, child) in dict {
-                if key == "content" || key == "rawOutput" || key == "thinking" || key == "text" { continue }
-                out[key] = stripBulky(child)
+                let keep = usageKeys.contains(key) || parent == "modelMetrics" || parent == "modelUsage"
+                if !keep { continue }
+                out[key] = stripBulky(child, parent: key)
             }
             return out
         }
-        if let arr = value as? [Any] { return arr.map { stripBulky($0) } }
+        if let arr = value as? [Any] { return arr.map { stripBulky($0, parent: parent) } }
+        if let text = value as? String, text.count > 200 { return "" }
         return value
     }
 

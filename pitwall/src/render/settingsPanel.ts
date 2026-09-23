@@ -1,6 +1,6 @@
 import type { PitwallSettings } from '../config/settings';
 import { saveLocalSettings } from '../config/settings';
-import type { ChromeMode } from '../config/chromeMode';
+import { chromeModeLabel, type ChromeMode } from '../config/chromeMode';
 import { loadCarNames, saveCarNames, CAR_NAME_MAX_LENGTH } from '../config/carNames';
 import type { PricingOverride } from '../config/pricingOverride';
 import type { PresetName } from '../config/presets';
@@ -64,6 +64,7 @@ export class SettingsPanel {
   private onNamesChange: () => void;
   private accountsRows: HTMLElement;
   private chromeRoot: HTMLElement | null = null;
+  private onReselect: () => void;
   /** 마지막으로 그린 계정 집합의 지문. 바뀔 때만 줄을 다시 짓는다 */
   private accountsKey = '';
 
@@ -79,10 +80,13 @@ export class SettingsPanel {
       pricingOverride?: PricingOverride;
       /** 열릴 때만 불린다. main.ts가 이걸로 범례 패널을 닫아 겹침을 막는다. */
       onOpen?: () => void;
+      /** 이미 저장된 모드를 다시 눌렀을 때. 저장·재렌더는 하지 않는다. */
+      onReselect?: () => void;
     } = { simulated: true },
   ) {
     this.settings = initial;
     this.onNamesChange = opts.onNamesChange ?? ((): void => {});
+    this.onReselect = opts.onReselect ?? ((): void => {});
 
     const shell = document.createElement('div');
     shell.className = 'settings hud-item';
@@ -136,7 +140,7 @@ export class SettingsPanel {
       },
     ));
 
-    root.appendChild(this.chromeModeGroup(initial.chromeMode));
+    const chromeSwitch = this.chromeModeGroup(initial.chromeMode);
 
     const group = document.createElement('div');
     group.className = 'settings-group';
@@ -191,7 +195,7 @@ export class SettingsPanel {
     // DEMO 시계도 시뮬레이터 전용이다. 기록 재생과 실시간에는 진짜 시계가 있어
     // 이 체크박스가 아무것도 바꾸지 않는다 — 눌러도 반응이 없으면 고장으로 읽힌다.
     if (!opts.simulated) {
-      shell.append(toggle, root);
+      shell.append(chromeSwitch, toggle, root);
       container.appendChild(shell);
       return;
     }
@@ -212,7 +216,7 @@ export class SettingsPanel {
     demo.append(demoBox, demoText);
     root.appendChild(demo);
 
-    shell.append(toggle, root);
+    shell.append(chromeSwitch, toggle, root);
     container.appendChild(shell);
   }
 
@@ -307,13 +311,23 @@ export class SettingsPanel {
 
   setChromeMode(mode: ChromeMode): void {
     if (this.settings.chromeMode === mode) {
-      this.syncChromeButtons();
-      this.onChange(this.settings);
+      this.syncDisplayed(mode);
+      this.onReselect();
       return;
     }
     this.settings = { ...this.settings, chromeMode: mode };
-    this.syncChromeButtons();
+    this.syncDisplayed(mode);
     this.commit();
+  }
+
+  /** 버튼과 읽기 전용 표식만 맞춘다. 저장하지 않는다. */
+  syncDisplayed(mode: ChromeMode): void {
+    if (this.chromeRoot === null) return;
+    const readout = this.chromeRoot.querySelector('[data-chrome-readout]');
+    if (readout) readout.textContent = chromeModeLabel(mode);
+    for (const btn of this.chromeRoot.querySelectorAll<HTMLButtonElement>('[data-setting="chromeMode"]')) {
+      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-chrome-choice') === String(mode)));
+    }
   }
 
   private chromeModeGroup(current: ChromeMode): HTMLElement {
@@ -323,7 +337,11 @@ export class SettingsPanel {
     const label = document.createElement('span');
     label.className = 'settings-label';
     label.textContent = '크롬';
-    group.appendChild(label);
+    const readout = document.createElement('span');
+    readout.className = 'chrome-readout';
+    readout.setAttribute('data-chrome-readout', '');
+    readout.textContent = chromeModeLabel(current);
+    group.append(label, readout);
     this.chromeRoot = group;
     for (const { mode, label: text } of CHROME_CHOICES) {
       const btn = document.createElement('button');
@@ -338,13 +356,6 @@ export class SettingsPanel {
       group.appendChild(btn);
     }
     return group;
-  }
-
-  private syncChromeButtons(): void {
-    if (this.chromeRoot === null) return;
-    for (const btn of this.chromeRoot.querySelectorAll<HTMLButtonElement>('[data-setting="chromeMode"]')) {
-      btn.setAttribute('aria-pressed', String(btn.getAttribute('data-chrome-choice') === String(this.settings.chromeMode)));
-    }
   }
 
   /** localStorage에만 쓴다. 네트워크로 보내지 않는다 (PRIV-6). */

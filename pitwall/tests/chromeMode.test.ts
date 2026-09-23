@@ -107,6 +107,16 @@ describe('SettingsPanel 크롬 모드', () => {
     expect(latest.chromeMode).toBe(2);
     expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!).chromeMode).toBe(2);
   });
+
+  it('같은 모드를 다시 눌러도 설정을 다시 알리지 않는다', () => {
+    let calls = 0;
+    new SettingsPanel(host, DEFAULT_SETTINGS, () => { calls += 1; });
+    const one = host.querySelector('[data-setting="chromeMode"][data-chrome-choice="1"]') as HTMLButtonElement;
+    one.click();
+    one.click();
+    expect(calls).toBe(0);
+    expect(localStorage.getItem(SETTINGS_STORAGE_KEY)).toBeNull();
+  });
 });
 
 describe('PitwallApp 크롬 모드', () => {
@@ -155,6 +165,32 @@ describe('PitwallApp 크롬 모드', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '2', bubbles: true }));
     expect(shell.getAttribute('data-chrome-mode')).toBe('2');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    expect(shell.getAttribute('data-chrome-mode')).toBe('3');
+  });
+
+  it('수정키·반복키·정지 후에는 숫자키가 모드를 바꾸지 않는다', () => {
+    const app = new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20 });
+    const shell = root.querySelector('.pitwall')!;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '2', metaKey: true, bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '2', ctrlKey: true, bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '2', altKey: true, bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '2', repeat: true, bubbles: true }));
+    expect(shell.getAttribute('data-chrome-mode')).toBe('1');
+    app.stop();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+    expect(shell.getAttribute('data-chrome-mode')).toBe('1');
+  });
+
+  it('?chrome= 미리보기는 다른 설정을 저장해도 기록에 남지 않는다', () => {
+    new PitwallApp(root, { seed: 1, preset: 'busy', speed: 20, chromePreview: 3 });
+    const shell = root.querySelector('.pitwall')!;
+    expect(shell.getAttribute('data-chrome-mode')).toBe('3');
+    expect(shell.querySelector('[data-chrome-readout]')!.textContent).toBe('WORKSHOP / 03');
+    expect(localStorage.getItem(SETTINGS_STORAGE_KEY)).toBeNull();
+    const speed = root.querySelector('[data-setting="speed"]') as HTMLSelectElement;
+    speed.value = '1';
+    speed.dispatchEvent(new Event('change'));
+    expect(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!).chromeMode).toBe(1);
     expect(shell.getAttribute('data-chrome-mode')).toBe('3');
   });
 

@@ -44,7 +44,7 @@ import { DEFAULT_SETTINGS, type PitwallSettings } from './config/settings';
 import type { PricingOverride } from './config/pricingOverride';
 import { towerMode, wallHudCopy, type WallLicense } from './config/license';
 import {
-  applyChromeMode, chromeModeFromKey, isChromeHotkeyBlocked,
+  applyChromeMode, chromeModeFromKey, isChromeHotkeyBlocked, type ChromeMode,
 } from './config/chromeMode';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -108,6 +108,11 @@ export interface AppOptions {
   license?: WallLicense;
   /** 처음부터 LIVE. 시뮬레이터를 끼우지 않는다. */
   live?: boolean;
+  /**
+   * 이번 로드만의 크롬. `?chrome=`은 시드와 같이 저장하지 않는다.
+   * 배속 같은 다른 설정을 저장해도 이 값은 localStorage에 안 섞인다.
+   */
+  chromePreview?: ChromeMode;
 }
 
 export class PitwallApp {
@@ -143,6 +148,9 @@ export class PitwallApp {
   private feedRenderer: FeedRenderer;
   private settingsPanel: SettingsPanel;
   private shell: HTMLElement;
+  /** `?chrome=` 미리보기. 사용자가 크롬을 고르면 비운다. */
+  private chromePreview: ChromeMode | null;
+  private chromeKeys = new AbortController();
   /** 계정 표시 이름. 이 기기에만 산다 (PRIV-6). 렌더가 렌더러들에 넘긴다 */
   private carNames: Record<string, string> = loadCarNames();
   /** 선택한 계정. 트랙에서 차를 누르면 바뀐다. */
@@ -172,6 +180,7 @@ export class PitwallApp {
   constructor(root: HTMLElement, private opts: AppOptions) {
     // 하한 강제는 resolveSettings에서 끝난다. 여기서는 결과를 쓰기만 한다.
     this.settings = opts.settings ?? DEFAULT_SETTINGS;
+    this.chromePreview = opts.chromePreview ?? null;
     this.live = opts.live ?? false;
     this.demo = opts.live ? false : (opts.demo ?? (opts.source === undefined));
     this.director = new Director(this.settings.cameraSlots);
@@ -264,9 +273,8 @@ export class PitwallApp {
     radio.appendChild(chromeKicker('radio', 'RADIO / 03'));
 
     shell.append(hud, tower, detail, broadcast, radio);
-    applyChromeMode(shell, this.settings.chromeMode);
-    window.addEventListener('keydown', this.onChromeKey);
     root.appendChild(shell);
+    window.addEventListener('keydown', this.onChromeKey, { signal: this.chromeKeys.signal });
 
     this.summaryRenderer = new SummaryRenderer(shell);
     this.feedRenderer = new FeedRenderer(cams, FEED_ROWS);
@@ -279,10 +287,12 @@ export class PitwallApp {
         onNamesChange: (): void => { this.carNames = loadCarNames(); this.render(this.raceState.now); },
         pricingOverride: opts.pricingOverride,
         onOpen: () => legendShell?.setAttribute('data-open', 'false'),
+        onReselect: () => this.clearChromePreview(),
       });
     const settingsShell = hud.querySelector('.settings') as HTMLElement;
     new Legend(hud, () => settingsShell.setAttribute('data-open', 'false'));
     legendShell = hud.querySelector('.legend') as HTMLElement;
+    this.paintChrome();
 
     this.towerRenderer = new TowerRenderer(tower, TOWER_ROWS);
     this.modelPanel = new ModelPanel(models, MODEL_ROWS);
@@ -406,6 +416,7 @@ export class PitwallApp {
 
   stop(): void {
     this.running = false;
+    this.chromeKeys.abort();
     this.source.stop();
   }
 
@@ -667,10 +678,28 @@ export class PitwallApp {
    * 이미 발생한 이벤트의 의미를 소급 변경하지 않는다 (PRD §7.0).
    */
   private applySettings(next: PitwallSettings): void {
+    if (next.chromeMode !== this.settings.chromeMode) this.chromePreview = null;
     this.settings = next;
     this.source.setSpeed(next.speed);
     this.modelCars = null;   // 하이라이트 필터가 바뀌었을 수 있다
-    applyChromeMode(this.shell, next.chromeMode);
+    this.paintChrome();
+  }
+
+  private displayedChrome(): ChromeMode {
+    return this.chromePreview ?? this.settings.chromeMode;
+  }
+
+  private paintChrome(): void {
+    const mode = this.displayedChrome();
+    applyChromeMode(this.shell, mode);
+    this.settingsPanel.syncDisplayed(mode);
+  }
+
+  /** 미리보기만 끈다. 저장된 모드를 다시 고른 것이고, 디스크는 그대로다. */
+  private clearChromePreview(): void {
+    if (this.chromePreview === null) return;
+    this.chromePreview = null;
+    this.paintChrome();
   }
 
   private cycleBroadcast(step: 1 | -1): void {
@@ -686,7 +715,11 @@ export class PitwallApp {
   }
 
   private onChromeKey = (event: KeyboardEvent): void => {
-    if (!this.shell.isConnected) return;
+    if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (!this.shell.isConnected) {
+      this.chromeKeys.abort();
+      return;
+    }
     if (isChromeHotkeyBlocked(event.target)) return;
     if (event.key === '[' || event.key === ',') {
       event.preventDefault();

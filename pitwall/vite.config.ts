@@ -19,7 +19,7 @@ import { LiveTail, readLiveAccounts } from './scripts/liveTail';
  * 목록을 보면 검사는 통과하고 페이지는 실기록을 말한다.
  */
 
-/** 벤더 한도 스냅샷. 실시간 모드에서 Claude 게이지가 비지 않게 같이 심는다. */
+/** 벤더 한도 스냅샷. 재생 픽스처용이다. 실시간 Claude 게이지에 붙이지 않는다 — 빌드 시각의 값이다. */
 const limitsPath = 'fixtures/limits.json';
 const limits = existsSync(limitsPath) ? JSON.parse(readFileSync(limitsPath, 'utf8')) : undefined;
 

@@ -407,8 +407,13 @@ body {
   border: var(--hair) solid #9fb3c8; border-radius: 0.2rem; padding: 0.04rem 0.28rem;
 }
 
-/* 오른쪽 끝으로 민다. 자르지 않는다 — 버튼 하나라 자를 것이 없다. */
-.settings { margin-left: auto; }
+/* 오른쪽 끝으로 민다. 크롬 전환은 접힌 판 밖에 둔다 — 설정 안을 열지 않아도 눌린다. */
+.settings {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
 .settings-field, .settings-group {
   display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; flex-wrap: wrap;
 }
@@ -811,26 +816,21 @@ svg.track .sector-marker {
 }
 
 .chrome-toast {
-  z-index: 22;
-  top: 0.45rem;
-  right: 11.2rem;
-  left: auto;
-  transform: none;
-  padding: 0.28rem 0.7rem;
-  border: var(--hair) solid var(--pw-hairline);
-  background: var(--pw-panel);
-  color: var(--pw-text);
-  font-family: var(--pw-display);
-  font-style: italic;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+  border: 0;
 }
 
 .workshop-vignette {
   z-index: 14;
   inset: 0;
-  box-shadow: inset 0 0 140px #050b16cc;
+  box-shadow: inset 0 0 100px #080e1838;
 }
 
 .workshop-vignette[hidden] { display: none; }
@@ -850,6 +850,15 @@ svg.track .sector-marker {
   color: var(--pw-text);
   border-color: var(--pw-accent);
 }
+.chrome-readout {
+  font-family: var(--pw-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--pw-accent);
+  white-space: nowrap;
+}
 
 .tower-slot > .chrome-kicker,
 .radio > .chrome-kicker {
@@ -867,20 +876,17 @@ svg.track .sector-marker {
   font-size: 0.7rem;
 }
 
-/* 모드 1 — 토큰 스킨. 키커는 얇게, 클러스터는 풀어 기존 HUD 한 줄을 유지한다. */
+/* 모드 1 — 토큰 스킨. 키커는 숨기고 HUD는 한 줄을 유지한다. */
 [data-chrome-mode="1"] .hud-cluster > .chrome-kicker { display: none; }
-[data-chrome-mode="1"] .chrome-toast {
-  font-size: 0.72rem;
-  opacity: 0.72;
-}
 
-/* 모드 2 — 클러스터 크롬. HUD를 묶고 키커를 디스플레이 페이스로 키운다. */
+/* 모드 2·3 — 키커를 같은 줄에 붙인다. 세로로 쌓으면 상단 바가 필수 숫자를 자른다. */
 [data-chrome-mode="2"] .hud-cluster,
 [data-chrome-mode="3"] .hud-cluster {
   display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-  padding: 0.2rem 0.55rem 0.28rem;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem 0.2rem;
   border-top: 3px solid var(--pw-accent);
   background: var(--pw-panel);
   flex: 0 1 auto;
@@ -937,11 +943,6 @@ svg.track .sector-marker {
   background: var(--pw-panel);
   border: var(--hair) solid var(--pw-hairline);
   padding: 0.15rem 0.3rem;
-}
-[data-chrome-mode="3"] .chrome-toast {
-  font-size: 0.95rem;
-  border-top: 3px solid var(--pw-caution);
-  box-shadow: 4px 4px 0 #050b12;
 }
 [data-chrome-mode="3"] .tower-row[data-selected="true"] {
   box-shadow: inset 3px 0 0 var(--pw-accent);

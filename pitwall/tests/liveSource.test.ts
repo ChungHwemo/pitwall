@@ -125,6 +125,23 @@ describe('LiveSource', () => {
     expect(collect(src)).toEqual([]);
   });
 
+  it('같은 id가 다음 tick에 커져도 증가분만큼만 더한다', () => {
+    const src = new LiveSource({ claudeAccountUuid: 'uuid-a' });
+    const partial = JSON.stringify({
+      timestamp: '2026-07-30T21:00:00.000Z',
+      sessionId: 's1',
+      message: { id: 'msg-1', model: 'claude-opus-5', usage: { input_tokens: 200, output_tokens: 1, cache_read_input_tokens: 800 } },
+    });
+    src.ingest('claude', [partial]);
+    const first = collect(src);
+    src.ingest('claude', [CLAUDE_LINE]);
+    const second = collect(src);
+    const completion = [...first, ...second].reduce((sum, e) => sum + e.tokens.completion, 0);
+    const cache = [...first, ...second].reduce((sum, e) => sum + (e.tokens.cache_read ?? 0), 0);
+    expect(completion).toBe(200);
+    expect(cache).toBe(800);
+  });
+
   it('한 프레임에 쏟아붓지 않는다 — 밀린 줄은 다음 프레임으로 넘긴다', () => {
     const src = new LiveSource({ claudeAccountUuid: 'uuid-a' }, 2);
     const claude = (id: string) => CLAUDE_LINE.replace('msg-1', id);
@@ -185,6 +202,38 @@ describe('LiveSource — Grok 최상위 model_id', () => {
     expect(out[0]!.model).toBe('grok-4.6');
     expect(out[0]!.tokens.prompt).toBe(100);
     expect(providerOfModel(out[0]!.model)).toBe('xai');
+  });
+
+  it('같은 세션의 턴 종료는 이미 센 루프를 다시 더하지 않는다', () => {
+    const loop = JSON.stringify({
+      ts: '2026-08-22T11:30:20.952Z',
+      msg: 'shell.turn.inference_done',
+      sid: 'sess-now',
+      ctx: { prompt_tokens: 100, cached_prompt_tokens: 80, completion_tokens: 10, reasoning_tokens: 0 },
+    });
+    const turn = JSON.stringify({
+      timestamp: 1786085851,
+      method: '_x.ai/session/update',
+      params: {
+        sessionId: 'sess-now',
+        update: {
+          sessionUpdate: 'turn_completed',
+          usage: {
+            inputTokens: 100, outputTokens: 10, cachedReadTokens: 80, reasoningTokens: 0,
+            modelUsage: { 'grok-4.6': {} },
+          },
+        },
+      },
+    });
+    const src = new LiveSource();
+    src.ingest('grok', [loop]);
+    const first = collect(src);
+    src.ingest('grok', [turn, turn]);
+    const second = collect(src);
+    const prompt = [...first, ...second].reduce((sum, e) => sum + e.tokens.prompt, 0);
+    const cache = [...first, ...second].reduce((sum, e) => sum + (e.tokens.cache_read ?? 0), 0);
+    expect(prompt).toBe(100);
+    expect(cache).toBe(80);
   });
 });
 

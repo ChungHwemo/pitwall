@@ -48,8 +48,14 @@ function ensure(root: HTMLElement, attr: string, className: string): HTMLElement
 
 export function applyChromeMode(root: HTMLElement, mode: ChromeMode): void {
   root.setAttribute('data-chrome-mode', String(mode));
+  const label = chromeModeLabel(mode);
   const toast = ensure(root, 'data-chrome-toast', 'chrome-toast');
-  toast.textContent = chromeModeLabel(mode);
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.textContent = label;
+  const readout = root.querySelector('[data-chrome-readout]');
+  if (readout) readout.textContent = label;
   const vignette = ensure(root, 'data-chrome-vignette', 'workshop-vignette');
+  vignette.setAttribute('aria-hidden', 'true');
   vignette.hidden = mode !== 3;
 }

@@ -46,7 +46,7 @@ export function mountConsent(
   kicker.className = 'chrome-kicker';
   kicker.textContent = 'WORKSHOP / LIVE';
   const p = document.createElement('p');
-  p.textContent = '이 앱은 ~/.claude · ~/.codex · ~/.grok 로그에서 사용량 숫자만 읽습니다. 프롬프트·응답 본문은 버립니다. 네트워크로 보내지 않습니다.';
+  p.textContent = '이 앱은 ~/.claude · ~/.codex · ~/.grok · ~/.copilot 로그에서 사용량 숫자만 읽습니다. 프롬프트·응답 본문은 버립니다. 네트워크로 보내지 않습니다.';
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.textContent = '읽기 허용';

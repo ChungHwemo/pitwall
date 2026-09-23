@@ -45,6 +45,12 @@ export class LiveSource implements EventSource {
   private queue: CarEvent[] = [];
   /** message.id별 최신 이벤트. 같은 id는 스트림 누적(부분→완전)이라 마지막 행이 이긴다. */
   private claudeById = new Map<string, CarEvent>();
+  /** 이미 화면에 더한 Claude 누적값. 다음 tick의 같은 id는 증가분만 낸다. */
+  private claudeSent = new Map<string, UsageSnap>();
+  /** 세션에 이미 더한 Grok 루프 합. 턴 종료 줄은 이 합을 뺀 나머지만 낸다. */
+  private grokLoops = new Map<string, UsageSnap>();
+  /** 세션의 마지막 턴 종료 스냅샷. 같은 턴 줄이 다시 오면 버린다. */
+  private grokTurns = new Map<string, string>();
   /** 벤더별 현재 모델. tail은 줄을 나눠 주므로 상태를 여기서 들고 있어야 한다. */
   private model: Partial<Record<LiveVendor, string>> = {};
   private limits = new Map<string, { utilization: number; window_minutes: number; resets_at: string | null; fetchedAt: number }>();
@@ -143,7 +149,8 @@ export class LiveSource implements EventSource {
         car: accountCar('grok', 'grok', this.salt),
         model: this.model.grok ?? 'grok-4.6-build',
       });
-      return e ? [e] : [];
+      if (!e) return [];
+      return this.grokOnce(r, e);
     }
 
     return copilotEvents(row, { car: accountCar('copilot', 'copilot', this.salt) });
@@ -176,7 +183,9 @@ export class LiveSource implements EventSource {
     for (const [id, e] of this.claudeById) {
       if (budget <= 0) break;
       this.claudeById.delete(id);
-      emit({ ...e, ts: nowMs, wall_ts: e.wall_ts ?? e.ts });
+      const revised = this.reviseClaude(id, e);
+      if (!revised) continue;
+      emit({ ...revised, ts: nowMs, wall_ts: revised.wall_ts ?? revised.ts });
       budget--;
     }
   }
@@ -190,4 +199,86 @@ export class LiveSource implements EventSource {
   get pending(): number {
     return this.queue.length + this.claudeById.size;
   }
+
+  private reviseClaude(id: string, event: CarEvent): CarEvent | null {
+    const next = snapOf(event);
+    const prev = this.claudeSent.get(id);
+    this.claudeSent.set(id, next);
+    if (!prev) return event;
+    return deltaOf(event, prev);
+  }
+
+  private grokOnce(row: Record<string, unknown>, event: CarEvent): CarEvent[] {
+    const session = grokSession(row);
+    if (!session) return [event];
+    if (row.msg === 'shell.turn.inference_done') {
+      this.grokLoops.set(session, addSnap(this.grokLoops.get(session), snapOf(event)));
+      return [event];
+    }
+    const update = (row.params as Record<string, unknown> | undefined)?.update as Record<string, unknown> | undefined;
+    if (update?.sessionUpdate !== 'turn_completed') return [event];
+    const next = snapOf(event);
+    const sig = JSON.stringify(next);
+    if (this.grokTurns.get(session) === sig) {
+      this.grokLoops.delete(session);
+      return [];
+    }
+    this.grokTurns.set(session, sig);
+    const already = this.grokLoops.get(session);
+    this.grokLoops.delete(session);
+    if (!already) return [event];
+    const delta = deltaOf(event, already);
+    return delta ? [delta] : [];
+  }
+}
+
+interface UsageSnap {
+  prompt: number;
+  completion: number;
+  cache: number;
+  reasoning: number;
+  cost: number;
+}
+
+function snapOf(event: CarEvent): UsageSnap {
+  return {
+    prompt: event.tokens.prompt,
+    completion: event.tokens.completion,
+    cache: event.tokens.cache_read ?? 0,
+    reasoning: event.tokens.reasoning ?? 0,
+    cost: event.cost_usd,
+  };
+}
+
+function addSnap(prev: UsageSnap | undefined, next: UsageSnap): UsageSnap {
+  if (!prev) return next;
+  return {
+    prompt: prev.prompt + next.prompt,
+    completion: prev.completion + next.completion,
+    cache: prev.cache + next.cache,
+    reasoning: prev.reasoning + next.reasoning,
+    cost: prev.cost + next.cost,
+  };
+}
+
+function deltaOf(event: CarEvent, prev: UsageSnap): CarEvent | null {
+  const next = snapOf(event);
+  const prompt = next.prompt - prev.prompt;
+  const completion = next.completion - prev.completion;
+  const cache = next.cache - prev.cache;
+  const reasoning = next.reasoning - prev.reasoning;
+  const cost = next.cost - prev.cost;
+  if (prompt === 0 && completion === 0 && cache === 0 && reasoning === 0 && cost === 0) return null;
+  return {
+    ...event,
+    tokens: { prompt, completion, cache_read: cache, reasoning },
+    cost_usd: cost,
+    cache_hit: cache > 0,
+  };
+}
+
+function grokSession(row: Record<string, unknown>): string | null {
+  if (typeof row.sid === 'string') return row.sid;
+  const params = row.params as Record<string, unknown> | undefined;
+  return typeof params?.sessionId === 'string' ? params.sessionId : null;
 }

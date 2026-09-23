@@ -17,24 +17,27 @@ final class LogTail {
         let directory: URL
     }
 
-    /// 파일마다 어디까지 읽었는지. 새로 생긴 파일은 끝에서 시작한다 —
-    /// 앱을 켠 순간 지난 며칠치가 한꺼번에 쏟아지면 화면이 과거로 채워진다.
+    /// 파일마다 어디까지 읽었는지. 처음 보는 파일은 최근 15분만 넘긴다.
     private var offsets: [URL: UInt64] = [:]
+    /// 개행 전에 이미 넘긴 JSON. 개행이 붙어도 같은 줄을 다시 세지 않는다.
+    private var partialSent: [URL: String] = [:]
     private let sources: [Source]
     private let onLines: (String, [String]) -> Void
     private var timer: DispatchSourceTimer?
 
     /// 이 시간 안에 쓰인 파일만 본다. 프로젝트 폴더가 수천 개라 전수 조회는 낭비다.
     private let freshWindow: TimeInterval = 3600
+    /// 처음 보는 파일에서 이 시각 이후의 줄만 넘긴다. `scripts/liveTail.ts`와 같다.
+    private let backfillWindow: TimeInterval = 15 * 60
 
     init(sources: [Source], onLines: @escaping (String, [String]) -> Void) {
         self.sources = sources
         self.onLines = onLines
     }
 
-    /// 첫 훑기는 읽지 않고 위치만 잡는다. 그 뒤부터가 "지금"이다.
+    /// 첫 훑기부터 최근 15분을 넘긴다. 끝만 찍으면 켜기 전과 잠잠했다가 온 첫 묶음이 사라진다.
     func start(every seconds: TimeInterval) {
-        scan(emit: false)
+        scan(emit: true)
 
         let t = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
         t.schedule(deadline: .now() + seconds, repeating: seconds)
@@ -87,9 +90,11 @@ final class LogTail {
         let seen = offsets[file]
 
         guard let from = seen else {
-            // 처음 보는 파일은 끝에 표시만 하고 내용은 넘기지 않는다.
             offsets[file] = size
-            return []
+            try? handle.seek(toOffset: 0)
+            guard let data = try? handle.readToEnd(),
+                  let text = String(data: data, encoding: .utf8) else { return [] }
+            return backfill(text)
         }
         if size < from { offsets[file] = 0 }
         let start = size < from ? 0 : from
@@ -98,13 +103,79 @@ final class LogTail {
         try? handle.seek(toOffset: start)
         guard let data = try? handle.readToEnd(), !data.isEmpty else { return [] }
 
-        // 마지막 줄이 아직 다 안 쓰였을 수 있다. 개행까지만 소비한다.
-        guard let lastNewline = data.lastIndex(of: 0x0A) else { return [] }
-        let complete = data[data.startIndex...lastNewline]
-        offsets[file] = start + UInt64(complete.count)
+        if let lastNewline = data.lastIndex(of: 0x0A) {
+            let complete = data[data.startIndex...lastNewline]
+            let tail = data[data.index(after: lastNewline)...]
+            let completeData = Data(complete)
+            let tailData = Data(tail)
+            offsets[file] = start + UInt64(completeData.count)
+            guard let text = String(data: completeData, encoding: .utf8) else { return [] }
+            var lines = text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+            lines.removeAll { line in
+                if partialSent[file] == line {
+                    partialSent[file] = nil
+                    return true
+                }
+                return false
+            }
+            if let tailText = String(data: tailData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               isJson(tailText) {
+                if partialSent[file] != tailText {
+                    partialSent[file] = tailText
+                    lines.append(tailText)
+                }
+            } else {
+                partialSent[file] = nil
+            }
+            return lines
+        }
 
-        guard let text = String(data: complete, encoding: .utf8) else { return [] }
-        return text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        guard let tailText = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              isJson(tailText) else { return [] }
+        if partialSent[file] == tailText { return [] }
+        partialSent[file] = tailText
+        return [tailText]
+    }
+
+    private func backfill(_ text: String) -> [String] {
+        let since = Date().addingTimeInterval(-backfillWindow).timeIntervalSince1970 * 1000
+        var out: [String] = []
+        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            let row = String(line)
+            guard let ts = lineTime(row), ts >= since else { continue }
+            out.append(row)
+        }
+        if out.count > 2_000 { return Array(out.suffix(2_000)) }
+        return out
+    }
+
+    private func isJson(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8) else { return false }
+        return (try? JSONSerialization.jsonObject(with: data)) != nil
+    }
+
+    /// 밀리초. 시각이 없으면 백필에서 버린다. `scripts/liveTail.ts`의 lineTime과 같다.
+    private func lineTime(_ line: String) -> Double? {
+        guard let data = line.data(using: .utf8),
+              let row = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        if let ts = row["ts"] as? String { return dateMs(ts) }
+        if let ts = row["timestamp"] as? String { return dateMs(ts) }
+        if let ts = row["timestamp"] as? NSNumber {
+            let n = ts.doubleValue
+            return n < 1e12 ? n * 1000 : n
+        }
+        if let payload = row["data"] as? [String: Any], let start = payload["sessionStartTime"] as? NSNumber {
+            return start.doubleValue
+        }
+        return nil
+    }
+
+    private func dateMs(_ text: String) -> Double? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: text) { return d.timeIntervalSince1970 * 1000 }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: text).map { $0.timeIntervalSince1970 * 1000 }
     }
 }
 
