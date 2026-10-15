@@ -20,7 +20,7 @@ import { cycleFocus } from './director/cycleFocus';
 import { eventRadio, stateRadio, phaseRadio, type RadioMessage } from './radio/eventRadio';
 import { RoutineRadio } from './radio/routineRadio';
 import { TrackRenderer } from './render/trackRenderer';
-import { Circuit3DRenderer } from './render/circuit3DRenderer';
+import { Circuit3DRenderer, bootOnboard } from './render/circuit3DRenderer';
 import {
   bootBroadcastTrackRenderer,
   type BroadcastRendererSession,
@@ -303,9 +303,8 @@ export class PitwallApp {
       supported: () => false,
       createLegacy: () => new TrackRenderer(svg, track),
     });
-    this.broadcast3d = Circuit3DRenderer.isSupported()
-      ? new Circuit3DRenderer(broadcast, track)
-      : null;
+    this.broadcast3d = bootOnboard(() =>
+      Circuit3DRenderer.isSupported() ? new Circuit3DRenderer(broadcast, track) : null);
     this.detail.dataset['renderer'] = 'legacy';
     this.radioRenderer = new RadioRenderer(radio, RADIO_LINES);
     this.source = opts.source ?? new SimulatorSource(PRESETS[opts.preset], opts.speed, opts.pricingOverride?.entries);
@@ -417,6 +416,8 @@ export class PitwallApp {
   stop(): void {
     this.running = false;
     this.chromeKeys.abort();
+    this.broadcast3d?.dispose();
+    this.broadcast3d = null;
     this.source.stop();
   }
 

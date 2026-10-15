@@ -86,3 +86,11 @@ describe('circuit3d', () => {
     expect(chaseSubject({ hot: [], cold: [] }, null)).toBeNull();
   });
 });
+
+describe('bootOnboard', () => {
+  it('WebGL 생성이 실패해도 화면 전체가 죽지 않는다', async () => {
+    const { bootOnboard } = await import('../src/render/circuit3DRenderer');
+    expect(bootOnboard(() => { throw new Error('webgl'); })).toBeNull();
+    expect(bootOnboard(() => 'view')).toBe('view');
+  });
+});
