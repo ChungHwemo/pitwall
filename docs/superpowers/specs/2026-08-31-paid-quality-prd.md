@@ -51,7 +51,7 @@ Clawdmeter는 하드웨어 SKU가 있고, TokenMonitor는 Notarized Developer ID
 
 ### 1.2 이미 맞는 것
 
-- 런타임 의존성 0, 단일 HTML, Pages 데모에 실기록 혼입 CI 차단.
+- 런타임 의존성은 `three` 하나(온보드 중계). 단일 HTML, Pages 데모에 실기록 혼입 CI 차단.
 - LIVE는 네이티브 브리지에서만. 브라우저는 LIVE를 가장하지 않음.
 - `CarEvent`에 프롬프트·응답 필드 없음. 이메일 키를 읽지 않음.
 - 클래스 색+형태 이중 인코딩. 타워는 사용량으로 줄을 바꾸지 않음.

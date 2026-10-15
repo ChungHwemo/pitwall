@@ -5,7 +5,7 @@
 대시보드가 아니다. 대시보드는 응시하는 물건이고, PITWALL은 곁눈질하는 물건이다. 체류 시간이 길면 실패다 — 3초 훑고 자기 일로 돌아가되 내일도 켜져 있으면 성공이다.
 
 현재 상태: **시뮬레이터 + 로컬 LIVE 동작 중. 유료 품질 게이트는 [PRD v2.0](docs/superpowers/specs/2026-08-31-paid-quality-prd.md).** LiteLLM 프록시는 v1.5.
-1082 tests · 71 files · `tsc` 0 오류 · 기본 단일 파일 빌드 5,449.1 kB (약 5.4 MB) · 런타임 의존성 0개.
+1084 tests · 72 files · `tsc` 0 오류 · 기본 단일 파일 빌드 5,449.1 kB (약 5.4 MB) · 런타임 의존성은 `three` 하나. 온보드 중계가 쓴다.
 차량 100대 × 35,996프레임에서 **layout 유발 0** — 남은 layout은 전부 텍스트 변경분이고 프레임 수가 아니라 이벤트 수에 비례한다.
 기본 빌드는 데모 데이터셋 3벌을 HTML에 심기 때문에 예전 24 kB보다 커졌다. 실기록은 `PITWALL_REAL=1` 빌드에서만 심는다. 8시간 힙 구동만 남았다 — [CHECKLIST.md](pitwall/CHECKLIST.md).
 
@@ -100,7 +100,7 @@ LIVE 스냅샷 저장은 nominal 5초 cadence의 best-effort 동작이다. 저�
 
 ## 기술 스택
 
-Vite · TypeScript · Vitest · SVG · `requestAnimationFrame`. UI 프레임워크 없음. **런타임 의존성 0개.**
+Vite · TypeScript · Vitest · SVG · `three` · `requestAnimationFrame`. UI 프레임워크 없음. **런타임 의존성은 `three` 하나.** 온보드 중계가 쓴다.
 
 배포는 정적 호스팅. 로드 후 시뮬레이터는 오프라인에서 돈다. 실데이터는 `EventSource` 구현체만 갈아끼우면 붙는다.
 

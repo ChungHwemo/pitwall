@@ -15,6 +15,15 @@ import {
 
 const STOPPED = new Set(['error', 'limit']);
 
+/** WebGL 생성이 실패하면 온보드만 빠진다. 타워와 2D 트랙은 남는다. */
+export function bootOnboard<T>(create: () => T | null): T | null {
+  try {
+    return create();
+  } catch {
+    return null;
+  }
+}
+
 export class Circuit3DRenderer implements TrackRendererContract {
   private static supported: boolean | undefined;
 
